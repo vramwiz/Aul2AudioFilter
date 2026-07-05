@@ -4,9 +4,20 @@
 
 想定するサンプル:
 
-- `sine_440hz.wav`: 音量、歪み、位相確認用
-- `impulse.wav`: エコー、リバーブの遅延位置と減衰確認用
-- `square_440hz.wav`: クリッピングや波形変化確認用
-- `stereo_impulse_lr.wav`: 左右チャンネル処理確認用
+- `sine_440hz_1s.wav`: 440Hz 正弦波。音量、歪み、位相確認用。
+- `impulse_1s.wav`: 先頭 1 サンプルだけのインパルス。エコー、リバーブの遅延位置と減衰確認用。
+- `square_440hz_1s.wav`: 440Hz 矩形波。クリッピングや波形変化確認用。
+- `stereo_impulse_lr_1s.wav`: 0.10 秒に左、0.20 秒に右のインパルス。左右チャンネル処理確認用。
 
-生成スクリプトを作る場合も、このフォルダ配下に置きます。
+共通仕様:
+
+- 44.1kHz
+- 16bit PCM
+- stereo
+- 1 秒
+
+再生成:
+
+```powershell
+python .\generate_samples.py
+```

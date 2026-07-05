@@ -14,6 +14,16 @@
 - Syncroh2 のフィルター系ビルド設定、`.dll` から `.auf2` へのコピー方式、GUI 項目登録方式を参考にする。
 - 音声フィルターの検証は WAV を基本にする。MP3 は当面使わない。
 
+## 検証状況
+
+- プラグインテストは正常。
+- `Sample\sine_440hz_1s.wav` を AviUtl2 へ読み込み、サウンドエフェクターを適用して WAV 出力した。
+- 出力 WAV は `Sample\test_out.wav`。WAV 出力プラグインで 32bit float を選択した。
+- 初期値 `Volume = 1.0` では、元の正弦波と完全一致した。
+- `Volume = 0.5` では、ピーク/RMS と全サンプルが元波形の完全な 0.5 倍になった。
+- `Volume = 2.0` では、ピーク/RMS と全サンプルが元波形の完全な 2.0 倍になった。出力ピークは約 `0.9999389648` で、`abs(out) > 1.0` のサンプルはなかった。
+- `GetSampleData` で音声サンプルを受け取り、加工して `SetSampleData` で戻す基本経路は正常と判断する。
+
 ## プロジェクト構成
 
 - `Aul2AudioFilter.dpr`: AviUtl2 へ `GetFilterPluginTable` などを export する入口。
