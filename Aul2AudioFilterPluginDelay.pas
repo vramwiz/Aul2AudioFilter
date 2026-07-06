@@ -33,12 +33,12 @@ var
   GDryTrack       : TFILTER_ITEM_TRACK;
   GWetTrack       : TFILTER_ITEM_TRACK;
   GFeedbackTrack  : TFILTER_ITEM_TRACK;
-  GDelayChannels  : array of TDelayChannelState;
-  GDelaySamples   : Integer;
-  GDelayMode      : Integer;
-  GLastObjectID   : Int64;
-  GLastEffectID   : Int64;
-  GNextSampleIndex: Int64;
+  GDelayChannels  : array of TDelayChannelState; // チャンネル別の遅延状態
+  GDelaySamples   : Integer;                     // 現在確保している遅延サンプル数
+  GDelayMode      : Integer;                     // 状態を構築したときの Stereo Mode
+  GLastObjectID   : Int64;                       // 状態を構築した対象オブジェクト
+  GLastEffectID   : Int64;                       // 状態を構築した対象エフェクト
+  GNextSampleIndex: Int64;                       // 連続処理を判定する次サンプル位置
 
 procedure ClearDelayState;
 begin
@@ -72,6 +72,7 @@ var
 begin
   ObjectInfo := Audio^.Object_;
 
+  // オブジェクトやサンプル位置が飛んだ場合、前回の遅延音を混ぜないよう状態を作り直す。
   if (Length(GDelayChannels) <> ChannelNum) or
      (GDelaySamples <> DelaySamples) or
      (GDelayMode <> StereoMode) or
@@ -173,6 +174,7 @@ var
 begin
   if ChannelNum < 2 then
   begin
+    // モノラル入力では Ping-Pong の行き先がないため通常 Delay として処理する。
     ProcessNormalDelay(Audio, SampleNum, ChannelNum, Volume, Dry, Wet, Feedback);
     Exit;
   end;
@@ -222,6 +224,7 @@ begin
   Result := GDelayUseCheck.Value <> 0;
   if not Result then
   begin
+    // OFF にした後の音声へ遅延バッファが残らないようにする。
     ClearDelayState;
     Exit;
   end;

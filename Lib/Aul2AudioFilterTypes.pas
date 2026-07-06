@@ -1,4 +1,6 @@
-﻿unit Aul2AudioFilterTypes;
+unit Aul2AudioFilterTypes;
+
+// AviUtl2 SDK のフィルター関連構造体を Delphi から参照するための型定義。
 
 {$ALIGN 8}
 
@@ -8,9 +10,10 @@ uses
   Winapi.Windows;
 
 type
-  LPCWSTR = PWideChar;
-  OBJECT_HANDLE = Pointer;
+  LPCWSTR       = PWideChar; // SDK 側の wide string pointer
+  OBJECT_HANDLE = Pointer; // AviUtl2 内部オブジェクトへの不透明ハンドル
 
+  // GUI グループ項目。後続の track/check/select を AviUtl2 上でまとめる。
   PFILTER_ITEM_GROUP = ^TFILTER_ITEM_GROUP;
   TFILTER_ITEM_GROUP = record
     ItemType: LPCWSTR;
@@ -18,6 +21,7 @@ type
     DefaultVisible: Byte;
   end;
 
+  // ON/OFF 用の GUI 項目。
   PFILTER_ITEM_CHECK = ^TFILTER_ITEM_CHECK;
   TFILTER_ITEM_CHECK = record
     ItemType: LPCWSTR;
@@ -25,6 +29,7 @@ type
     Value: Byte;
   end;
 
+  // 数値スライダー用の GUI 項目。
   PFILTER_ITEM_TRACK = ^TFILTER_ITEM_TRACK;
   TFILTER_ITEM_TRACK = record
     ItemType: LPCWSTR;
@@ -36,6 +41,7 @@ type
     SliderRatio: Double;
   end;
 
+  // 選択肢リスト用の GUI 項目。
   PFILTER_ITEM_SELECT = ^TFILTER_ITEM_SELECT;
   TFILTER_ITEM_SELECT_ITEM = record
     Name: LPCWSTR;
@@ -49,6 +55,7 @@ type
     List: ^TFILTER_ITEM_SELECT_ITEM;
   end;
 
+  // Scene は処理中の動画・音声全体に関する情報を持つ。
   PSCENE_INFO = ^TSCENE_INFO;
   TSCENE_INFO = record
     Width, Height: Integer;
@@ -56,6 +63,7 @@ type
     SampleRate: Integer;
   end;
 
+  // Object_ は現在処理中の音声オブジェクトとエフェクト位置を識別する。
   POBJECT_INFO = ^TOBJECT_INFO;
   TOBJECT_INFO = record
     ID: Int64;
@@ -77,6 +85,7 @@ type
     FrameE: Integer;
   end;
 
+  // AviUtl2 側の音量パラメーター。現時点では参照のみ。
   POBJECT_AUDIO_PARAM = ^TOBJECT_AUDIO_PARAM;
   TOBJECT_AUDIO_PARAM = record
     VolL, VolR: Single;
@@ -84,6 +93,7 @@ type
 
   PFILTER_PROC_VIDEO = Pointer;
 
+  // 音声フィルター処理時に AviUtl2 から渡される入出力 API。
   PFILTER_PROC_AUDIO = ^TFILTER_PROC_AUDIO;
   TFILTER_PROC_AUDIO = record
     Scene: PSCENE_INFO;
@@ -100,6 +110,7 @@ type
   TFuncProcVideo = function(Video: PFILTER_PROC_VIDEO): Byte; cdecl;
   TFuncProcAudio = function(Audio: PFILTER_PROC_AUDIO): Byte; cdecl;
 
+  // プラグインの能力、表示名、GUI 項目、処理関数を AviUtl2 へ渡す。
   PFILTER_PLUGIN_TABLE = ^TFILTER_PLUGIN_TABLE;
   TFILTER_PLUGIN_TABLE = record
     Flag: Integer;

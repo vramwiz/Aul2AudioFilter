@@ -1,4 +1,6 @@
-﻿library Aul2AudioFilter;
+library Aul2AudioFilter;
+
+// AviUtl2 が読み込む DLL の export 境界を定義する。
 
 {$ALIGN 8}
 
@@ -13,11 +15,13 @@ uses
 
 function InitializePlugin(Version: DWORD): Byte; cdecl;
 begin
+  // 現時点では初期化時に確保する共有リソースはない。
   Result := 1;
 end;
 
 procedure UninitializePlugin; cdecl;
 begin
+  // エフェクト状態は各ユニット側で Use OFF や不連続検出時に破棄する。
 end;
 
 function GetFilterPluginTable: PFILTER_PLUGIN_TABLE; cdecl;

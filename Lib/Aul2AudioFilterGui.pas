@@ -1,4 +1,6 @@
-﻿unit Aul2AudioFilterGui;
+unit Aul2AudioFilterGui;
+
+// AviUtl2 のフィルター GUI 項目登録を Delphi 側から扱いやすくする。
 
 interface
 
@@ -18,19 +20,20 @@ procedure AddSelect(var Item: TFILTER_ITEM_SELECT; Name: PWideChar; Value: Integ
   List: Pointer);
 
 var
-  GTable: TFILTER_PLUGIN_TABLE;
+  GTable: TFILTER_PLUGIN_TABLE; // AviUtl2 へ返すフィルターテーブル
 
 implementation
 
 const
-  MAX_GUI_ITEMS = 100;
+  MAX_GUI_ITEMS = 100; // GTable.Items に登録できる最大 GUI 項目数
 
 var
-  FItemIndex: Integer;
-  Items: array[0..MAX_GUI_ITEMS - 1] of Pointer;
+  FItemIndex: Integer;                              // 次に登録する Items の位置
+  Items     : array[0..MAX_GUI_ITEMS - 1] of Pointer; // nil 終端の GUI 項目配列
 
 procedure AddItem(Item: Pointer);
 begin
+  // AviUtl2 側へ渡す配列は nil 終端にするため、末尾 1 要素を常に空ける。
   if FItemIndex >= High(Items) then
     raise ERangeError.Create('Too many filter GUI items');
 
@@ -42,6 +45,7 @@ end;
 procedure SetupPluginTable(Flag: Integer; Name, Label_, Information: PWideChar;
   VideoProc: TFuncProcVideo; AudioProc: TFuncProcAudio);
 begin
+  // テーブル再構築時に前回登録した GUI 項目を残さない。
   FItemIndex := 0;
   FillChar(Items, SizeOf(Items), 0);
 

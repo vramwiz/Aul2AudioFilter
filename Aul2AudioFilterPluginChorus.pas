@@ -34,11 +34,11 @@ var
   GChorusDepthTrack: TFILTER_ITEM_TRACK;
   GChorusRateTrack : TFILTER_ITEM_TRACK;
   GChorusMixTrack  : TFILTER_ITEM_TRACK;
-  GChorusChannels  : array of TChorusChannelState;
-  GChorusSamples   : Integer;
-  GChorusObjectID  : Int64;
-  GChorusEffectID  : Int64;
-  GChorusNextIndex : Int64;
+  GChorusChannels  : array of TChorusChannelState; // チャンネル別の短い遅延状態
+  GChorusSamples   : Integer;                      // 現在確保している履歴長
+  GChorusObjectID  : Int64;                        // 状態を構築した対象オブジェクト
+  GChorusEffectID  : Int64;                        // 状態を構築した対象エフェクト
+  GChorusNextIndex : Int64;                        // 連続処理を判定する次サンプル位置
 
 procedure ClearChorusState;
 begin
@@ -71,6 +71,7 @@ var
 begin
   ObjectInfo := Audio^.Object_;
 
+  // 可変ディレイは過去サンプルを読むため、不連続な呼び出しでは履歴を破棄する。
   if (Length(GChorusChannels) <> ChannelNum) or
      (GChorusSamples <> BufferSamples) or
      (GChorusObjectID <> ObjectInfo^.ID) or
@@ -107,6 +108,7 @@ begin
     Index1 := 0;
   Frac := ReadPos - Index0;
 
+  // 小数サンプル位置を読むことで LFO による揺れを滑らかにする。
   Result := State.Buffer[Index0] * (1.0 - Frac) + State.Buffer[Index1] * Frac;
 end;
 
@@ -129,6 +131,7 @@ begin
     InputSample := Buffer[I];
     Phase := 2.0 * Pi * RateHz * ((SampleIndex + I) / SampleRate);
     if (StereoMode = CHORUS_STEREO_WIDE) and (Channel = 1) then
+      // Wide は右チャンネルの LFO 位相を反転させて左右差を作る。
       Phase := Phase + Pi;
 
     DelayMs := BaseDelayMs + (Sin(Phase) * DepthMs);
@@ -178,6 +181,7 @@ begin
   Result := GChorusUseCheck.Value <> 0;
   if not Result then
   begin
+    // OFF にした後の音声へ履歴バッファが残らないようにする。
     ClearChorusState;
     Exit;
   end;
@@ -192,6 +196,7 @@ begin
   if BufferSamples < 4 then
     BufferSamples := 4;
 
+  // 最大ディレイより少し長く確保し、線形補間の次サンプル参照に余裕を持たせる。
   EnsureChorusState(Audio, ChannelNum, BufferSamples);
   SetLength(Buffer, SampleNum);
 

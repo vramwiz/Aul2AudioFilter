@@ -17,8 +17,8 @@ function GetFilterTable: PFILTER_PLUGIN_TABLE;
 implementation
 
 var
-  GAudioGroup : TFILTER_ITEM_GROUP;
-  GVolumeTrack: TFILTER_ITEM_TRACK;
+  GAudioGroup : TFILTER_ITEM_GROUP; // Basic グループの GUI 項目
+  GVolumeTrack: TFILTER_ITEM_TRACK; // 全エフェクト前段で使う基本音量
 
 procedure ApplyVolume(var Buffer: TArray<Single>; SampleNum: Integer; Volume: Single);
 var
@@ -54,6 +54,7 @@ var
 begin
   Result := 1;
 
+  // AviUtl2 から無効な処理対象が渡された場合は成功扱いで何もしない。
   if (Audio = nil) or (Audio^.Scene = nil) or (Audio^.Object_ = nil) then
     Exit;
 
@@ -63,6 +64,7 @@ begin
     Exit;
 
   Volume := GVolumeTrack.Value;
+  // Delay は Volume を内部で適用するため、有効時は通常 Volume 処理を省く。
   if not ProcessDelay(Audio, SampleNum, ChannelNum, Volume) then
     ProcessVolume(Audio, SampleNum, ChannelNum, Volume);
 

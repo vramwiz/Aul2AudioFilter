@@ -1,6 +1,6 @@
-﻿unit Aul2AudioFilterPluginReverb;
+unit Aul2AudioFilterPluginReverb;
 
-// Reverb effect GUI items, state buffers, and audio processing.
+// Reverb 系の GUI 項目、状態、音声処理を担当する。
 interface
 
 uses
@@ -14,15 +14,15 @@ function ProcessReverb(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer
 implementation
 
 const
-  REVERB_COMB_COUNT = 4;
+  REVERB_COMB_COUNT = 4; // 並列に使う comb delay の本数
   REVERB_DELAY_MS_L: array[0..REVERB_COMB_COUNT - 1] of Double = (29.7, 37.1, 41.1, 43.7);
   REVERB_DELAY_MS_R: array[0..REVERB_COMB_COUNT - 1] of Double = (31.1, 35.3, 39.7, 45.1);
 
 type
   TReverbCombState = record
-    Buffer  : TArray<Single>; // Feedback delay line for one comb filter.
-    Position: Integer;        // Current ring-buffer write position.
-    Filter  : Single;         // One-pole low-pass memory for damping.
+    Buffer  : TArray<Single>; // 1 本の comb filter 用 feedback delay line
+    Position: Integer;        // 次に読み書きするリングバッファ位置
+    Filter  : Single;         // Damping 用 one-pole low-pass の前回値
   end;
 
   TReverbChannelState = record
@@ -30,17 +30,17 @@ type
   end;
 
 var
-  GReverbGroup    : TFILTER_ITEM_GROUP;
-  GReverbUseCheck : TFILTER_ITEM_CHECK;
-  GRoomSizeTrack  : TFILTER_ITEM_TRACK;
-  GDampingTrack   : TFILTER_ITEM_TRACK;
-  GReverbDryTrack : TFILTER_ITEM_TRACK;
-  GReverbWetTrack : TFILTER_ITEM_TRACK;
-  GReverbChannels : array of TReverbChannelState;
-  GReverbSampleRate: Integer;
-  GReverbObjectID : Int64;
-  GReverbEffectID : Int64;
-  GReverbNextIndex: Int64;
+  GReverbGroup     : TFILTER_ITEM_GROUP;
+  GReverbUseCheck  : TFILTER_ITEM_CHECK;
+  GRoomSizeTrack   : TFILTER_ITEM_TRACK;
+  GDampingTrack    : TFILTER_ITEM_TRACK;
+  GReverbDryTrack  : TFILTER_ITEM_TRACK;
+  GReverbWetTrack  : TFILTER_ITEM_TRACK;
+  GReverbChannels  : array of TReverbChannelState; // チャンネル別の comb filter 状態
+  GReverbSampleRate : Integer;                     // 状態を構築したサンプルレート
+  GReverbObjectID  : Int64;                        // 状態を構築した対象オブジェクト
+  GReverbEffectID  : Int64;                        // 状態を構築した対象エフェクト
+  GReverbNextIndex : Int64;                        // 連続処理を判定する次サンプル位置
 
 procedure ClearReverbState;
 begin
@@ -56,6 +56,7 @@ var
   DelayMs: Double;
 begin
   if Odd(Channel) then
+    // L/R で遅延時間を少し変え、モノラル素材でも左右差を作る。
     DelayMs := REVERB_DELAY_MS_R[CombIndex]
   else
     DelayMs := REVERB_DELAY_MS_L[CombIndex];
@@ -94,6 +95,7 @@ var
 begin
   ObjectInfo := Audio^.Object_;
 
+  // 残響は過去状態を強く使うため、別オブジェクトや不連続位置では必ずリセットする。
   if (Length(GReverbChannels) <> ChannelNum) or
      (GReverbSampleRate <> Audio^.Scene^.SampleRate) or
      (GReverbObjectID <> ObjectInfo^.ID) or
@@ -129,6 +131,7 @@ var
 begin
   RoomSize := ClampUnit(RoomSize);
   Damping := ClampUnit(Damping);
+  // RoomSize は feedback 量に変換し、最大値でも発散しない範囲に抑える。
   Feedback := 0.20 + (RoomSize * 0.65);
 
   for I := 0 to SampleNum - 1 do
@@ -176,6 +179,7 @@ begin
   Result := GReverbUseCheck.Value <> 0;
   if not Result then
   begin
+    // OFF にした後の音声へ残響が持ち越されないようにする。
     ClearReverbState;
     Exit;
   end;
