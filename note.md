@@ -56,7 +56,7 @@
 
 ## プロジェクト構成
 
-- `Source\Aul2AudioFilter.dpr`: AviUtl2 へ `GetFilterPluginTable` などを export する入口。
+- `Aul2AudioFilter.dpr`: AviUtl2 へ `GetFilterPluginTable` などを export する入口。各ユニットは `Source\...` の相対パスで参照する。
 - `Aul2AudioFilter.dproj`: Delphi Win64 Debug / Release ビルド設定。
 - `Source\Aul2AudioFilterPlugin.pas`: AviUtl2 へ公開するフィルター入口、各エフェクトユニットの接続。
 - `Source\Aul2AudioFilterPluginSoundStyle.pas`: `スタイル` GUI 項目、状態管理、用途別の簡単な音声処理。
@@ -154,7 +154,8 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - 現時点では `EQ`, `Compressor`, `Limiter`, `Distortion`, `Noise`, `BitCrusher` まで基本機能完成扱いとし、`スタイル` 実装へ進める。
 - 分類は複数セレクトに分けず、1 つのセレクト項目にまとめる。
 - 大分類は最大 10 種程度を基本にし、同じ分類内の効果違いは最大 3 種程度に抑える。
-- 選択肢は `電話（弱）`、`風呂（狭い）` のように、分類名と括弧内の強さ・種類で表記する。
+- 選択肢は `電話（小）`、`電話（大）` のように、分類名と括弧内の小分類で表記する。
+- 小分類は日本語の意味より一覧上の見分けやすさを優先し、原則として `（小）`、`（中）`、`（大）` を使う。`弱/強`、`薄い/厚い`、`近い/遠い`、`狭い/広い` のような語は、必要な理由がない限り GUI 表示には使わない。
 
 想定する大分類:
 
@@ -174,7 +175,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 
 - `Aul2AudioFilterPluginSoundStyle.pas` を追加した。
 - GUI 最上段に日本語セレクト項目 `スタイル` を追加した。
-- 選択肢は `なし`、`電話（弱）`、`電話（強）`、`無線（弱）`、`無線（強）`、`メガホン`、`隣室（薄い）`、`隣室（厚い）`、`遠声（近め）`、`遠声（遠め）`、`風呂（狭い）`、`風呂（広い）`、`トンネル`、`アナウンス`、`ナレーション`、`夢（薄い）`、`夢（深い）`。
+- 選択肢は `なし`、`電話（小）`、`電話（大）`、`無線（小）`、`無線（大）`、`メガホン`、`隣室（小）`、`隣室（大）`、`遠声（小）`、`遠声（大）`、`風呂（小）`、`風呂（大）`、`トンネル`、`アナウンス`、`ナレーション`、`夢（小）`、`夢（大）`。
 - `Aul2AudioFilterPlugin.pas` は `AddSoundStyleItems` と `ProcessSoundStyle` の呼び出しだけを持ち、メイン部分を肥大化させない。
 - 処理順は詳細エフェクトより前。`スタイル` の処理後に、手動設定された `Delay` / `EQ` などが続けて適用される。
 - 通信系は band pass、軽い歪み、ノイズを組み合わせる。空間系は簡易 delay line で反射を足す。ナレーションは低域整理と簡易レベル抑制を行う。

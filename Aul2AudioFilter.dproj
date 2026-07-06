@@ -9,7 +9,7 @@
         <ProjectName Condition="'$(ProjectName)'==''">Aul2AudioFilter</ProjectName>
         <TargetedPlatforms>2</TargetedPlatforms>
         <AppType>Library</AppType>
-        <MainSource>Source\Aul2AudioFilter.dpr</MainSource>
+        <MainSource>Aul2AudioFilter.dpr</MainSource>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
         <Base>true</Base>
@@ -144,7 +144,7 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">Source\Aul2AudioFilter.dpr</Source>
+                    <Source Name="MainSource">Aul2AudioFilter.dpr</Source>
                 </Source>
             </Delphi.Personality>
             <Platforms>

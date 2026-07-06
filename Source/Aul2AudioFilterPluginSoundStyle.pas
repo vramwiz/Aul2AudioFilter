@@ -325,22 +325,22 @@ begin
   case Mode of
     SOUND_STYLE_TELEPHONE_LIGHT:
       begin
-        // 電話（弱）は声の帯域を少し狭め、軽い電話越しの質感に寄せる。
+        // 電話（小）は声の帯域を少し狭め、軽い電話越しの質感に寄せる。
         ApplyBandStyle(Buffer, Channel, SampleNum, SampleRate, 300.0, 3400.0, 1.5, 0.0, -120.0);
       end;
     SOUND_STYLE_TELEPHONE_STRONG:
       begin
-        // 電話（強）は帯域をさらに狭め、少し歪ませて小型スピーカー感を強める。
+        // 電話（大）は帯域をさらに狭め、少し歪ませて小型スピーカー感を強める。
         ApplyBandStyle(Buffer, Channel, SampleNum, SampleRate, 450.0, 2800.0, 3.0, 1.8, -120.0);
       end;
     SOUND_STYLE_RADIO_LIGHT:
       begin
-        // 無線（弱）は電話風の帯域に薄いノイズを足し、通信越しのざらつきを作る。
+        // 無線（小）は電話風の帯域に薄いノイズを足し、通信越しのざらつきを作る。
         ApplyBandStyle(Buffer, Channel, SampleNum, SampleRate, 250.0, 4200.0, 1.0, 1.2, -42.0);
       end;
     SOUND_STYLE_RADIO_STRONG:
       begin
-        // 無線（強）は帯域、歪み、ノイズを強めて古い無線機の荒さに寄せる。
+        // 無線（大）は帯域、歪み、ノイズを強めて古い無線機の荒さに寄せる。
         ApplyBandStyle(Buffer, Channel, SampleNum, SampleRate, 500.0, 2500.0, 3.0, 2.5, -32.0);
       end;
     SOUND_STYLE_MEGAPHONE:
@@ -350,33 +350,33 @@ begin
       end;
     SOUND_STYLE_NEXT_ROOM_THIN:
       begin
-        // 隣室（薄い）は高域を軽く落とし、薄い壁越しのこもりを作る。
+        // 隣室（小）は高域を軽く落とし、薄い壁越しのこもりを作る。
         ApplyMuffleStyle(Buffer, Channel, SampleNum, SampleRate, 1800.0, 0.25, 0.80, -2.0);
       end;
     SOUND_STYLE_NEXT_ROOM_THICK:
       begin
-        // 隣室（厚い）は高域と音量を大きく落とし、厚い壁越しの聞こえ方にする。
+        // 隣室（大）は高域と音量を大きく落とし、厚い壁越しの聞こえ方にする。
         ApplyMuffleStyle(Buffer, Channel, SampleNum, SampleRate, 850.0, 0.10, 0.95, -7.0);
       end;
     SOUND_STYLE_DISTANT_NEAR:
       begin
-        // 遠声（近め）は音量と高域を少し落とし、距離感を控えめに足す。
+        // 遠声（小）は音量と高域を少し落とし、距離感を控えめに足す。
         ApplyMuffleStyle(Buffer, Channel, SampleNum, SampleRate, 3600.0, 0.55, 0.55, -4.0);
       end;
     SOUND_STYLE_DISTANT_FAR:
       begin
-        // 遠声（遠め）は音量を落として反射を薄く足し、遠くから届く声に寄せる。
+        // 遠声（大）は音量を落として反射を薄く足し、遠くから届く声に寄せる。
         ApplyMuffleStyle(Buffer, Channel, SampleNum, SampleRate, 2200.0, 0.30, 0.80, -9.0);
         ApplySpaceStyle(Buffer, Channel, SampleNum, SampleRate, 180.0, 0.22, 0.20, 2200.0, 0.0);
       end;
     SOUND_STYLE_BATH_SMALL:
       begin
-        // 風呂（狭い）は短い反射を強め、狭い硬い空間の響きを作る。
+        // 風呂（小）は短い反射を強め、狭い硬い空間の響きを作る。
         ApplySpaceStyle(Buffer, Channel, SampleNum, SampleRate, 34.0, 0.42, 0.55, 6500.0, -0.5);
       end;
     SOUND_STYLE_BATH_LARGE:
       begin
-        // 風呂（広い）は少し長めの反射で、広い浴室の残響に寄せる。
+        // 風呂（大）は少し長めの反射で、広い浴室の残響に寄せる。
         ApplySpaceStyle(Buffer, Channel, SampleNum, SampleRate, 72.0, 0.55, 0.65, 5200.0, -1.0);
       end;
     SOUND_STYLE_TUNNEL:
@@ -396,12 +396,12 @@ begin
       end;
     SOUND_STYLE_DREAM_LIGHT:
       begin
-        // 夢（薄い）は高域を丸めて短い反射を足し、回想風の柔らかさを作る。
+        // 夢（小）は高域を丸めて短い反射を足し、回想風の柔らかさを作る。
         ApplyDreamStyle(Buffer, Channel, SampleNum, SampleRate, False);
       end;
     SOUND_STYLE_DREAM_DEEP:
       begin
-        // 夢（深い）はさらにこもらせて長めの反射を足し、ぼんやりした演出に寄せる。
+        // 夢（大）はさらにこもらせて長めの反射を足し、ぼんやりした演出に寄せる。
         ApplyDreamStyle(Buffer, Channel, SampleNum, SampleRate, True);
       end;
   else
@@ -420,22 +420,22 @@ end;
 procedure AddSoundStyleItems;
 begin
   AddStyleItem(0, 'なし', SOUND_STYLE_NONE);
-  AddStyleItem(1, '電話（弱）', SOUND_STYLE_TELEPHONE_LIGHT);
-  AddStyleItem(2, '電話（強）', SOUND_STYLE_TELEPHONE_STRONG);
-  AddStyleItem(3, '無線（弱）', SOUND_STYLE_RADIO_LIGHT);
-  AddStyleItem(4, '無線（強）', SOUND_STYLE_RADIO_STRONG);
+  AddStyleItem(1, '電話（小）', SOUND_STYLE_TELEPHONE_LIGHT);
+  AddStyleItem(2, '電話（大）', SOUND_STYLE_TELEPHONE_STRONG);
+  AddStyleItem(3, '無線（小）', SOUND_STYLE_RADIO_LIGHT);
+  AddStyleItem(4, '無線（大）', SOUND_STYLE_RADIO_STRONG);
   AddStyleItem(5, 'メガホン', SOUND_STYLE_MEGAPHONE);
-  AddStyleItem(6, '隣室（薄い）', SOUND_STYLE_NEXT_ROOM_THIN);
-  AddStyleItem(7, '隣室（厚い）', SOUND_STYLE_NEXT_ROOM_THICK);
-  AddStyleItem(8, '遠声（近い）', SOUND_STYLE_DISTANT_NEAR);
-  AddStyleItem(9, '遠声（遠い）', SOUND_STYLE_DISTANT_FAR);
-  AddStyleItem(10, '風呂（狭い）', SOUND_STYLE_BATH_SMALL);
-  AddStyleItem(11, '風呂（広い）', SOUND_STYLE_BATH_LARGE);
+  AddStyleItem(6, '隣室（小）', SOUND_STYLE_NEXT_ROOM_THIN);
+  AddStyleItem(7, '隣室（大）', SOUND_STYLE_NEXT_ROOM_THICK);
+  AddStyleItem(8, '遠声（小）', SOUND_STYLE_DISTANT_NEAR);
+  AddStyleItem(9, '遠声（大）', SOUND_STYLE_DISTANT_FAR);
+  AddStyleItem(10, '風呂（小）', SOUND_STYLE_BATH_SMALL);
+  AddStyleItem(11, '風呂（大）', SOUND_STYLE_BATH_LARGE);
   AddStyleItem(12, 'トンネル', SOUND_STYLE_TUNNEL);
   AddStyleItem(13, 'アナウンス', SOUND_STYLE_ANNOUNCEMENT);
   AddStyleItem(14, 'ナレーション', SOUND_STYLE_NARRATION_CLEAR);
-  AddStyleItem(15, '夢（浅い）', SOUND_STYLE_DREAM_LIGHT);
-  AddStyleItem(16, '夢（深い）', SOUND_STYLE_DREAM_DEEP);
+  AddStyleItem(15, '夢（小）', SOUND_STYLE_DREAM_LIGHT);
+  AddStyleItem(16, '夢（大）', SOUND_STYLE_DREAM_DEEP);
   AddStyleItem(17, nil, 0);
   AddSelect(GSoundStyleSelect, 'スタイル', SOUND_STYLE_NONE, @GSoundStyleList[0]);
 end;
