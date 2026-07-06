@@ -1,4 +1,4 @@
-unit Aul2AudioFilterTypes;
+﻿unit Aul2AudioFilterTypes;
 
 // AviUtl2 SDK のフィルター関連構造体を Delphi から参照するための型定義。
 
@@ -10,6 +10,9 @@ uses
   Winapi.Windows;
 
 type
+  PEDIT_SECTION = ^TEDIT_SECTION;
+  TFilterItemButtonCallback = procedure(Edit: PEDIT_SECTION); cdecl;
+
   LPCWSTR       = PWideChar; // SDK 側の wide string pointer
   OBJECT_HANDLE = Pointer; // AviUtl2 内部オブジェクトへの不透明ハンドル
 
@@ -53,6 +56,33 @@ type
     Name: LPCWSTR;
     Value: Integer;
     List: ^TFILTER_ITEM_SELECT_ITEM;
+  end;
+
+  // ボタン項目。押下時に編集コールバックとして呼ばれるため、設定変更APIの実験に使う。
+  PFILTER_ITEM_BUTTON = ^TFILTER_ITEM_BUTTON;
+  TFILTER_ITEM_BUTTON = record
+    ItemType: LPCWSTR;
+    Name: LPCWSTR;
+    Callback: TFilterItemButtonCallback;
+  end;
+
+  TSetObjectItemValueFunc = function(Obj: OBJECT_HANDLE; Effect: LPCWSTR;
+    Item: LPCWSTR; Value: PAnsiChar): Byte; cdecl;
+  TGetFocusObjectFunc = function: OBJECT_HANDLE; cdecl;
+
+  // EDIT_SECTION はSDK上大きな構造体だが、ここでは先頭から必要な関数までだけ定義する。
+  TEDIT_SECTION = record
+    Info: Pointer;
+    CreateObjectFromAlias: Pointer;
+    FindObject: Pointer;
+    CountObjectEffect: Pointer;
+    GetObjectLayerFrame: Pointer;
+    GetObjectAlias: Pointer;
+    GetObjectItemValue: Pointer;
+    SetObjectItemValue: TSetObjectItemValueFunc;
+    MoveObject: Pointer;
+    DeleteObject: Pointer;
+    GetFocusObject: TGetFocusObjectFunc;
   end;
 
   // Scene は処理中の動画・音声全体に関する情報を持つ。

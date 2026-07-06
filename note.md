@@ -14,7 +14,8 @@
 - Syncroh2 のフィルター系ビルド設定、`.dll` から `.auf2` へのコピー方式、GUI 項目登録方式を参考にする。
 - 音声フィルターの検証は WAV を基本にする。MP3 は当面使わない。
 - AviUtl2 上のパラメーター名は英語表記にする。日本語表示名はプラグイン名や説明に留める。
-- 例外として、最上段の用途別入口は `スタイル` という日本語 GUI 項目にする。
+- 例外として、最上段の用途別入口は `プリセット` という日本語 GUI 項目にする。
+- `プリセット` は直接音声処理をせず、詳細エフェクトの初期値を設定する入口として扱う。
 - グループ分けしても項目名が後続エフェクトと紛らわしくなる可能性があるため、効果固有の項目は `Delay: Wet` のように効果名を prefix する。
 - 複数音声素材へまとめて適用する場合は、AviUtl2 の通常の「グループ制御」ではなく「グループ制御（音声）」を使う。
 
@@ -59,7 +60,7 @@
 - `Aul2AudioFilter.dpr`: AviUtl2 へ `GetFilterPluginTable` などを export する入口。各ユニットは `Source\...` の相対パスで参照する。
 - `Aul2AudioFilter.dproj`: Delphi Win64 Debug / Release ビルド設定。
 - `Source\Aul2AudioFilterPlugin.pas`: AviUtl2 へ公開するフィルター入口、各エフェクトユニットの接続。
-- `Source\Aul2AudioFilterPluginSoundStyle.pas`: `スタイル` GUI 項目、状態管理、用途別の簡単な音声処理。
+- `Source\Aul2AudioFilterPluginPreset.pas`: `プリセット` GUI 項目、詳細エフェクト設定への反映処理。
 - `Source\Aul2AudioFilterPluginDelay.pas`: Delay / Echo 系の GUI 項目、状態管理、音声処理。
 - `Source\Aul2AudioFilterPluginChorus.pas`: Chorus 系の GUI 項目、状態管理、音声処理。
 - `Source\Lib\Aul2AudioFilterTypes.pas`: AviUtl2 フィルター SDK の Delphi 型定義。
@@ -132,6 +133,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - フィールドや定数のコメントは右側に 1 行で置き、同じブロック内では `:`、`=`、`//` の位置を揃える。
 - コメントと対象の宣言/実装の間には空行を入れない。
 - `property`、`procedure`、`function` 宣言は、横幅 112 文字以内に収まる場合は折り返さない。
+- 日本語の文字列リテラルを持つ `.pas` は UTF-8 BOM 付きで保存する。BOM なし UTF-8 だと Delphi の単純ビルド時に文字コード判定が揺れ、GUI 表示が文字化けすることがある。
 
 ## 保守ルール
 
@@ -141,46 +143,28 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - 共通化できる処理は `Source\Lib` へ移す。
 - 検証用の音声素材や生成スクリプトは `Sample` へ置く。
 
-## 今後の課題: ユーザー向けスタイル
+## Preset implementation note
 
-- 現在の `Delay` / `Chorus` / `Reverb` は細かく調整できるカスタム寄りの機能として残す。
-- 今後は、動画編集ユーザーが欲しい聞こえ方を直接選べる `スタイル` を追加する。
-- `スタイル` はプリセット保存機能ではなく、GUI 上で選択できる用途別エフェクト入口として扱う。
-- GUI では一番上に `スタイル` セレクト項目を置く。
-- デフォルトは `なし` とし、何も処理しない。
-- 選択された `スタイル` は、専用ユニット内の用途別処理として実現する。
-- カスタム側の手動設定と `スタイル` の処理が二重にかかる場合は許容する。
-- 必要な聞こえ方が現在のカスタム処理で作れない場合は、先にカスタム側の機能を充実させる。
-- 現時点では `EQ`, `Compressor`, `Limiter`, `Distortion`, `Noise`, `BitCrusher` まで基本機能完成扱いとし、`スタイル` 実装へ進める。
-- 分類は複数セレクトに分けず、1 つのセレクト項目にまとめる。
-- 大分類は最大 10 種程度を基本にし、同じ分類内の効果違いは最大 3 種程度に抑える。
-- 選択肢は `電話（小）`、`電話（大）` のように、分類名と括弧内の小分類で表記する。
-- 小分類は日本語の意味より一覧上の見分けやすさを優先し、原則として `（小）`、`（中）`、`（大）` を使う。`弱/強`、`薄い/厚い`、`近い/遠い`、`狭い/広い` のような語は、必要な理由がない限り GUI 表示には使わない。
-
-想定する大分類:
-
-- Telephone: 電話の向こう側のような状態。
-- Radio: 無線機やラジオ越しのような状態。
-- Megaphone: メガホン、拡声器、街頭放送のような状態。
-- Next Room: 隣の部屋、壁越し、ドア越しのような状態。
-- Distant Voice: 遠くから聞こえる声。
-- Bathroom Small: 狭い風呂場のような短く強い反射。
-- Bathroom Large: 広い風呂場のような少し長めの反射。
-- Tunnel: 洞窟、トンネル、広い反響空間。
-- Announcement: アナウンス、場内放送、案内音声のような状態。
-- Narration Clear: ナレーションを聞きやすくする実用補正。
-- Dream: 夢、回想、ぼんやりした音の演出。
-
-## SoundStyle implementation note
-
-- `Aul2AudioFilterPluginSoundStyle.pas` を追加した。
-- GUI 最上段に日本語セレクト項目 `スタイル` を追加した。
-- 選択肢は `なし`、`電話（小）`、`電話（大）`、`無線（小）`、`無線（大）`、`メガホン`、`隣室（小）`、`隣室（大）`、`遠声（小）`、`遠声（大）`、`風呂（小）`、`風呂（大）`、`トンネル`、`アナウンス`、`ナレーション`、`夢（小）`、`夢（大）`。
-- `Aul2AudioFilterPlugin.pas` は `AddSoundStyleItems` と `ProcessSoundStyle` の呼び出しだけを持ち、メイン部分を肥大化させない。
-- 処理順は詳細エフェクトより前。`スタイル` の処理後に、手動設定された `Delay` / `EQ` などが続けて適用される。
-- 通信系は band pass、軽い歪み、ノイズを組み合わせる。空間系は簡易 delay line で反射を足す。ナレーションは低域整理と簡易レベル抑制を行う。
-- 処理分岐には、後から意図を追いやすいよう日本語コメントを置いた。
-- Release Win64 ビルド成功。`C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2` へコピー済み。
+- `スタイル` は初心者向けの入口としては分かりやすいが、選択後に微調整できない弱点があるため廃止した。
+- 以後は `プリセット` を採用し、GUI 最上段に日本語セレクト項目 `プリセット` を置く。
+- `プリセット` は音声を直接処理しない。選択後に `プリセット適用` ボタンを押すと、詳細エフェクトのパラメータへ反映する。
+- `Aul2AudioFilterPluginPreset.pas` を追加した。
+- `Aul2AudioFilterPlugin.pas` は `AddPresetItems` の呼び出しだけを持ち、メイン部分を肥大化させない。
+- プリセット名は用途名にし、適用後に微調整できるため `（大）` などの強弱表記は使わない。
+- 現在の選択肢は `なし`、`エコー`、`反響`、`ホール`、`空間`、`ナレーション`、`電話`、`無線`、`拡声器`、`劣化`。
+- `エコー` と `反響` は `Delay` を使う。
+- `ホール` は `Reverb`、`空間` は `Chorus` を使う。
+- `ナレーション` は `EQ`、`Compressor`、`Limiter` を使う。
+- `電話` は `EQ`、`Distortion`、`BitCrusher` を使う。
+- `無線` は `EQ`、`Distortion`、`Noise`、`BitCrusher`、`Limiter` を使う。
+- `拡声器` は `EQ`、`Compressor`、`Distortion`、`Limiter` を使う。
+- `劣化` は `EQ`、`Noise`、`BitCrusher` を使う。
+- `なし` を適用した場合は、プリセット管理対象の詳細エフェクトを既定値へ戻して OFF にする。
+- 前回プリセットのエフェクトが残らないよう、プリセット適用時はいったん全対象エフェクトを既定OFFへ戻してから必要なエフェクトだけONにする。
+- SDK の `FILTER_ITEM_SELECT` は本体からプラグインへ現在値が渡る向きで、選択だけでは他項目のGUI表示を直接更新できない。
+- `プリセット適用` ボタンのコールバックから `EDIT_SECTION.set_object_item_value()` を使うと、AviUtl2 側の設定値を書き換えられる。
+- ボタン方式では `プリセット` を選んだだけでは詳細パラメータを変更せず、手動調整を不意に上書きしない。
+- 処理分岐には、後から意図を追いやすいよう日本語コメントを置く。
 
 ## Reverb implementation note
 

@@ -1,4 +1,4 @@
-unit Aul2AudioFilterGui;
+﻿unit Aul2AudioFilterGui;
 
 // AviUtl2 のフィルター GUI 項目登録を Delphi 側から扱いやすくする。
 
@@ -18,6 +18,8 @@ procedure AddTrack(var Item: TFILTER_ITEM_TRACK; Name: PWideChar;
   SliderRatio: Double = 1.0);
 procedure AddSelect(var Item: TFILTER_ITEM_SELECT; Name: PWideChar; Value: Integer;
   List: Pointer);
+procedure AddButton(var Item: TFILTER_ITEM_BUTTON; Name: PWideChar;
+  Callback: TFilterItemButtonCallback);
 
 var
   GTable: TFILTER_PLUGIN_TABLE; // AviUtl2 へ返すフィルターテーブル
@@ -101,6 +103,16 @@ begin
   Item.Name := Name;
   Item.Value := Value;
   Item.List := List;
+end;
+
+procedure AddButton(var Item: TFILTER_ITEM_BUTTON; Name: PWideChar;
+  Callback: TFilterItemButtonCallback);
+begin
+  AddItem(@Item);
+
+  Item.ItemType := PWideChar('button');
+  Item.Name := Name;
+  Item.Callback := Callback;
 end;
 
 end.

@@ -11,6 +11,7 @@ uses
 
 procedure AddNoiseItems;
 function ProcessNoise(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
+procedure SetNoiseGuiParams(UseNoise: Boolean; Crackle: Boolean; LevelDb, Mix: Double);
 
 implementation
 
@@ -140,6 +141,18 @@ begin
   AddSelect(GNoiseModeSelect, 'Noise: Mode', NOISE_MODE_WHITE, @GNoiseModeList[0]);
   AddTrack(GNoiseLevelTrack, 'Noise: Level(dB)', -36.0, -80.0, -6.0, 0.1);
   AddTrack(GNoiseMixTrack, 'Noise: Mix', 1.0, 0.0, 1.0, 0.01);
+end;
+
+procedure SetNoiseGuiParams(UseNoise: Boolean; Crackle: Boolean; LevelDb, Mix: Double);
+begin
+  GNoiseUseCheck.Value := Byte(UseNoise);
+  if Crackle then
+    GNoiseModeSelect.Value := NOISE_MODE_CRACKLE
+  else
+    GNoiseModeSelect.Value := NOISE_MODE_WHITE;
+  GNoiseLevelTrack.Value := LevelDb;
+  GNoiseMixTrack.Value := Mix;
+  ClearNoiseState;
 end;
 
 function ProcessNoise(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;

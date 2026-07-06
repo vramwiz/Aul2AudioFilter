@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginDelay;
+﻿unit Aul2AudioFilterPluginDelay;
 
 // Delay / Echo 系の GUI 項目、状態、音声処理を担当する。
 
@@ -11,6 +11,7 @@ uses
 
 procedure AddDelayItems;
 function ProcessDelay(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
+procedure SetDelayGuiParams(UseDelay: Boolean; TimeMs, Dry, Wet, Feedback: Double; PingPong: Boolean);
 
 implementation
 
@@ -211,6 +212,20 @@ begin
   AddTrack(GDryTrack, 'Delay: Dry', 1.0, 0.0, 2.0, 0.01);
   AddTrack(GWetTrack, 'Delay: Wet', 0.0, 0.0, 2.0, 0.01);
   AddTrack(GFeedbackTrack, 'Delay: Feedback', 0.0, 0.0, 0.95, 0.01);
+end;
+
+procedure SetDelayGuiParams(UseDelay: Boolean; TimeMs, Dry, Wet, Feedback: Double; PingPong: Boolean);
+begin
+  GDelayUseCheck.Value := Byte(UseDelay);
+  if PingPong then
+    GDelayStereoMode.Value := DELAY_STEREO_PING_PONG
+  else
+    GDelayStereoMode.Value := DELAY_STEREO_NORMAL;
+  GDelayMsTrack.Value := TimeMs;
+  GDryTrack.Value := Dry;
+  GWetTrack.Value := Wet;
+  GFeedbackTrack.Value := Feedback;
+  ClearDelayState;
 end;
 
 function ProcessDelay(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;

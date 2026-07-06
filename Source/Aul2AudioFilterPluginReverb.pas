@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginReverb;
+﻿unit Aul2AudioFilterPluginReverb;
 
 // Reverb 系の GUI 項目、状態、音声処理を担当する。
 interface
@@ -10,6 +10,7 @@ uses
 
 procedure AddReverbItems;
 function ProcessReverb(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
+procedure SetReverbGuiParams(UseReverb: Boolean; RoomSize, Damping, Dry, Wet: Double);
 
 implementation
 
@@ -165,6 +166,16 @@ begin
   AddTrack(GDampingTrack, 'Reverb: Damping', 0.4, 0.0, 1.0, 0.01);
   AddTrack(GReverbDryTrack, 'Reverb: Dry', 1.0, 0.0, 2.0, 0.01);
   AddTrack(GReverbWetTrack, 'Reverb: Wet', 0.3, 0.0, 2.0, 0.01);
+end;
+
+procedure SetReverbGuiParams(UseReverb: Boolean; RoomSize, Damping, Dry, Wet: Double);
+begin
+  GReverbUseCheck.Value := Byte(UseReverb);
+  GRoomSizeTrack.Value := RoomSize;
+  GDampingTrack.Value := Damping;
+  GReverbDryTrack.Value := Dry;
+  GReverbWetTrack.Value := Wet;
+  ClearReverbState;
 end;
 
 function ProcessReverb(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;

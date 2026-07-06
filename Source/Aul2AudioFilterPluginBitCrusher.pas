@@ -11,6 +11,7 @@ uses
 
 procedure AddBitCrusherItems;
 function ProcessBitCrusher(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
+procedure SetBitCrusherGuiParams(UseBitCrusher: Boolean; BitDepth, SampleHold, Mix: Double);
 
 implementation
 
@@ -129,6 +130,15 @@ begin
   AddTrack(GBitDepthTrack, 'BitCrusher: BitDepth', 8.0, 2.0, 16.0, 1.0);
   AddTrack(GSampleHoldTrack, 'BitCrusher: SampleHold', 4.0, 1.0, 64.0, 1.0);
   AddTrack(GBitCrusherMixTrack, 'BitCrusher: Mix', 1.0, 0.0, 1.0, 0.01);
+end;
+
+procedure SetBitCrusherGuiParams(UseBitCrusher: Boolean; BitDepth, SampleHold, Mix: Double);
+begin
+  GBitCrusherUseCheck.Value := Byte(UseBitCrusher);
+  GBitDepthTrack.Value := BitDepth;
+  GSampleHoldTrack.Value := SampleHold;
+  GBitCrusherMixTrack.Value := Mix;
+  ClearBitCrusherState;
 end;
 
 function ProcessBitCrusher(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;

@@ -11,6 +11,8 @@ uses
 
 procedure AddCompressorItems;
 function ProcessCompressor(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
+procedure SetCompressorGuiParams(UseCompressor: Boolean; ThresholdDb, Ratio, AttackMs, ReleaseMs,
+  MakeupDb, Mix: Double);
 
 implementation
 
@@ -156,6 +158,19 @@ begin
   AddTrack(GReleaseTrack, 'Compressor: Release(ms)', 120.0, 5.0, 1000.0, 1.0);
   AddTrack(GMakeupTrack, 'Compressor: Makeup(dB)', 0.0, -24.0, 24.0, 0.1);
   AddTrack(GCompressorMixTrack, 'Compressor: Mix', 1.0, 0.0, 1.0, 0.01);
+end;
+
+procedure SetCompressorGuiParams(UseCompressor: Boolean; ThresholdDb, Ratio, AttackMs, ReleaseMs,
+  MakeupDb, Mix: Double);
+begin
+  GCompressorUseCheck.Value := Byte(UseCompressor);
+  GThresholdTrack.Value := ThresholdDb;
+  GRatioTrack.Value := Ratio;
+  GAttackTrack.Value := AttackMs;
+  GReleaseTrack.Value := ReleaseMs;
+  GMakeupTrack.Value := MakeupDb;
+  GCompressorMixTrack.Value := Mix;
+  ClearCompressorState;
 end;
 
 function ProcessCompressor(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;

@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginChorus;
+﻿unit Aul2AudioFilterPluginChorus;
 
 // Chorus 系の GUI 項目、状態、音声処理を担当する。
 
@@ -12,6 +12,7 @@ uses
 
 procedure AddChorusItems;
 function ProcessChorus(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
+procedure SetChorusGuiParams(UseChorus: Boolean; Wide: Boolean; DelayMs, DepthMs, RateHz, Mix: Double);
 
 implementation
 
@@ -165,6 +166,20 @@ begin
   AddTrack(GChorusDepthTrack, 'Chorus: Depth(ms)', 5.0, 0.0, 20.0, 0.1);
   AddTrack(GChorusRateTrack, 'Chorus: Rate(Hz)', 0.5, 0.01, 10.0, 0.01);
   AddTrack(GChorusMixTrack, 'Chorus: Mix', 0.5, 0.0, 1.0, 0.01);
+end;
+
+procedure SetChorusGuiParams(UseChorus: Boolean; Wide: Boolean; DelayMs, DepthMs, RateHz, Mix: Double);
+begin
+  GChorusUseCheck.Value := Byte(UseChorus);
+  if Wide then
+    GChorusStereoMode.Value := CHORUS_STEREO_WIDE
+  else
+    GChorusStereoMode.Value := CHORUS_STEREO_NORMAL;
+  GChorusDelayTrack.Value := DelayMs;
+  GChorusDepthTrack.Value := DepthMs;
+  GChorusRateTrack.Value := RateHz;
+  GChorusMixTrack.Value := Mix;
+  ClearChorusState;
 end;
 
 function ProcessChorus(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;

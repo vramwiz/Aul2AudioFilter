@@ -11,6 +11,8 @@ uses
 
 procedure AddDistortionItems;
 function ProcessDistortion(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
+procedure SetDistortionGuiParams(UseDistortion: Boolean; HardClip: Boolean;
+  DriveDb, Tone, LevelDb, Mix: Double);
 
 implementation
 
@@ -99,6 +101,20 @@ begin
   AddTrack(GToneTrack, 'Distortion: Tone', 1.0, 0.0, 1.0, 0.01);
   AddTrack(GLevelTrack, 'Distortion: Level(dB)', -6.0, -24.0, 12.0, 0.1);
   AddTrack(GDistortionMixTrack, 'Distortion: Mix', 1.0, 0.0, 1.0, 0.01);
+end;
+
+procedure SetDistortionGuiParams(UseDistortion: Boolean; HardClip: Boolean;
+  DriveDb, Tone, LevelDb, Mix: Double);
+begin
+  GDistortionUseCheck.Value := Byte(UseDistortion);
+  if HardClip then
+    GDistortionModeSelect.Value := DISTORTION_MODE_HARD_CLIP
+  else
+    GDistortionModeSelect.Value := DISTORTION_MODE_SOFT_CLIP;
+  GDriveTrack.Value := DriveDb;
+  GToneTrack.Value := Tone;
+  GLevelTrack.Value := LevelDb;
+  GDistortionMixTrack.Value := Mix;
 end;
 
 function ProcessDistortion(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;

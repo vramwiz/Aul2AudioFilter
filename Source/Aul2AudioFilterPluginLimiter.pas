@@ -11,6 +11,7 @@ uses
 
 procedure AddLimiterItems;
 function ProcessLimiter(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
+procedure SetLimiterGuiParams(UseLimiter: Boolean; CeilingDb, ReleaseMs, Mix: Double);
 
 implementation
 
@@ -135,6 +136,15 @@ begin
   AddTrack(GCeilingTrack, 'Limiter: Ceiling(dB)', -1.0, -24.0, 0.0, 0.1);
   AddTrack(GReleaseTrack, 'Limiter: Release(ms)', 50.0, 1.0, 1000.0, 1.0);
   AddTrack(GLimiterMixTrack, 'Limiter: Mix', 1.0, 0.0, 1.0, 0.01);
+end;
+
+procedure SetLimiterGuiParams(UseLimiter: Boolean; CeilingDb, ReleaseMs, Mix: Double);
+begin
+  GLimiterUseCheck.Value := Byte(UseLimiter);
+  GCeilingTrack.Value := CeilingDb;
+  GReleaseTrack.Value := ReleaseMs;
+  GLimiterMixTrack.Value := Mix;
+  ClearLimiterState;
 end;
 
 function ProcessLimiter(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;

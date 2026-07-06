@@ -11,6 +11,7 @@ uses
 
 procedure AddEqItems;
 function ProcessEq(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
+procedure SetEqBandPassGuiParams(UseEq: Boolean; LowCutHz, HighCutHz, Mix: Double);
 
 implementation
 
@@ -169,6 +170,16 @@ begin
   AddTrack(GLowCutTrack, 'EQ: LowCut(Hz)', 300.0, 20.0, 5000.0, 1.0);
   AddTrack(GHighCutTrack, 'EQ: HighCut(Hz)', 3400.0, 500.0, 20000.0, 1.0);
   AddTrack(GEqMixTrack, 'EQ: Mix', 1.0, 0.0, 1.0, 0.01);
+end;
+
+procedure SetEqBandPassGuiParams(UseEq: Boolean; LowCutHz, HighCutHz, Mix: Double);
+begin
+  GEqUseCheck.Value := Byte(UseEq);
+  GEqModeSelect.Value := EQ_MODE_BAND_PASS;
+  GLowCutTrack.Value := LowCutHz;
+  GHighCutTrack.Value := HighCutHz;
+  GEqMixTrack.Value := Mix;
+  ClearEqState;
 end;
 
 function ProcessEq(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
