@@ -5,8 +5,11 @@ __history/
 *.identcache 
 *.exe 
 *.bat 
+*.zip 
+*.auf2 
 *.dll 
 *.map 
 *.tds 
 *.dsk 
+!Setup/*.bat 
 .DS_Store 
