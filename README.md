@@ -8,12 +8,15 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 
 - `Volume`: 音量倍率
 - `Delay: Use`: ディレイの使用切り替え
+- `Delay: Stereo Mode`: ディレイのステレオ処理
 - `Delay: Time(ms)`: ディレイ時間
 - `Delay: Dry`: 元音の出力量
 - `Delay: Wet`: 遅延音の出力量
 - `Delay: Feedback`: 遅延音をディレイへ戻す量
 
 `Delay: Feedback` を `0.0` にすると単発ディレイ、値を上げるとエコーとして動作します。
+`Delay: Stereo Mode` は `Normal` と `Ping-Pong` を選択できます。
+`Delay: Use` を OFF にすると、Delay の内部バッファをクリアして Volume のみを適用します。
 
 パラメーター名は、AviUtl2 上で他エフェクトの項目と区別しやすいよう英語表記にしています。
 

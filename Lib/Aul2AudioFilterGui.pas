@@ -14,6 +14,8 @@ procedure AddCheck(var Item: TFILTER_ITEM_CHECK; Name: PWideChar; Value: Integer
 procedure AddTrack(var Item: TFILTER_ITEM_TRACK; Name: PWideChar;
   Value, S, E, Step: Double; ZeroDisplay: PWideChar = nil;
   SliderRatio: Double = 1.0);
+procedure AddSelect(var Item: TFILTER_ITEM_SELECT; Name: PWideChar; Value: Integer;
+  List: Pointer);
 
 var
   GTable: TFILTER_PLUGIN_TABLE;
@@ -84,6 +86,17 @@ begin
   Item.Step := Step;
   Item.ZeroDisplay := ZeroDisplay;
   Item.SliderRatio := SliderRatio;
+end;
+
+procedure AddSelect(var Item: TFILTER_ITEM_SELECT; Name: PWideChar; Value: Integer;
+  List: Pointer);
+begin
+  AddItem(@Item);
+
+  Item.ItemType := PWideChar('select');
+  Item.Name := Name;
+  Item.Value := Value;
+  Item.List := List;
 end;
 
 end.

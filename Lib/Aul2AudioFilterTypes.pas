@@ -36,6 +36,19 @@ type
     SliderRatio: Double;
   end;
 
+  PFILTER_ITEM_SELECT = ^TFILTER_ITEM_SELECT;
+  TFILTER_ITEM_SELECT_ITEM = record
+    Name: LPCWSTR;
+    Value: Integer;
+  end;
+
+  TFILTER_ITEM_SELECT = record
+    ItemType: LPCWSTR;
+    Name: LPCWSTR;
+    Value: Integer;
+    List: ^TFILTER_ITEM_SELECT_ITEM;
+  end;
+
   PSCENE_INFO = ^TSCENE_INFO;
   TSCENE_INFO = record
     Width, Height: Integer;

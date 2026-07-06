@@ -13,6 +13,10 @@ function GetFilterTable: PFILTER_PLUGIN_TABLE;
 
 implementation
 
+const
+  DELAY_STEREO_NORMAL = 0;
+  DELAY_STEREO_PING_PONG = 1;
+
 type
   TDelayChannelState = record
     Buffer  : TArray<Single>; // 過去サンプルを保持するリングバッファ
@@ -24,15 +28,28 @@ var
   GVolumeTrack    : TFILTER_ITEM_TRACK;
   GDelayGroup     : TFILTER_ITEM_GROUP;
   GDelayUseCheck  : TFILTER_ITEM_CHECK;
+  GDelayStereoMode : TFILTER_ITEM_SELECT;
+  GDelayModeList   : array[0..2] of TFILTER_ITEM_SELECT_ITEM;
   GDelayMsTrack   : TFILTER_ITEM_TRACK;
   GDryTrack       : TFILTER_ITEM_TRACK;
   GWetTrack       : TFILTER_ITEM_TRACK;
   GFeedbackTrack  : TFILTER_ITEM_TRACK;
   GDelayChannels  : array of TDelayChannelState;
   GDelaySamples   : Integer;
+  GDelayMode      : Integer;
   GLastObjectID   : Int64;
   GLastEffectID   : Int64;
   GNextSampleIndex: Int64;
+
+procedure ClearDelayState;
+begin
+  SetLength(GDelayChannels, 0);
+  GDelaySamples := 0;
+  GDelayMode := DELAY_STEREO_NORMAL;
+  GLastObjectID := 0;
+  GLastEffectID := 0;
+  GNextSampleIndex := 0;
+end;
 
 procedure ResetDelayState(ChannelNum, DelaySamples: Integer);
 var
@@ -50,7 +67,7 @@ begin
   GDelaySamples := DelaySamples;
 end;
 
-procedure EnsureDelayState(Audio: PFILTER_PROC_AUDIO; ChannelNum, DelaySamples: Integer);
+procedure EnsureDelayState(Audio: PFILTER_PROC_AUDIO; ChannelNum, DelaySamples, StereoMode: Integer);
 var
   ObjectInfo: POBJECT_INFO;
 begin
@@ -58,11 +75,13 @@ begin
 
   if (Length(GDelayChannels) <> ChannelNum) or
      (GDelaySamples <> DelaySamples) or
+     (GDelayMode <> StereoMode) or
      (GLastObjectID <> ObjectInfo^.ID) or
      (GLastEffectID <> ObjectInfo^.EffectID) or
      (GNextSampleIndex <> ObjectInfo^.SampleIndex) then
   begin
     ResetDelayState(ChannelNum, DelaySamples);
+    GDelayMode := StereoMode;
     GLastObjectID := ObjectInfo^.ID;
     GLastEffectID := ObjectInfo^.EffectID;
   end;
@@ -103,6 +122,90 @@ begin
   end;
 end;
 
+procedure ApplyPingPongDelay(var LeftBuffer, RightBuffer: TArray<Single>; SampleNum: Integer;
+  Volume, Dry, Wet, Feedback: Single);
+var
+  I: Integer;
+  InputL: Single;
+  InputR: Single;
+  DelayedL: Single;
+  DelayedR: Single;
+  LeftState: ^TDelayChannelState;
+  RightState: ^TDelayChannelState;
+begin
+  LeftState := @GDelayChannels[0];
+  RightState := @GDelayChannels[1];
+
+  for I := 0 to SampleNum - 1 do
+  begin
+    InputL := LeftBuffer[I] * Volume;
+    InputR := RightBuffer[I] * Volume;
+    DelayedL := LeftState^.Buffer[LeftState^.Position];
+    DelayedR := RightState^.Buffer[RightState^.Position];
+
+    LeftState^.Buffer[LeftState^.Position] := InputR + (DelayedR * Feedback);
+    RightState^.Buffer[RightState^.Position] := InputL + (DelayedL * Feedback);
+
+    LeftBuffer[I] := (InputL * Dry) + (DelayedL * Wet);
+    RightBuffer[I] := (InputR * Dry) + (DelayedR * Wet);
+
+    Inc(LeftState^.Position);
+    if LeftState^.Position >= GDelaySamples then
+      LeftState^.Position := 0;
+
+    Inc(RightState^.Position);
+    if RightState^.Position >= GDelaySamples then
+      RightState^.Position := 0;
+  end;
+end;
+
+procedure ProcessNormalDelay(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer;
+  Volume, Dry, Wet, Feedback: Single);
+var
+  Channel: Integer;
+  Buffer: TArray<Single>;
+begin
+  SetLength(Buffer, SampleNum);
+
+  for Channel := 0 to ChannelNum - 1 do
+  begin
+    Audio^.GetSampleData(@Buffer[0], Channel);
+    ApplyDelay(Buffer, Channel, SampleNum, Volume, Dry, Wet, Feedback);
+    Audio^.SetSampleData(@Buffer[0], Channel);
+  end;
+end;
+
+procedure ProcessPingPongDelay(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer;
+  Volume, Dry, Wet, Feedback: Single);
+var
+  Channel: Integer;
+  LeftBuffer: TArray<Single>;
+  RightBuffer: TArray<Single>;
+  Buffer: TArray<Single>;
+begin
+  if ChannelNum < 2 then
+  begin
+    ProcessNormalDelay(Audio, SampleNum, ChannelNum, Volume, Dry, Wet, Feedback);
+    Exit;
+  end;
+
+  SetLength(LeftBuffer, SampleNum);
+  SetLength(RightBuffer, SampleNum);
+  Audio^.GetSampleData(@LeftBuffer[0], 0);
+  Audio^.GetSampleData(@RightBuffer[0], 1);
+  ApplyPingPongDelay(LeftBuffer, RightBuffer, SampleNum, Volume, Dry, Wet, Feedback);
+  Audio^.SetSampleData(@LeftBuffer[0], 0);
+  Audio^.SetSampleData(@RightBuffer[0], 1);
+
+  SetLength(Buffer, SampleNum);
+  for Channel := 2 to ChannelNum - 1 do
+  begin
+    Audio^.GetSampleData(@Buffer[0], Channel);
+    ApplyDelay(Buffer, Channel, SampleNum, Volume, Dry, Wet, Feedback);
+    Audio^.SetSampleData(@Buffer[0], Channel);
+  end;
+end;
+
 function FilterProcAudio(Audio: PFILTER_PROC_AUDIO): Byte; cdecl;
 var
   SampleNum: Integer;
@@ -114,6 +217,7 @@ var
   Wet: Single;
   Feedback: Single;
   UseDelay: Boolean;
+  StereoMode: Integer;
   Buffer: TArray<Single>;
 begin
   Result := 1;
@@ -131,7 +235,7 @@ begin
   Wet := GWetTrack.Value;
   Feedback := GFeedbackTrack.Value;
   UseDelay := GDelayUseCheck.Value <> 0;
-  SetLength(Buffer, SampleNum);
+  StereoMode := GDelayStereoMode.Value;
 
   if UseDelay then
   begin
@@ -139,19 +243,23 @@ begin
     if DelaySamples < 1 then
       DelaySamples := 1;
 
-    EnsureDelayState(Audio, ChannelNum, DelaySamples);
+    EnsureDelayState(Audio, ChannelNum, DelaySamples, StereoMode);
   end;
 
-  for Channel := 0 to ChannelNum - 1 do
+  if UseDelay and (StereoMode = DELAY_STEREO_PING_PONG) then
+    ProcessPingPongDelay(Audio, SampleNum, ChannelNum, Volume, Dry, Wet, Feedback)
+  else if UseDelay then
+    ProcessNormalDelay(Audio, SampleNum, ChannelNum, Volume, Dry, Wet, Feedback)
+  else
   begin
-    Audio^.GetSampleData(@Buffer[0], Channel);
-
-    if UseDelay then
-      ApplyDelay(Buffer, Channel, SampleNum, Volume, Dry, Wet, Feedback)
-    else
+    ClearDelayState;
+    SetLength(Buffer, SampleNum);
+    for Channel := 0 to ChannelNum - 1 do
+    begin
+      Audio^.GetSampleData(@Buffer[0], Channel);
       ApplyVolume(Buffer, SampleNum, Volume);
-
-    Audio^.SetSampleData(@Buffer[0], Channel);
+      Audio^.SetSampleData(@Buffer[0], Channel);
+    end;
   end;
 
   if UseDelay then
@@ -178,6 +286,13 @@ begin
 
     AddGroup(GDelayGroup, 'Delay', 1);
     AddCheck(GDelayUseCheck, 'Delay: Use', 0);
+    GDelayModeList[0].Name := 'Normal';
+    GDelayModeList[0].Value := DELAY_STEREO_NORMAL;
+    GDelayModeList[1].Name := 'Ping-Pong';
+    GDelayModeList[1].Value := DELAY_STEREO_PING_PONG;
+    GDelayModeList[2].Name := nil;
+    GDelayModeList[2].Value := 0;
+    AddSelect(GDelayStereoMode, 'Delay: Stereo Mode', DELAY_STEREO_NORMAL, @GDelayModeList[0]);
     AddTrack(GDelayMsTrack, 'Delay: Time(ms)', 250.0, 1.0, 1000.0, 1.0);
     AddTrack(GDryTrack, 'Delay: Dry', 1.0, 0.0, 2.0, 0.01);
     AddTrack(GWetTrack, 'Delay: Wet', 0.0, 0.0, 2.0, 0.01);
