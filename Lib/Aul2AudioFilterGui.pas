@@ -10,6 +10,7 @@ procedure SetupPluginTable(Flag: Integer; Name, Label_, Information: PWideChar;
   VideoProc: TFuncProcVideo; AudioProc: TFuncProcAudio);
 procedure AddGroup(var Item: TFILTER_ITEM_GROUP; Name: PWideChar;
   DefaultVisible: Integer);
+procedure AddCheck(var Item: TFILTER_ITEM_CHECK; Name: PWideChar; Value: Integer);
 procedure AddTrack(var Item: TFILTER_ITEM_TRACK; Name: PWideChar;
   Value, S, E, Step: Double; ZeroDisplay: PWideChar = nil;
   SliderRatio: Double = 1.0);
@@ -59,6 +60,15 @@ begin
   Item.ItemType := PWideChar('group');
   Item.Name := Name;
   Item.DefaultVisible := Byte(DefaultVisible <> 0);
+end;
+
+procedure AddCheck(var Item: TFILTER_ITEM_CHECK; Name: PWideChar; Value: Integer);
+begin
+  AddItem(@Item);
+
+  Item.ItemType := PWideChar('check');
+  Item.Name := Name;
+  Item.Value := Byte(Value <> 0);
 end;
 
 procedure AddTrack(var Item: TFILTER_ITEM_TRACK; Name: PWideChar;

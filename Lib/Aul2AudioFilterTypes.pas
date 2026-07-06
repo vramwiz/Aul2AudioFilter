@@ -18,6 +18,13 @@ type
     DefaultVisible: Byte;
   end;
 
+  PFILTER_ITEM_CHECK = ^TFILTER_ITEM_CHECK;
+  TFILTER_ITEM_CHECK = record
+    ItemType: LPCWSTR;
+    Name: LPCWSTR;
+    Value: Byte;
+  end;
+
   PFILTER_ITEM_TRACK = ^TFILTER_ITEM_TRACK;
   TFILTER_ITEM_TRACK = record
     ItemType: LPCWSTR;
