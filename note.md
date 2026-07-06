@@ -45,6 +45,15 @@
 - Feedback により 0.600s / 0.700s に約 `0.5`、0.850s / 0.950s に約 `0.25` が左右交互に出た。
 - Delay 仕上げとして、`Delay: Use` OFF 時は内部バッファをクリアする。
 - `Delay: Stereo Mode` 変更時も内部バッファをリセットし、`Normal` と `Ping-Pong` の状態が混ざらないようにする。
+- `Chorus` を追加した。
+- `Chorus: Use` 初期値は OFF。ON の時だけ Delay 後段で処理する。
+- `Chorus: Delay(ms) = 15.0`, `Chorus: Depth(ms) = 5.0`, `Chorus: Rate(Hz) = 0.5`, `Chorus: Mix = 0.5` を初期値にした。
+- コーラスは短い可変ディレイとして実装し、LFO 位相は `SampleIndex` から計算する。
+- 小数サンプル位置は線形補間で読む。
+- 検証は `Sample\sine_440hz_1s.wav` を使い、出力が元波形と一致しないこと、Peak/RMS が異常値にならないこと、NaN が出ないことをまず確認する。
+- `Chorus: Stereo Mode` を追加した。選択肢は `Normal` と `Wide`。
+- `Wide` は右チャンネルの LFO 位相を 180 度ずらし、左右の揺れを反対にする。
+- Stereo Chorus の検証は `Sample\sine_440hz_1s.wav` で `Chorus: Stereo Mode = Wide` にし、L/R が同一波形ではなくなること、Peak/RMS が異常値にならないことを確認する。
 
 ## プロジェクト構成
 
