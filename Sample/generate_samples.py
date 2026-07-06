@@ -61,12 +61,29 @@ def stereo_impulse_lr() -> list[tuple[float, float]]:
     return frames
 
 
+def level_steps_3s() -> list[tuple[float, float]]:
+    frames = []
+    for i in range(SAMPLE_RATE * 3):
+        second = i // SAMPLE_RATE
+        if second == 0:
+            amplitude = 0.1
+        elif second == 1:
+            amplitude = 0.5
+        else:
+            amplitude = 0.9
+
+        value = math.sin(2.0 * math.pi * 440.0 * i / SAMPLE_RATE) * amplitude
+        frames.append((value, value))
+    return frames
+
+
 def main() -> None:
     write_stereo_pcm16(OUT_DIR / "sine_440hz_1s.wav", sine_440hz())
     write_stereo_pcm16(OUT_DIR / "square_440hz_1s.wav", square_440hz())
     write_stereo_pcm16(OUT_DIR / "impulse_1s.wav", impulse())
     write_stereo_pcm16(OUT_DIR / "impulse_tail_3s.wav", impulse_tail_3s())
     write_stereo_pcm16(OUT_DIR / "stereo_impulse_lr_1s.wav", stereo_impulse_lr())
+    write_stereo_pcm16(OUT_DIR / "level_steps_3s.wav", level_steps_3s())
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{1DED55DE-F469-4F64-833B-90B60B765846}</ProjectGuid>
         <ProjectVersion>20.4</ProjectVersion>
@@ -114,6 +114,8 @@
         <DCCReference Include="Lib\Aul2AudioFilterTypes.pas"/>
         <DCCReference Include="Lib\Aul2AudioFilterGui.pas"/>
         <DCCReference Include="Aul2AudioFilterPluginDelay.pas"/>
+        <DCCReference Include="Aul2AudioFilterPluginEq.pas"/>
+        <DCCReference Include="Aul2AudioFilterPluginCompressor.pas"/>
         <DCCReference Include="Aul2AudioFilterPluginChorus.pas"/>
         <DCCReference Include="Aul2AudioFilterPluginReverb.pas"/>
         <DCCReference Include="Aul2AudioFilterPlugin.pas"/>

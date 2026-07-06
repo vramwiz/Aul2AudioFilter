@@ -9,13 +9,14 @@
 - `impulse_tail_3s.wav`: 先頭 1 サンプルだけのインパルス + 3 秒無音。リバーブの残響確認用。
 - `square_440hz_1s.wav`: 440Hz 矩形波。クリッピングや波形変化確認用。
 - `stereo_impulse_lr_1s.wav`: 0.10 秒に左、0.20 秒に右のインパルス。左右チャンネル処理確認用。
+- `level_steps_3s.wav`: 1 秒ごとに振幅 0.1、0.5、0.9 へ変わる 440Hz 正弦波。コンプレッサー、リミッター確認用。
 
 共通仕様:
 
 - 44.1kHz
 - 16bit PCM
 - stereo
-- `impulse_tail_3s.wav` 以外は 1 秒
+- `impulse_tail_3s.wav` と `level_steps_3s.wav` 以外は 1 秒
 
 再生成:
 

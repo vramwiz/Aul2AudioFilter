@@ -67,6 +67,29 @@
 - `Sample`: 正弦波、矩形波、インパルスなどの検証用 WAV を置く。
 - `Win64`: Delphi の Debug / Release 中間出力。
 
+## 検証サンプル
+
+- エフェクター確認用の入力 WAV は `Sample` に置く。
+- AviUtl2 からテスト出力した WAV は原則として `Sample\test_out.wav` に出力する。
+- `Sample\test_out.wav` は検証ごとに上書きされる作業用ファイルとして扱う。
+- サンプル WAV の利用者向け説明は `Sample\README.md` に置く。
+- 再開時に必要な検証上の細かい仕様や不足サンプルの課題は `note.md` に追記してよい。
+
+既存サンプル:
+
+- `sine_440hz_1s.wav`: 440Hz 正弦波。44.1kHz / stereo / 16bit PCM / 1 秒。振幅は 0.5。音量、位相、コーラス、EQ、歪みの基本確認に使う。
+- `square_440hz_1s.wav`: 440Hz 矩形波。44.1kHz / stereo / 16bit PCM / 1 秒。振幅は 0.5。クリッピング、歪み、フィルターによる角の丸まり確認に使う。
+- `impulse_1s.wav`: 先頭 1 サンプルだけ L/R とも 1.0 のインパルス。44.1kHz / stereo / 16bit PCM / 1 秒。Delay や Reverb の遅延位置、減衰確認に使う。
+- `impulse_tail_3s.wav`: 先頭 1 サンプルだけ L/R とも 1.0 のインパルス + 3 秒無音。44.1kHz / stereo / 16bit PCM / 3 秒。Reverb の残響テール確認に使う。
+- `stereo_impulse_lr_1s.wav`: 0.10 秒に左だけ 1.0、0.20 秒に右だけ 1.0 のインパルス。44.1kHz / stereo / 16bit PCM / 1 秒。左右チャンネル処理、Ping-Pong、Stereo Mode 確認に使う。
+- `level_steps_3s.wav`: 1 秒ごとに振幅 0.1、0.5、0.9 へ変わる 440Hz 正弦波。44.1kHz / stereo / 16bit PCM / 3 秒。Compressor / Limiter の確認に使う。
+
+不足したら追加してよいサンプル候補:
+
+- `voice_like_1s.wav`: 声に近い複合波形。Telephone、Radio、Megaphone、Announcement、Narration Clear の確認用。
+- `low_high_mix_1s.wav`: 低域と高域を混ぜた波形。Low Cut / High Cut / Band Pass の効き確認用。
+- `noise_floor_3s.wav`: 小さいノイズを含む素材。Noise 追加やノイズ混入時の聞こえ方確認用。
+
 ## ユニット分割方針
 
 - `Aul2AudioFilterPlugin.pas` は肥大化させず、AviUtl2 入口、Basic / Volume、各エフェクトユニットの呼び出しだけを担当する。
@@ -117,6 +140,53 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - 共通化できる処理は `Lib` へ移す。
 - 検証用の音声素材や生成スクリプトは `Sample` へ置く。
 
+## 今後の課題: ユーザー向け簡単エフェクト
+
+- 現在の `Delay` / `Chorus` / `Reverb` は細かく調整できるカスタム寄りの機能として残す。
+- 今後は、動画編集ユーザーが欲しい聞こえ方を直接選べる簡単エフェクトを追加する。
+- 簡単エフェクトはプリセット保存機能ではなく、GUI 上で選択できる用途別エフェクト入口として扱う。
+- GUI では有効/無効項目のすぐ下に、簡単エフェクト用のセレクト項目を置く。
+- デフォルトは `None` 相当とし、何も処理しない。
+- 選択された簡単エフェクトは、既存または追加予定のカスタム処理を内部的に呼び出して実現する。
+- カスタム側の手動設定と簡単エフェクトの処理が二重にかかる場合は許容する。
+- 必要な聞こえ方が現在のカスタム処理で作れない場合は、先にカスタム側の機能を充実させる。
+- 分類は複数セレクトに分けず、1 つのセレクト項目にまとめる。
+- 大分類は最大 10 種程度を基本にし、同じ分類内の効果違いは最大 3 種程度に抑える。
+
+想定する大分類:
+
+- Telephone: 電話の向こう側のような状態。
+- Radio: 無線機やラジオ越しのような状態。
+- Megaphone: メガホン、拡声器、街頭放送のような状態。
+- Next Room: 隣の部屋、壁越し、ドア越しのような状態。
+- Distant Voice: 遠くから聞こえる声。
+- Bathroom Small: 狭い風呂場のような短く強い反射。
+- Bathroom Large: 広い風呂場のような少し長めの反射。
+- Tunnel: 洞窟、トンネル、広い反響空間。
+- Announcement: アナウンス、場内放送、案内音声のような状態。
+- Narration Clear: ナレーションを聞きやすくする実用補正。
+- Dream: 夢、回想、ぼんやりした音の演出。
+
+簡単エフェクト実現のために不足しているカスタム機能:
+
+- EQ: 最優先。電話、無線、メガホン、壁越し、遠くの声、アナウンス、ナレーション補正に必要。最低限 `Low Cut`、`High Cut`、`Band Pass` が欲しい。
+- Compressor: アナウンス、ナレーションを聞きやすくするために必要。小さい声を持ち上げ、大きい声を抑える。
+- Limiter: ナレーション、アナウンス、歪み系処理の後段で音割れ防止に使う。
+- Distortion / Saturation: 電話、無線、メガホン、古い放送のような質感に必要。軽いクリップやドライブから始める。
+- Noise: 無線、電話、古い録音、監視カメラ風の質感に使う。量を控えめに調整できるようにする。
+- Bit Crusher: 無線、古い機械音声、ゲーム風、劣化音声の演出に使う。
+- Pitch Shift: ロボット、ホラー、不気味、夢っぽさに有効。ただし実装難度が高いため優先度は後ろにする。
+
+優先実装順の目安:
+
+1. `EQ`
+2. `Compressor`
+3. `Limiter`
+4. `Distortion / Saturation`
+5. `Noise`
+6. `Bit Crusher`
+7. `Pitch Shift`
+
 ## Reverb implementation note
 
 - `Aul2AudioFilterPluginReverb.pas` を追加した。
@@ -138,3 +208,43 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - `Reverb: Dry = 0.0`, `Reverb: Wet = 1.0` を確認した。前半は直音が出ず、L は約 `29.7ms`、R は約 `31.1ms` から残響音だけが出た。前半 Peak は L/R とも約 `0.149995416`、NaN/Inf はなし。
 - 同じ設定の後半で `Reverb: Use = OFF` にした出力は `Sample\impulse_tail_3s.wav` と完全一致した。L/R とも差分最大値 `0`。Use OFF 時にリバーブ状態が混入しないことを確認した。
 - 以上により、現在の簡易リバーブは基本機能完成扱いとする。今後の拡張候補は `Reverb: Type` による `Room` / `Hall` / `Plate` などのタイプ選択、または all-pass 追加による残響密度の向上。
+
+## EQ implementation note
+
+- ユーザー向け簡単エフェクト実現の最優先課題として `EQ` を追加した。
+- `Aul2AudioFilterPluginEq.pas` を追加し、メインの `Aul2AudioFilterPlugin.pas` は `AddEqItems` と `ProcessEq` の呼び出しだけを持つ。
+- パラメーターは `EQ: Use`, `EQ: Mode`, `EQ: LowCut(Hz)`, `EQ: HighCut(Hz)`, `EQ: Mix`。
+- `EQ: Mode` は `Low Cut`, `High Cut`, `Band Pass`。
+- 初期値は `EQ: Use` OFF、`EQ: Mode = Band Pass`, `LowCut = 300Hz`, `HighCut = 3400Hz`, `Mix = 1.0`。
+- 実装は one-pole low-pass を基本にし、`Low Cut` は low-pass 状態との差分で high-pass を作る。
+- `Band Pass` は low cut 後に high cut を通す。
+- `Band Pass` で `HighCut <= LowCut` になった場合は、内部的に `HighCut = LowCut + 1Hz` として破綻を避ける。
+- `EQ: Use` OFF 時、対象オブジェクト変更時、非連続サンプル位置、サンプルレート変更、チャンネル数変更、モード変更時は内部状態をリセットする。
+- 処理順は `Volume` / `Delay` の後、`Chorus` / `Reverb` の前。
+- Release Win64 ビルド成功。`C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2` へコピー済み。
+- `Sample\square_440hz_1s.wav` で `EQ: Mode = High Cut`, `HighCut = 1000Hz`, `Mix = 1.0` を確認した。
+- 出力 WAV は `Sample\test_out.wav`。44100Hz / stereo / 32bit float / 1.0s。
+- 入力は Peak/RMS とも L/R 約 `0.5`。出力は L/R Peak 約 `0.459754`、RMS 約 `0.322801`、NaN なし。
+- 440Hz 成分は約 `-2.90dB`、2200Hz / 3080Hz / 4840Hz 付近の高域成分は約 `-43dB` まで落ちた。
+- L/R は同一結果で、矩形波の角が丸まる High Cut として正常と判断する。
+- `Sample\sine_440hz_1s.wav` で `EQ: Mode = Band Pass`, `LowCut = 300Hz`, `HighCut = 3400Hz`, `Mix = 1.0` を確認した。
+- 出力は L/R Peak 約 `0.414991`、RMS 約 `0.282386`、NaN なし。440Hz 成分は約 `-1.97dB` で、通過帯域内の信号として大きく消えないことを確認した。
+- 以上により、現在の簡易 EQ は基本機能完成扱いとする。
+- 今後の改善候補は、カット特性を強くする 2 段化、または biquad EQ への置き換え。
+
+## Compressor implementation note
+
+- ユーザー向け簡単エフェクト実現の優先課題として `Compressor` を追加した。
+- `Aul2AudioFilterPluginCompressor.pas` を追加し、メインの `Aul2AudioFilterPlugin.pas` は `AddCompressorItems` と `ProcessCompressor` の呼び出しだけを持つ。
+- パラメーターは `Compressor: Use`, `Compressor: Threshold(dB)`, `Compressor: Ratio`, `Compressor: Attack(ms)`, `Compressor: Release(ms)`, `Compressor: Makeup(dB)`, `Compressor: Mix`。
+- 初期値は `Compressor: Use` OFF、`Threshold = -18dB`, `Ratio = 4.0`, `Attack = 10ms`, `Release = 120ms`, `Makeup = 0dB`, `Mix = 1.0`。
+- 実装はチャンネルごとの envelope follower で入力レベルを検出し、しきい値を超えた分を Ratio に応じて下げる。
+- `Compressor: Use` OFF 時、対象オブジェクト変更時、非連続サンプル位置、サンプルレート変更、チャンネル数変更時は内部状態をリセットする。
+- 処理順は `EQ` の後、`Chorus` / `Reverb` の前。
+- `Sample\level_steps_3s.wav` で `Threshold = -12dB`, `Ratio = 4.0`, `Attack = 5ms`, `Release = 120ms`, `Makeup = 0dB`, `Mix = 1.0` を確認した。
+- 出力 WAV は `Sample\test_out.wav`。44100Hz / stereo / 32bit float / 3.0s。
+- 0-1s の振幅 0.1 区間は Peak/RMS とも変化なし。
+- 1-2s の振幅 0.5 区間は RMS が約 `0.353542` から約 `0.284857` へ下がった。
+- 2-3s の振幅 0.9 区間は RMS が約 `0.636376` から約 `0.371657` へ下がった。
+- 大きい音ほど RMS が下がるため、コンプレッサーとしての基本動作は正常と判断する。
+- Peak は各区間で入力と同じ最大値が残るため、ピーク抑制は次の `Limiter` で扱う。

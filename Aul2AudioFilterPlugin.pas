@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPlugin;
+﻿unit Aul2AudioFilterPlugin;
 
 // AviUtl2 に公開する音声フィルターの入口と、各エフェクトユニットの接続を担当する。
 
@@ -9,6 +9,8 @@ uses
   Aul2AudioFilterTypes,
   Aul2AudioFilterGui,
   Aul2AudioFilterPluginDelay,
+  Aul2AudioFilterPluginEq,
+  Aul2AudioFilterPluginCompressor,
   Aul2AudioFilterPluginChorus,
   Aul2AudioFilterPluginReverb;
 
@@ -68,6 +70,8 @@ begin
   if not ProcessDelay(Audio, SampleNum, ChannelNum, Volume) then
     ProcessVolume(Audio, SampleNum, ChannelNum, Volume);
 
+  ProcessEq(Audio, SampleNum, ChannelNum);
+  ProcessCompressor(Audio, SampleNum, ChannelNum);
   ProcessChorus(Audio, SampleNum, ChannelNum);
   ProcessReverb(Audio, SampleNum, ChannelNum);
 end;
@@ -88,6 +92,8 @@ begin
     AddGroup(GAudioGroup, 'Basic', 1);
     AddTrack(GVolumeTrack, 'Volume', 1.0, 0.0, 2.0, 0.01);
     AddDelayItems;
+    AddEqItems;
+    AddCompressorItems;
     AddChorusItems;
     AddReverbItems;
   end;

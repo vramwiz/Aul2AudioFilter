@@ -13,6 +13,18 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 - `Delay: Dry`: 元音の出力量
 - `Delay: Wet`: 遅延音の出力量
 - `Delay: Feedback`: 遅延音をディレイへ戻す量
+- `EQ: Use`: EQ の使用切り替え
+- `EQ: Mode`: EQ の処理種類
+- `EQ: LowCut(Hz)`: 低域を削り始める周波数
+- `EQ: HighCut(Hz)`: 高域を削り始める周波数
+- `EQ: Mix`: 元音と EQ 処理音の混合量
+- `Compressor: Use`: コンプレッサーの使用切り替え
+- `Compressor: Threshold(dB)`: 音量を抑え始める基準
+- `Compressor: Ratio`: 基準を超えた音を抑える強さ
+- `Compressor: Attack(ms)`: 大きい音に反応する速さ
+- `Compressor: Release(ms)`: 抑えた音量を戻す速さ
+- `Compressor: Makeup(dB)`: 処理後の音量補正
+- `Compressor: Mix`: 元音とコンプレッサー処理音の混合量
 - `Chorus: Use`: コーラスの使用切り替え
 - `Chorus: Stereo Mode`: コーラスのステレオ処理
 - `Chorus: Delay(ms)`: コーラスの基準ディレイ時間
@@ -28,6 +40,8 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 `Delay: Feedback` を `0.0` にすると単発ディレイ、値を上げるとエコーとして動作します。
 `Delay: Stereo Mode` は `Normal` と `Ping-Pong` を選択できます。
 `Delay: Use` を OFF にすると、Delay の内部バッファをクリアして Volume のみを適用します。
+`EQ` は音の低域や高域を削るための簡易 EQ です。`Low Cut`、`High Cut`、`Band Pass` を選択できます。
+`Compressor` は大きい音を抑えて音量差を整えるためのエフェクトです。ナレーションやアナウンスを聞きやすくする用途に使います。
 `Chorus` は短いディレイ時間を LFO で揺らす簡易コーラスです。
 `Chorus: Stereo Mode` は `Normal` と `Wide` を選択できます。`Wide` は右チャンネルの LFO 位相を 180 度ずらします。
 
@@ -38,6 +52,8 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 - `Aul2AudioFilter.dpr` / `Aul2AudioFilter.dproj`: Delphi プロジェクト本体
 - `Aul2AudioFilterPlugin.pas`: プラグイン入口、基本 Volume、各エフェクトユニットの接続
 - `Aul2AudioFilterPluginDelay.pas`: Delay / Echo 系の GUI 項目、状態、音声処理
+- `Aul2AudioFilterPluginEq.pas`: EQ 系の GUI 項目、状態、音声処理
+- `Aul2AudioFilterPluginCompressor.pas`: Compressor 系の GUI 項目、状態、音声処理
 - `Aul2AudioFilterPluginChorus.pas`: Chorus 系の GUI 項目、状態、音声処理
 - `Aul2AudioFilterPluginReverb.pas`: Reverb 系の GUI 項目、状態、音声処理
 - `Lib`: 共通ライブラリ
@@ -53,6 +69,30 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 ```
 
 開発ルールやビルド方法は [note.md](note.md) を参照してください。
+
+## EQ
+
+- `EQ: Use`: EQ の使用切り替え
+- `EQ: Mode`: `Low Cut`、`High Cut`、`Band Pass` から選択
+- `EQ: LowCut(Hz)`: `Low Cut` と `Band Pass` で使う低域カット周波数
+- `EQ: HighCut(Hz)`: `High Cut` と `Band Pass` で使う高域カット周波数
+- `EQ: Mix`: 元音と EQ 処理音の混合量
+
+`EQ` は電話風、無線風、壁越し、アナウンス風などの効果を作るための基礎になる音質調整です。
+初期状態では `EQ: Use` は OFF です。
+
+## Compressor
+
+- `Compressor: Use`: コンプレッサーの使用切り替え
+- `Compressor: Threshold(dB)`: 音量を抑え始める基準
+- `Compressor: Ratio`: 基準を超えた音を抑える強さ
+- `Compressor: Attack(ms)`: 大きい音に反応する速さ
+- `Compressor: Release(ms)`: 抑えた音量を戻す速さ
+- `Compressor: Makeup(dB)`: 処理後の音量補正
+- `Compressor: Mix`: 元音とコンプレッサー処理音の混合量
+
+`Compressor` は小さい声と大きい声の差を整え、ナレーションやアナウンスを聞きやすくするための基礎になる音量補正です。
+初期状態では `Compressor: Use` は OFF です。
 
 ## Reverb
 
