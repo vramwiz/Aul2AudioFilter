@@ -59,11 +59,20 @@
 
 - `Aul2AudioFilter.dpr`: AviUtl2 へ `GetFilterPluginTable` などを export する入口。
 - `Aul2AudioFilter.dproj`: Delphi Win64 Debug / Release ビルド設定。
-- `Aul2AudioFilterPlugin.pas`: フィルター項目の定義、テーブル生成、音声処理本体。
+- `Aul2AudioFilterPlugin.pas`: AviUtl2 へ公開するフィルター入口、Basic / Volume、各エフェクトユニットの接続。
+- `Aul2AudioFilterPluginDelay.pas`: Delay / Echo 系の GUI 項目、状態管理、音声処理。
+- `Aul2AudioFilterPluginChorus.pas`: Chorus 系の GUI 項目、状態管理、音声処理。
 - `Lib\Aul2AudioFilterTypes.pas`: AviUtl2 フィルター SDK の Delphi 型定義。
 - `Lib\Aul2AudioFilterGui.pas`: `SetupPluginTable` / `AddGroup` / `AddTrack` などの GUI 項目登録ライブラリ。
 - `Sample`: 正弦波、矩形波、インパルスなどの検証用 WAV を置く。
 - `Win64`: Delphi の Debug / Release 中間出力。
+
+## ユニット分割方針
+
+- `Aul2AudioFilterPlugin.pas` は肥大化させず、AviUtl2 入口、Basic / Volume、各エフェクトユニットの呼び出しだけを担当する。
+- エフェクト固有の GUI 項目、状態バッファ、処理関数は `Aul2AudioFilterPluginXxx.pas` へ分ける。
+- 新しいエフェクトを追加する場合は、原則として `Aul2AudioFilterPluginXxx.pas` を追加し、`AddXxxItems` と `ProcessXxx` を公開する。
+- エフェクト処理順は `Aul2AudioFilterPlugin.pas` の `FilterProcAudio` で管理する。
 
 ## ビルド方法
 

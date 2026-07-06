@@ -6,6 +6,8 @@ uses
   Winapi.Windows,
   Aul2AudioFilterTypes in 'Lib\Aul2AudioFilterTypes.pas',
   Aul2AudioFilterGui in 'Lib\Aul2AudioFilterGui.pas',
+  Aul2AudioFilterPluginDelay in 'Aul2AudioFilterPluginDelay.pas',
+  Aul2AudioFilterPluginChorus in 'Aul2AudioFilterPluginChorus.pas',
   Aul2AudioFilterPlugin in 'Aul2AudioFilterPlugin.pas';
 
 function InitializePlugin(Version: DWORD): Byte; cdecl;

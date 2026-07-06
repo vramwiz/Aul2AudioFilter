@@ -1,182 +1,23 @@
 unit Aul2AudioFilterPlugin;
 
-// AviUtl2 に公開する音声フィルター本体と、サウンドエフェクターの GUI 項目を定義する。
+// AviUtl2 に公開する音声フィルターの入口と、各エフェクトユニットの接続を担当する。
 
 interface
 
 uses
   System.SysUtils,
-  System.Math,
   Aul2AudioFilterTypes,
-  Aul2AudioFilterGui;
+  Aul2AudioFilterGui,
+  Aul2AudioFilterPluginDelay,
+  Aul2AudioFilterPluginChorus;
 
 function GetFilterTable: PFILTER_PLUGIN_TABLE;
 
 implementation
 
-const
-  DELAY_STEREO_NORMAL = 0;
-  DELAY_STEREO_PING_PONG = 1;
-  CHORUS_STEREO_NORMAL = 0;
-  CHORUS_STEREO_WIDE = 1;
-
-type
-  TDelayChannelState = record
-    Buffer  : TArray<Single>; // 過去サンプルを保持するリングバッファ
-    Position: Integer;        // 次に読み書きするリングバッファ位置
-  end;
-
-  TChorusChannelState = record
-    Buffer  : TArray<Single>; // コーラス用の短い履歴バッファ
-    Position: Integer;        // 次に書き込む位置
-  end;
-
 var
-  GAudioGroup     : TFILTER_ITEM_GROUP;
-  GVolumeTrack    : TFILTER_ITEM_TRACK;
-  GDelayGroup     : TFILTER_ITEM_GROUP;
-  GDelayUseCheck  : TFILTER_ITEM_CHECK;
-  GDelayStereoMode : TFILTER_ITEM_SELECT;
-  GDelayModeList   : array[0..2] of TFILTER_ITEM_SELECT_ITEM;
-  GDelayMsTrack   : TFILTER_ITEM_TRACK;
-  GDryTrack       : TFILTER_ITEM_TRACK;
-  GWetTrack       : TFILTER_ITEM_TRACK;
-  GFeedbackTrack  : TFILTER_ITEM_TRACK;
-  GDelayChannels  : array of TDelayChannelState;
-  GDelaySamples   : Integer;
-  GDelayMode      : Integer;
-  GLastObjectID   : Int64;
-  GLastEffectID   : Int64;
-  GNextSampleIndex: Int64;
-  GChorusGroup     : TFILTER_ITEM_GROUP;
-  GChorusUseCheck  : TFILTER_ITEM_CHECK;
-  GChorusStereoMode: TFILTER_ITEM_SELECT;
-  GChorusModeList  : array[0..2] of TFILTER_ITEM_SELECT_ITEM;
-  GChorusDelayTrack: TFILTER_ITEM_TRACK;
-  GChorusDepthTrack: TFILTER_ITEM_TRACK;
-  GChorusRateTrack : TFILTER_ITEM_TRACK;
-  GChorusMixTrack  : TFILTER_ITEM_TRACK;
-  GChorusChannels  : array of TChorusChannelState;
-  GChorusSamples   : Integer;
-  GChorusObjectID  : Int64;
-  GChorusEffectID  : Int64;
-  GChorusNextIndex : Int64;
-
-procedure ClearDelayState;
-begin
-  SetLength(GDelayChannels, 0);
-  GDelaySamples := 0;
-  GDelayMode := DELAY_STEREO_NORMAL;
-  GLastObjectID := 0;
-  GLastEffectID := 0;
-  GNextSampleIndex := 0;
-end;
-
-procedure ResetDelayState(ChannelNum, DelaySamples: Integer);
-var
-  Channel: Integer;
-begin
-  SetLength(GDelayChannels, ChannelNum);
-
-  for Channel := 0 to ChannelNum - 1 do
-  begin
-    SetLength(GDelayChannels[Channel].Buffer, DelaySamples);
-    FillChar(GDelayChannels[Channel].Buffer[0], DelaySamples * SizeOf(Single), 0);
-    GDelayChannels[Channel].Position := 0;
-  end;
-
-  GDelaySamples := DelaySamples;
-end;
-
-procedure ClearChorusState;
-begin
-  SetLength(GChorusChannels, 0);
-  GChorusSamples := 0;
-  GChorusObjectID := 0;
-  GChorusEffectID := 0;
-  GChorusNextIndex := 0;
-end;
-
-procedure ResetChorusState(ChannelNum, BufferSamples: Integer);
-var
-  Channel: Integer;
-begin
-  SetLength(GChorusChannels, ChannelNum);
-
-  for Channel := 0 to ChannelNum - 1 do
-  begin
-    SetLength(GChorusChannels[Channel].Buffer, BufferSamples);
-    FillChar(GChorusChannels[Channel].Buffer[0], BufferSamples * SizeOf(Single), 0);
-    GChorusChannels[Channel].Position := 0;
-  end;
-
-  GChorusSamples := BufferSamples;
-end;
-
-procedure EnsureChorusState(Audio: PFILTER_PROC_AUDIO; ChannelNum, BufferSamples: Integer);
-var
-  ObjectInfo: POBJECT_INFO;
-begin
-  ObjectInfo := Audio^.Object_;
-
-  if (Length(GChorusChannels) <> ChannelNum) or
-     (GChorusSamples <> BufferSamples) or
-     (GChorusObjectID <> ObjectInfo^.ID) or
-     (GChorusEffectID <> ObjectInfo^.EffectID) or
-     (GChorusNextIndex <> ObjectInfo^.SampleIndex) then
-  begin
-    ResetChorusState(ChannelNum, BufferSamples);
-    GChorusObjectID := ObjectInfo^.ID;
-    GChorusEffectID := ObjectInfo^.EffectID;
-  end;
-end;
-
-procedure EnsureDelayState(Audio: PFILTER_PROC_AUDIO; ChannelNum, DelaySamples, StereoMode: Integer);
-var
-  ObjectInfo: POBJECT_INFO;
-begin
-  ObjectInfo := Audio^.Object_;
-
-  if (Length(GDelayChannels) <> ChannelNum) or
-     (GDelaySamples <> DelaySamples) or
-     (GDelayMode <> StereoMode) or
-     (GLastObjectID <> ObjectInfo^.ID) or
-     (GLastEffectID <> ObjectInfo^.EffectID) or
-     (GNextSampleIndex <> ObjectInfo^.SampleIndex) then
-  begin
-    ResetDelayState(ChannelNum, DelaySamples);
-    GDelayMode := StereoMode;
-    GLastObjectID := ObjectInfo^.ID;
-    GLastEffectID := ObjectInfo^.EffectID;
-  end;
-end;
-
-function ReadChorusDelaySample(const State: TChorusChannelState; DelaySamples: Double): Single;
-var
-  ReadPos: Double;
-  Index0: Integer;
-  Index1: Integer;
-  Frac: Double;
-  BufferLen: Integer;
-begin
-  BufferLen := Length(State.Buffer);
-  if BufferLen <= 0 then
-    Exit(0.0);
-
-  ReadPos := State.Position - DelaySamples;
-  while ReadPos < 0 do
-    ReadPos := ReadPos + BufferLen;
-  while ReadPos >= BufferLen do
-    ReadPos := ReadPos - BufferLen;
-
-  Index0 := Floor(ReadPos);
-  Index1 := Index0 + 1;
-  if Index1 >= BufferLen then
-    Index1 := 0;
-  Frac := ReadPos - Index0;
-
-  Result := State.Buffer[Index0] * (1.0 - Frac) + State.Buffer[Index1] * Frac;
-end;
+  GAudioGroup : TFILTER_ITEM_GROUP;
+  GVolumeTrack: TFILTER_ITEM_TRACK;
 
 procedure ApplyVolume(var Buffer: TArray<Single>; SampleNum: Integer; Volume: Single);
 var
@@ -189,106 +30,7 @@ begin
     Buffer[I] := Buffer[I] * Volume;
 end;
 
-procedure ApplyChorus(var Buffer: TArray<Single>; Channel, SampleNum: Integer;
-  SampleRate, SampleIndex: Int64; BaseDelayMs, DepthMs, RateHz, Mix: Single;
-  StereoMode: Integer);
-var
-  I: Integer;
-  InputSample: Single;
-  DelayMs: Double;
-  DelaySamples: Double;
-  Phase: Double;
-  DelayedSample: Single;
-  State: ^TChorusChannelState;
-begin
-  State := @GChorusChannels[Channel];
-
-  for I := 0 to SampleNum - 1 do
-  begin
-    InputSample := Buffer[I];
-    Phase := 2.0 * Pi * RateHz * ((SampleIndex + I) / SampleRate);
-    if (StereoMode = CHORUS_STEREO_WIDE) and (Channel = 1) then
-      Phase := Phase + Pi;
-
-    DelayMs := BaseDelayMs + (Sin(Phase) * DepthMs);
-    if DelayMs < 0.0 then
-      DelayMs := 0.0;
-
-    DelaySamples := SampleRate * DelayMs / 1000.0;
-    DelayedSample := ReadChorusDelaySample(State^, DelaySamples);
-    State^.Buffer[State^.Position] := InputSample;
-
-    Buffer[I] := (InputSample * (1.0 - Mix)) + (DelayedSample * Mix);
-
-    Inc(State^.Position);
-    if State^.Position >= GChorusSamples then
-      State^.Position := 0;
-  end;
-end;
-
-procedure ApplyDelay(var Buffer: TArray<Single>; Channel, SampleNum: Integer;
-  Volume, Dry, Wet, Feedback: Single);
-var
-  I: Integer;
-  InputSample: Single;
-  DelayedSample: Single;
-  State: ^TDelayChannelState;
-begin
-  State := @GDelayChannels[Channel];
-
-  for I := 0 to SampleNum - 1 do
-  begin
-    InputSample := Buffer[I] * Volume;
-    DelayedSample := State^.Buffer[State^.Position];
-    State^.Buffer[State^.Position] := InputSample + (DelayedSample * Feedback);
-
-    Buffer[I] := (InputSample * Dry) + (DelayedSample * Wet);
-
-    Inc(State^.Position);
-    if State^.Position >= GDelaySamples then
-      State^.Position := 0;
-  end;
-end;
-
-procedure ApplyPingPongDelay(var LeftBuffer, RightBuffer: TArray<Single>; SampleNum: Integer;
-  Volume, Dry, Wet, Feedback: Single);
-var
-  I: Integer;
-  InputL: Single;
-  InputR: Single;
-  DelayedL: Single;
-  DelayedR: Single;
-  LeftState: ^TDelayChannelState;
-  RightState: ^TDelayChannelState;
-begin
-  LeftState := @GDelayChannels[0];
-  RightState := @GDelayChannels[1];
-
-  for I := 0 to SampleNum - 1 do
-  begin
-    InputL := LeftBuffer[I] * Volume;
-    InputR := RightBuffer[I] * Volume;
-    DelayedL := LeftState^.Buffer[LeftState^.Position];
-    DelayedR := RightState^.Buffer[RightState^.Position];
-
-    LeftState^.Buffer[LeftState^.Position] := InputR + (DelayedR * Feedback);
-    RightState^.Buffer[RightState^.Position] := InputL + (DelayedL * Feedback);
-
-    LeftBuffer[I] := (InputL * Dry) + (DelayedL * Wet);
-    RightBuffer[I] := (InputR * Dry) + (DelayedR * Wet);
-
-    Inc(LeftState^.Position);
-    if LeftState^.Position >= GDelaySamples then
-      LeftState^.Position := 0;
-
-    Inc(RightState^.Position);
-    if RightState^.Position >= GDelaySamples then
-      RightState^.Position := 0;
-  end;
-end;
-
-procedure ProcessNormalDelay(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer;
-  Volume, Dry, Wet, Feedback: Single);
+procedure ProcessVolume(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer; Volume: Single);
 var
   Channel: Integer;
   Buffer: TArray<Single>;
@@ -298,73 +40,7 @@ begin
   for Channel := 0 to ChannelNum - 1 do
   begin
     Audio^.GetSampleData(@Buffer[0], Channel);
-    ApplyDelay(Buffer, Channel, SampleNum, Volume, Dry, Wet, Feedback);
-    Audio^.SetSampleData(@Buffer[0], Channel);
-  end;
-end;
-
-procedure ProcessChorus(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer);
-var
-  Channel: Integer;
-  BufferSamples: Integer;
-  Buffer: TArray<Single>;
-  BaseDelayMs: Single;
-  DepthMs: Single;
-  RateHz: Single;
-  Mix: Single;
-  StereoMode: Integer;
-begin
-  BaseDelayMs := GChorusDelayTrack.Value;
-  DepthMs := GChorusDepthTrack.Value;
-  RateHz := GChorusRateTrack.Value;
-  Mix := GChorusMixTrack.Value;
-  StereoMode := GChorusStereoMode.Value;
-
-  BufferSamples := Ceil(Audio^.Scene^.SampleRate * (BaseDelayMs + DepthMs) / 1000.0) + 4;
-  if BufferSamples < 4 then
-    BufferSamples := 4;
-
-  EnsureChorusState(Audio, ChannelNum, BufferSamples);
-  SetLength(Buffer, SampleNum);
-
-  for Channel := 0 to ChannelNum - 1 do
-  begin
-    Audio^.GetSampleData(@Buffer[0], Channel);
-    ApplyChorus(Buffer, Channel, SampleNum, Audio^.Scene^.SampleRate,
-      Audio^.Object_^.SampleIndex, BaseDelayMs, DepthMs, RateHz, Mix, StereoMode);
-    Audio^.SetSampleData(@Buffer[0], Channel);
-  end;
-
-  GChorusNextIndex := Audio^.Object_^.SampleIndex + SampleNum;
-end;
-
-procedure ProcessPingPongDelay(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer;
-  Volume, Dry, Wet, Feedback: Single);
-var
-  Channel: Integer;
-  LeftBuffer: TArray<Single>;
-  RightBuffer: TArray<Single>;
-  Buffer: TArray<Single>;
-begin
-  if ChannelNum < 2 then
-  begin
-    ProcessNormalDelay(Audio, SampleNum, ChannelNum, Volume, Dry, Wet, Feedback);
-    Exit;
-  end;
-
-  SetLength(LeftBuffer, SampleNum);
-  SetLength(RightBuffer, SampleNum);
-  Audio^.GetSampleData(@LeftBuffer[0], 0);
-  Audio^.GetSampleData(@RightBuffer[0], 1);
-  ApplyPingPongDelay(LeftBuffer, RightBuffer, SampleNum, Volume, Dry, Wet, Feedback);
-  Audio^.SetSampleData(@LeftBuffer[0], 0);
-  Audio^.SetSampleData(@RightBuffer[0], 1);
-
-  SetLength(Buffer, SampleNum);
-  for Channel := 2 to ChannelNum - 1 do
-  begin
-    Audio^.GetSampleData(@Buffer[0], Channel);
-    ApplyDelay(Buffer, Channel, SampleNum, Volume, Dry, Wet, Feedback);
+    ApplyVolume(Buffer, SampleNum, Volume);
     Audio^.SetSampleData(@Buffer[0], Channel);
   end;
 end;
@@ -373,16 +49,7 @@ function FilterProcAudio(Audio: PFILTER_PROC_AUDIO): Byte; cdecl;
 var
   SampleNum: Integer;
   ChannelNum: Integer;
-  Channel: Integer;
-  DelaySamples: Integer;
   Volume: Single;
-  Dry: Single;
-  Wet: Single;
-  Feedback: Single;
-  UseDelay: Boolean;
-  UseChorus: Boolean;
-  StereoMode: Integer;
-  Buffer: TArray<Single>;
 begin
   Result := 1;
 
@@ -395,47 +62,10 @@ begin
     Exit;
 
   Volume := GVolumeTrack.Value;
-  Dry := GDryTrack.Value;
-  Wet := GWetTrack.Value;
-  Feedback := GFeedbackTrack.Value;
-  UseDelay := GDelayUseCheck.Value <> 0;
-  UseChorus := GChorusUseCheck.Value <> 0;
-  StereoMode := GDelayStereoMode.Value;
+  if not ProcessDelay(Audio, SampleNum, ChannelNum, Volume) then
+    ProcessVolume(Audio, SampleNum, ChannelNum, Volume);
 
-  if UseDelay then
-  begin
-    DelaySamples := Round(Audio^.Scene^.SampleRate * GDelayMsTrack.Value / 1000.0);
-    if DelaySamples < 1 then
-      DelaySamples := 1;
-
-    EnsureDelayState(Audio, ChannelNum, DelaySamples, StereoMode);
-  end;
-
-  if UseDelay and (StereoMode = DELAY_STEREO_PING_PONG) then
-    ProcessPingPongDelay(Audio, SampleNum, ChannelNum, Volume, Dry, Wet, Feedback)
-  else if UseDelay then
-    ProcessNormalDelay(Audio, SampleNum, ChannelNum, Volume, Dry, Wet, Feedback)
-  else
-  begin
-    ClearDelayState;
-    SetLength(Buffer, SampleNum);
-    for Channel := 0 to ChannelNum - 1 do
-    begin
-      Audio^.GetSampleData(@Buffer[0], Channel);
-      ApplyVolume(Buffer, SampleNum, Volume);
-      Audio^.SetSampleData(@Buffer[0], Channel);
-    end;
-  end;
-
-  if UseDelay then
-    GNextSampleIndex := Audio^.Object_^.SampleIndex + SampleNum
-  else
-    GNextSampleIndex := 0;
-
-  if UseChorus then
-    ProcessChorus(Audio, SampleNum, ChannelNum)
-  else
-    ClearChorusState;
+  ProcessChorus(Audio, SampleNum, ChannelNum);
 end;
 
 function GetFilterTable: PFILTER_PLUGIN_TABLE;
@@ -453,34 +83,8 @@ begin
 
     AddGroup(GAudioGroup, 'Basic', 1);
     AddTrack(GVolumeTrack, 'Volume', 1.0, 0.0, 2.0, 0.01);
-
-    AddGroup(GDelayGroup, 'Delay', 1);
-    AddCheck(GDelayUseCheck, 'Delay: Use', 0);
-    GDelayModeList[0].Name := 'Normal';
-    GDelayModeList[0].Value := DELAY_STEREO_NORMAL;
-    GDelayModeList[1].Name := 'Ping-Pong';
-    GDelayModeList[1].Value := DELAY_STEREO_PING_PONG;
-    GDelayModeList[2].Name := nil;
-    GDelayModeList[2].Value := 0;
-    AddSelect(GDelayStereoMode, 'Delay: Stereo Mode', DELAY_STEREO_NORMAL, @GDelayModeList[0]);
-    AddTrack(GDelayMsTrack, 'Delay: Time(ms)', 250.0, 1.0, 1000.0, 1.0);
-    AddTrack(GDryTrack, 'Delay: Dry', 1.0, 0.0, 2.0, 0.01);
-    AddTrack(GWetTrack, 'Delay: Wet', 0.0, 0.0, 2.0, 0.01);
-    AddTrack(GFeedbackTrack, 'Delay: Feedback', 0.0, 0.0, 0.95, 0.01);
-
-    AddGroup(GChorusGroup, 'Chorus', 1);
-    AddCheck(GChorusUseCheck, 'Chorus: Use', 0);
-    GChorusModeList[0].Name := 'Normal';
-    GChorusModeList[0].Value := CHORUS_STEREO_NORMAL;
-    GChorusModeList[1].Name := 'Wide';
-    GChorusModeList[1].Value := CHORUS_STEREO_WIDE;
-    GChorusModeList[2].Name := nil;
-    GChorusModeList[2].Value := 0;
-    AddSelect(GChorusStereoMode, 'Chorus: Stereo Mode', CHORUS_STEREO_NORMAL, @GChorusModeList[0]);
-    AddTrack(GChorusDelayTrack, 'Chorus: Delay(ms)', 15.0, 1.0, 50.0, 0.1);
-    AddTrack(GChorusDepthTrack, 'Chorus: Depth(ms)', 5.0, 0.0, 20.0, 0.1);
-    AddTrack(GChorusRateTrack, 'Chorus: Rate(Hz)', 0.5, 0.01, 10.0, 0.01);
-    AddTrack(GChorusMixTrack, 'Chorus: Mix', 0.5, 0.0, 1.0, 0.01);
+    AddDelayItems;
+    AddChorusItems;
   end;
 
   Result := @GTable;

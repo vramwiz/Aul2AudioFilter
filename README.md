@@ -31,7 +31,9 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 ## 配置
 
 - `Aul2AudioFilter.dpr` / `Aul2AudioFilter.dproj`: Delphi プロジェクト本体
-- `Aul2AudioFilterPlugin.pas`: プラグインのフィルターテーブルと音声処理
+- `Aul2AudioFilterPlugin.pas`: プラグイン入口、基本 Volume、各エフェクトユニットの接続
+- `Aul2AudioFilterPluginDelay.pas`: Delay / Echo 系の GUI 項目、状態、音声処理
+- `Aul2AudioFilterPluginChorus.pas`: Chorus 系の GUI 項目、状態、音声処理
 - `Lib`: 共通ライブラリ
 - `Sample`: 動作確認用 WAV ファイル
 - `Win64`: Debug / Release の中間出力
