@@ -8,6 +8,7 @@ uses
   Aul2AudioFilterGui in 'Lib\Aul2AudioFilterGui.pas',
   Aul2AudioFilterPluginDelay in 'Aul2AudioFilterPluginDelay.pas',
   Aul2AudioFilterPluginChorus in 'Aul2AudioFilterPluginChorus.pas',
+  Aul2AudioFilterPluginReverb in 'Aul2AudioFilterPluginReverb.pas',
   Aul2AudioFilterPlugin in 'Aul2AudioFilterPlugin.pas';
 
 function InitializePlugin(Version: DWORD): Byte; cdecl;

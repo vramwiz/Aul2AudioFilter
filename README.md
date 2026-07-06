@@ -19,6 +19,11 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 - `Chorus: Depth(ms)`: コーラスの揺れ幅
 - `Chorus: Rate(Hz)`: コーラスの揺れ速度
 - `Chorus: Mix`: 元音とコーラス音の混合量
+- `Reverb: Use`: リバーブの使用切り替え
+- `Reverb: RoomSize`: 残響の長さ
+- `Reverb: Damping`: 残響の高域減衰
+- `Reverb: Dry`: 元音の出力量
+- `Reverb: Wet`: 残響音の出力量
 
 `Delay: Feedback` を `0.0` にすると単発ディレイ、値を上げるとエコーとして動作します。
 `Delay: Stereo Mode` は `Normal` と `Ping-Pong` を選択できます。
@@ -34,6 +39,7 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 - `Aul2AudioFilterPlugin.pas`: プラグイン入口、基本 Volume、各エフェクトユニットの接続
 - `Aul2AudioFilterPluginDelay.pas`: Delay / Echo 系の GUI 項目、状態、音声処理
 - `Aul2AudioFilterPluginChorus.pas`: Chorus 系の GUI 項目、状態、音声処理
+- `Aul2AudioFilterPluginReverb.pas`: Reverb 系の GUI 項目、状態、音声処理
 - `Lib`: 共通ライブラリ
 - `Sample`: 動作確認用 WAV ファイル
 - `Win64`: Debug / Release の中間出力
@@ -47,3 +53,14 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 ```
 
 開発ルールやビルド方法は [note.md](note.md) を参照してください。
+
+## Reverb
+
+- `Reverb: Use`: リバーブの使用切り替え
+- `Reverb: RoomSize`: 残響の長さ
+- `Reverb: Damping`: 残響の高域減衰
+- `Reverb: Dry`: 元音の出力量
+- `Reverb: Wet`: 残響音の出力量
+
+`Reverb` は複数の短いフィードバック遅延を使う簡易リバーブです。初期状態では `Reverb: Use` は OFF です。
+`RoomSize`、`Damping`、`Dry/Wet`、`Use` OFF 時の動作確認まで完了しています。

@@ -48,6 +48,12 @@ def impulse() -> list[tuple[float, float]]:
     return frames
 
 
+def impulse_tail_3s() -> list[tuple[float, float]]:
+    frames = [(0.0, 0.0) for _ in range(SAMPLE_RATE * 3)]
+    frames[0] = (1.0, 1.0)
+    return frames
+
+
 def stereo_impulse_lr() -> list[tuple[float, float]]:
     frames = [(0.0, 0.0) for _ in range(SAMPLE_RATE)]
     frames[int(SAMPLE_RATE * 0.10)] = (1.0, 0.0)
@@ -59,6 +65,7 @@ def main() -> None:
     write_stereo_pcm16(OUT_DIR / "sine_440hz_1s.wav", sine_440hz())
     write_stereo_pcm16(OUT_DIR / "square_440hz_1s.wav", square_440hz())
     write_stereo_pcm16(OUT_DIR / "impulse_1s.wav", impulse())
+    write_stereo_pcm16(OUT_DIR / "impulse_tail_3s.wav", impulse_tail_3s())
     write_stereo_pcm16(OUT_DIR / "stereo_impulse_lr_1s.wav", stereo_impulse_lr())
 
 

@@ -115,6 +115,7 @@
         <DCCReference Include="Lib\Aul2AudioFilterGui.pas"/>
         <DCCReference Include="Aul2AudioFilterPluginDelay.pas"/>
         <DCCReference Include="Aul2AudioFilterPluginChorus.pas"/>
+        <DCCReference Include="Aul2AudioFilterPluginReverb.pas"/>
         <DCCReference Include="Aul2AudioFilterPlugin.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>

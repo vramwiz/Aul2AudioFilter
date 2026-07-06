@@ -9,7 +9,8 @@ uses
   Aul2AudioFilterTypes,
   Aul2AudioFilterGui,
   Aul2AudioFilterPluginDelay,
-  Aul2AudioFilterPluginChorus;
+  Aul2AudioFilterPluginChorus,
+  Aul2AudioFilterPluginReverb;
 
 function GetFilterTable: PFILTER_PLUGIN_TABLE;
 
@@ -66,6 +67,7 @@ begin
     ProcessVolume(Audio, SampleNum, ChannelNum, Volume);
 
   ProcessChorus(Audio, SampleNum, ChannelNum);
+  ProcessReverb(Audio, SampleNum, ChannelNum);
 end;
 
 function GetFilterTable: PFILTER_PLUGIN_TABLE;
@@ -85,6 +87,7 @@ begin
     AddTrack(GVolumeTrack, 'Volume', 1.0, 0.0, 2.0, 0.01);
     AddDelayItems;
     AddChorusItems;
+    AddReverbItems;
   end;
 
   Result := @GTable;
