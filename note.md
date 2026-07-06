@@ -56,14 +56,15 @@
 
 ## プロジェクト構成
 
-- `Aul2AudioFilter.dpr`: AviUtl2 へ `GetFilterPluginTable` などを export する入口。
+- `Source\Aul2AudioFilter.dpr`: AviUtl2 へ `GetFilterPluginTable` などを export する入口。
 - `Aul2AudioFilter.dproj`: Delphi Win64 Debug / Release ビルド設定。
-- `Aul2AudioFilterPlugin.pas`: AviUtl2 へ公開するフィルター入口、各エフェクトユニットの接続。
-- `Aul2AudioFilterPluginSoundStyle.pas`: `スタイル` GUI 項目、状態管理、用途別の簡単な音声処理。
-- `Aul2AudioFilterPluginDelay.pas`: Delay / Echo 系の GUI 項目、状態管理、音声処理。
-- `Aul2AudioFilterPluginChorus.pas`: Chorus 系の GUI 項目、状態管理、音声処理。
-- `Lib\Aul2AudioFilterTypes.pas`: AviUtl2 フィルター SDK の Delphi 型定義。
-- `Lib\Aul2AudioFilterGui.pas`: `SetupPluginTable` / `AddGroup` / `AddTrack` などの GUI 項目登録ライブラリ。
+- `Source\Aul2AudioFilterPlugin.pas`: AviUtl2 へ公開するフィルター入口、各エフェクトユニットの接続。
+- `Source\Aul2AudioFilterPluginSoundStyle.pas`: `スタイル` GUI 項目、状態管理、用途別の簡単な音声処理。
+- `Source\Aul2AudioFilterPluginDelay.pas`: Delay / Echo 系の GUI 項目、状態管理、音声処理。
+- `Source\Aul2AudioFilterPluginChorus.pas`: Chorus 系の GUI 項目、状態管理、音声処理。
+- `Source\Lib\Aul2AudioFilterTypes.pas`: AviUtl2 フィルター SDK の Delphi 型定義。
+- `Source\Lib\Aul2AudioFilterGui.pas`: `SetupPluginTable` / `AddGroup` / `AddTrack` などの GUI 項目登録ライブラリ。
+- `Source\Legacy`: 現在のビルドでは使わない旧コピーの退避場所。
 - `Sample`: 正弦波、矩形波、インパルスなどの検証用 WAV を置く。
 - `Win64`: Delphi の Debug / Release 中間出力。
 
@@ -137,7 +138,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - `README.md` には利用者向けの説明を置き、細かい開発メモを増やさない。
 - `note.md` には開発再開時に必要な情報だけを置く。
 - 完了済みの作業履歴を長く残す必要が出たら `HISTORY.md` を作る。
-- 共通化できる処理は `Lib` へ移す。
+- 共通化できる処理は `Source\Lib` へ移す。
 - 検証用の音声素材や生成スクリプトは `Sample` へ置く。
 
 ## 今後の課題: ユーザー向けスタイル

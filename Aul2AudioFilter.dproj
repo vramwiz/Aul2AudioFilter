@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{1DED55DE-F469-4F64-833B-90B60B765846}</ProjectGuid>
         <ProjectVersion>20.4</ProjectVersion>
@@ -9,7 +9,7 @@
         <ProjectName Condition="'$(ProjectName)'==''">Aul2AudioFilter</ProjectName>
         <TargetedPlatforms>2</TargetedPlatforms>
         <AppType>Library</AppType>
-        <MainSource>Aul2AudioFilter.dpr</MainSource>
+        <MainSource>Source\Aul2AudioFilter.dpr</MainSource>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
         <Base>true</Base>
@@ -111,19 +111,19 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="Lib\Aul2AudioFilterTypes.pas"/>
-        <DCCReference Include="Lib\Aul2AudioFilterGui.pas"/>
-        <DCCReference Include="Aul2AudioFilterPluginSoundStyle.pas"/>
-        <DCCReference Include="Aul2AudioFilterPluginDelay.pas"/>
-        <DCCReference Include="Aul2AudioFilterPluginEq.pas"/>
-        <DCCReference Include="Aul2AudioFilterPluginCompressor.pas"/>
-        <DCCReference Include="Aul2AudioFilterPluginDistortion.pas"/>
-        <DCCReference Include="Aul2AudioFilterPluginNoise.pas"/>
-        <DCCReference Include="Aul2AudioFilterPluginBitCrusher.pas"/>
-        <DCCReference Include="Aul2AudioFilterPluginLimiter.pas"/>
-        <DCCReference Include="Aul2AudioFilterPluginChorus.pas"/>
-        <DCCReference Include="Aul2AudioFilterPluginReverb.pas"/>
-        <DCCReference Include="Aul2AudioFilterPlugin.pas"/>
+        <DCCReference Include="Source\Source\Lib\Aul2AudioFilterTypes.pas"/>
+        <DCCReference Include="Source\Source\Lib\Aul2AudioFilterGui.pas"/>
+        <DCCReference Include="Source\Source\Aul2AudioFilterPluginSoundStyle.pas"/>
+        <DCCReference Include="Source\Source\Aul2AudioFilterPluginDelay.pas"/>
+        <DCCReference Include="Source\Source\Aul2AudioFilterPluginEq.pas"/>
+        <DCCReference Include="Source\Source\Aul2AudioFilterPluginCompressor.pas"/>
+        <DCCReference Include="Source\Source\Aul2AudioFilterPluginDistortion.pas"/>
+        <DCCReference Include="Source\Source\Aul2AudioFilterPluginNoise.pas"/>
+        <DCCReference Include="Source\Source\Aul2AudioFilterPluginBitCrusher.pas"/>
+        <DCCReference Include="Source\Source\Aul2AudioFilterPluginLimiter.pas"/>
+        <DCCReference Include="Source\Source\Aul2AudioFilterPluginChorus.pas"/>
+        <DCCReference Include="Source\Source\Aul2AudioFilterPluginReverb.pas"/>
+        <DCCReference Include="Source\Source\Aul2AudioFilterPlugin.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -142,7 +142,7 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">Aul2AudioFilter.dpr</Source>
+                    <Source Name="MainSource">Source\Aul2AudioFilter.dpr</Source>
                 </Source>
             </Delphi.Personality>
             <Platforms>
