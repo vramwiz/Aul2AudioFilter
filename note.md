@@ -15,21 +15,19 @@
 - 音声フィルターの検証は WAV を基本にする。MP3 は当面使わない。
 - AviUtl2 上のパラメーター名は英語表記にする。日本語表示名はプラグイン名や説明に留める。
 - グループ分けしても項目名が後続エフェクトと紛らわしくなる可能性があるため、効果固有の項目は `Delay: Wet` のように効果名を prefix する。
+- 複数音声素材へまとめて適用する場合は、AviUtl2 の通常の「グループ制御」ではなく「グループ制御（音声）」を使う。
 
 ## 検証状況
 
 - プラグインテストは正常。
 - `Sample\sine_440hz_1s.wav` を AviUtl2 へ読み込み、サウンドエフェクターを適用して WAV 出力した。
 - 出力 WAV は `Sample\test_out.wav`。WAV 出力プラグインで 32bit float を選択した。
-- 初期値 `Volume = 1.0` では、元の正弦波と完全一致した。
-- `Volume = 0.5` では、ピーク/RMS と全サンプルが元波形の完全な 0.5 倍になった。
-- `Volume = 2.0` では、ピーク/RMS と全サンプルが元波形の完全な 2.0 倍になった。出力ピークは約 `0.9999389648` で、`abs(out) > 1.0` のサンプルはなかった。
 - `GetSampleData` で音声サンプルを受け取り、加工して `SetSampleData` で戻す基本経路は正常と判断する。
 - 単発ディレイは正常。
 - `Sample\impulse_1s.wav` を使い、`Delay: Time(ms) = 250`, `Delay: Dry = 1.0`, `Delay: Wet = 0.5` で出力した。
 - 0 samples / 0.000s に元音約 `1.0`、11025 samples / 0.250s に遅延音約 `0.5` が出た。前後サンプルは 0。
 - `Delay: Dry = 0.0`, `Delay: Wet = 1.0` では、0 samples が 0、11025 samples / 0.250s に約 `1.0` の遅延音だけが出た。
-- `Delay: Use` を追加し、OFF の時はディレイ処理をバイパスして `Volume` のみ適用する設計にした。
+- `Delay: Use` を追加し、OFF の時はディレイ処理をバイパスして内部バッファをクリアする設計にした。
 - `Delay: Feedback` を追加した。初期値は `0.0` で、単発ディレイと同じ挙動を保つ。
 - エコー確認は `Sample\impulse_1s.wav` を使い、`Delay: Time(ms) = 250`, `Delay: Dry = 1.0`, `Delay: Wet = 1.0`, `Delay: Feedback = 0.5` を想定する。
 - 期待値は 0 samples に約 `1.0`、11025 samples に約 `1.0`、22050 samples に約 `0.5`、33075 samples に約 `0.25`。
@@ -59,7 +57,7 @@
 
 - `Aul2AudioFilter.dpr`: AviUtl2 へ `GetFilterPluginTable` などを export する入口。
 - `Aul2AudioFilter.dproj`: Delphi Win64 Debug / Release ビルド設定。
-- `Aul2AudioFilterPlugin.pas`: AviUtl2 へ公開するフィルター入口、Basic / Volume、各エフェクトユニットの接続。
+- `Aul2AudioFilterPlugin.pas`: AviUtl2 へ公開するフィルター入口、各エフェクトユニットの接続。
 - `Aul2AudioFilterPluginDelay.pas`: Delay / Echo 系の GUI 項目、状態管理、音声処理。
 - `Aul2AudioFilterPluginChorus.pas`: Chorus 系の GUI 項目、状態管理、音声処理。
 - `Lib\Aul2AudioFilterTypes.pas`: AviUtl2 フィルター SDK の Delphi 型定義。
@@ -92,7 +90,7 @@
 
 ## ユニット分割方針
 
-- `Aul2AudioFilterPlugin.pas` は肥大化させず、AviUtl2 入口、Basic / Volume、各エフェクトユニットの呼び出しだけを担当する。
+- `Aul2AudioFilterPlugin.pas` は肥大化させず、AviUtl2 入口と各エフェクトユニットの呼び出しだけを担当する。
 - エフェクト固有の GUI 項目、状態バッファ、処理関数は `Aul2AudioFilterPluginXxx.pas` へ分ける。
 - 新しいエフェクトを追加する場合は、原則として `Aul2AudioFilterPluginXxx.pas` を追加し、`AddXxxItems` と `ProcessXxx` を公開する。
 - エフェクト処理順は `Aul2AudioFilterPlugin.pas` の `FilterProcAudio` で管理する。
@@ -150,6 +148,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - 選択された簡単エフェクトは、既存または追加予定のカスタム処理を内部的に呼び出して実現する。
 - カスタム側の手動設定と簡単エフェクトの処理が二重にかかる場合は許容する。
 - 必要な聞こえ方が現在のカスタム処理で作れない場合は、先にカスタム側の機能を充実させる。
+- 現時点では `EQ`, `Compressor`, `Limiter`, `Distortion`, `Noise`, `BitCrusher` まで基本機能完成扱いとし、簡単エフェクト実装へ進める。
 - 分類は複数セレクトに分けず、1 つのセレクト項目にまとめる。
 - 大分類は最大 10 種程度を基本にし、同じ分類内の効果違いは最大 3 種程度に抑える。
 
@@ -166,26 +165,6 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - Announcement: アナウンス、場内放送、案内音声のような状態。
 - Narration Clear: ナレーションを聞きやすくする実用補正。
 - Dream: 夢、回想、ぼんやりした音の演出。
-
-簡単エフェクト実現のために不足しているカスタム機能:
-
-- EQ: 最優先。電話、無線、メガホン、壁越し、遠くの声、アナウンス、ナレーション補正に必要。最低限 `Low Cut`、`High Cut`、`Band Pass` が欲しい。
-- Compressor: アナウンス、ナレーションを聞きやすくするために必要。小さい声を持ち上げ、大きい声を抑える。
-- Limiter: ナレーション、アナウンス、歪み系処理の後段で音割れ防止に使う。
-- Distortion / Saturation: 電話、無線、メガホン、古い放送のような質感に必要。軽いクリップやドライブから始める。
-- Noise: 無線、電話、古い録音、監視カメラ風の質感に使う。量を控えめに調整できるようにする。
-- Bit Crusher: 無線、古い機械音声、ゲーム風、劣化音声の演出に使う。
-- Pitch Shift: ロボット、ホラー、不気味、夢っぽさに有効。ただし実装難度が高いため優先度は後ろにする。
-
-優先実装順の目安:
-
-1. `EQ`
-2. `Compressor`
-3. `Limiter`
-4. `Distortion / Saturation`
-5. `Noise`
-6. `Bit Crusher`
-7. `Pitch Shift`
 
 ## Reverb implementation note
 
@@ -220,7 +199,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - `Band Pass` は low cut 後に high cut を通す。
 - `Band Pass` で `HighCut <= LowCut` になった場合は、内部的に `HighCut = LowCut + 1Hz` として破綻を避ける。
 - `EQ: Use` OFF 時、対象オブジェクト変更時、非連続サンプル位置、サンプルレート変更、チャンネル数変更、モード変更時は内部状態をリセットする。
-- 処理順は `Volume` / `Delay` の後、`Chorus` / `Reverb` の前。
+- 処理順は `Delay` の後、`Chorus` / `Reverb` の前。
 - Release Win64 ビルド成功。`C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2` へコピー済み。
 - `Sample\square_440hz_1s.wav` で `EQ: Mode = High Cut`, `HighCut = 1000Hz`, `Mix = 1.0` を確認した。
 - 出力 WAV は `Sample\test_out.wav`。44100Hz / stereo / 32bit float / 1.0s。
@@ -286,3 +265,43 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - 出力は L/R Peak 約 `0.251189`、RMS 約 `0.237296`、NaN なし。
 - 3 次倍音 1320Hz が約 `0.096631`、5 次倍音 2200Hz が約 `0.048176`、7 次倍音 3080Hz が約 `0.025241` 出ており、Soft Clip より強い奇数倍音が出ることを確認した。
 - 波形先頭でも `0.251189` 付近へ平らに切り詰められており、Hard Clip 基本動作は正常と判断する。
+
+## Noise implementation note
+
+- ユーザー向け簡単エフェクト実現の優先課題として `Noise` を追加した。
+- `Aul2AudioFilterPluginNoise.pas` を追加し、メインの `Aul2AudioFilterPlugin.pas` は `AddNoiseItems` と `ProcessNoise` の呼び出しだけを持つ。
+- パラメーターは `Noise: Use`, `Noise: Mode`, `Noise: Level(dB)`, `Noise: Mix`。
+- `Noise: Mode` は `White`, `Crackle`。
+- 初期値は `Noise: Use` OFF、`Mode = White`, `Level = -36dB`, `Mix = 1.0`。
+- `White` は疑似乱数によるホワイトノイズを足す。
+- `Crackle` は小さいホワイトノイズを基本にし、まれに大きめのノイズ粒を混ぜる。
+- 処理順は `Distortion` の後、`Limiter` の前。追加したノイズのピークは後段の `Limiter` で抑えられる。
+- `Sample\sine_440hz_1s.wav` で `Mode = White`, `Level = -36dB`, `Mix = 1.0` を確認した。
+- 出力 WAV は `Sample\test_out.wav`。44100Hz / stereo / 32bit float / 1.0s。
+- 入力は L/R Peak 約 `0.499969`、RMS 約 `0.353542`。出力は L/R Peak 約 `0.5158`、RMS 約 `0.35366`、NaN なし。
+- 出力と入力の差分は L/R とも Peak 約 `0.01584`、RMS 約 `0.0091` で、`Level = -36dB` 相当の小さいノイズが足された。
+- L/R 差分 RMS は約 `0.01307` で、左右に同一ではないノイズが乗ることを確認した。
+- 以上により、Noise の White 基本動作は正常と判断する。
+- `Sample\sine_440hz_1s.wav` で `Mode = Crackle`, `Level = -30dB`, `Mix = 1.0` を確認した。
+- 出力 WAV は `Sample\test_out.wav`。44100Hz / stereo / 32bit float / 1.0s。
+- 出力は L Peak 約 `0.527312`、R Peak 約 `0.526943`、L/R RMS 約 `0.35356`、NaN なし。
+- 出力と入力の差分は L Peak 約 `0.029906`、R Peak 約 `0.031112` で、`Level = -30dB` 付近の大きめのノイズ粒が出た。
+- 差分 RMS は L 約 `0.003332`、R 約 `0.003612` で、White より常時成分が小さく、突発ノイズ寄りの挙動になった。
+- 以上により、Noise の Crackle 基本動作は正常と判断する。
+
+## BitCrusher implementation note
+
+- ユーザー向け簡単エフェクト実現の優先課題として `BitCrusher` を追加した。
+- `Aul2AudioFilterPluginBitCrusher.pas` を追加し、メインの `Aul2AudioFilterPlugin.pas` は `AddBitCrusherItems` と `ProcessBitCrusher` の呼び出しだけを持つ。
+- パラメーターは `BitCrusher: Use`, `BitCrusher: BitDepth`, `BitCrusher: SampleHold`, `BitCrusher: Mix`。
+- 初期値は `BitCrusher: Use` OFF、`BitDepth = 8`, `SampleHold = 4`, `Mix = 1.0`。
+- `BitDepth` は振幅方向の段階数を粗くする。
+- `SampleHold` は指定サンプル数だけ同じ値を出し続け、時間方向の解像度を粗くする。
+- `BitCrusher: Use` OFF 時、対象オブジェクト変更時、非連続サンプル位置、チャンネル数変更時は内部状態をリセットする。
+- 処理順は `Noise` の後、`Limiter` の前。粗くした音のピークは後段の `Limiter` で抑えられる。
+- `Sample\sine_440hz_1s.wav` で `BitDepth = 4`, `SampleHold = 8`, `Mix = 1.0` を確認した。
+- 出力 WAV は `Sample\test_out.wav`。44100Hz / stereo / 32bit float / 1.0s。
+- 入力は L/R Peak 約 `0.499969`、RMS 約 `0.353542`。出力は L/R Peak 約 `0.428571`、RMS 約 `0.335727`、NaN なし。
+- 出力の値は L/R とも `-0.428571`, `-0.285714`, `-0.142857`, `0`, `0.142857`, `0.285714`, `0.428571` の 7 段階になり、4bit 相当の量子化を確認した。
+- 出力先頭では同じ値が 8 サンプル単位で保持され、`SampleHold = 8` の基本動作を確認した。
+- 440Hz 以外の高域成分も増えており、BitCrusher の基本動作は正常と判断する。

@@ -12,6 +12,8 @@ uses
   Aul2AudioFilterPluginEq in 'Aul2AudioFilterPluginEq.pas',
   Aul2AudioFilterPluginCompressor in 'Aul2AudioFilterPluginCompressor.pas',
   Aul2AudioFilterPluginDistortion in 'Aul2AudioFilterPluginDistortion.pas',
+  Aul2AudioFilterPluginNoise in 'Aul2AudioFilterPluginNoise.pas',
+  Aul2AudioFilterPluginBitCrusher in 'Aul2AudioFilterPluginBitCrusher.pas',
   Aul2AudioFilterPluginLimiter in 'Aul2AudioFilterPluginLimiter.pas',
   Aul2AudioFilterPluginChorus in 'Aul2AudioFilterPluginChorus.pas',
   Aul2AudioFilterPluginReverb in 'Aul2AudioFilterPluginReverb.pas',

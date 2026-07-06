@@ -12,6 +12,8 @@ uses
   Aul2AudioFilterPluginEq,
   Aul2AudioFilterPluginCompressor,
   Aul2AudioFilterPluginDistortion,
+  Aul2AudioFilterPluginNoise,
+  Aul2AudioFilterPluginBitCrusher,
   Aul2AudioFilterPluginLimiter,
   Aul2AudioFilterPluginChorus,
   Aul2AudioFilterPluginReverb;
@@ -20,41 +22,10 @@ function GetFilterTable: PFILTER_PLUGIN_TABLE;
 
 implementation
 
-var
-  GAudioGroup : TFILTER_ITEM_GROUP; // Basic グループの GUI 項目
-  GVolumeTrack: TFILTER_ITEM_TRACK; // 全エフェクト前段で使う基本音量
-
-procedure ApplyVolume(var Buffer: TArray<Single>; SampleNum: Integer; Volume: Single);
-var
-  I: Integer;
-begin
-  if Volume = 1.0 then
-    Exit;
-
-  for I := 0 to SampleNum - 1 do
-    Buffer[I] := Buffer[I] * Volume;
-end;
-
-procedure ProcessVolume(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer; Volume: Single);
-var
-  Channel: Integer;
-  Buffer: TArray<Single>;
-begin
-  SetLength(Buffer, SampleNum);
-
-  for Channel := 0 to ChannelNum - 1 do
-  begin
-    Audio^.GetSampleData(@Buffer[0], Channel);
-    ApplyVolume(Buffer, SampleNum, Volume);
-    Audio^.SetSampleData(@Buffer[0], Channel);
-  end;
-end;
-
 function FilterProcAudio(Audio: PFILTER_PROC_AUDIO): Byte; cdecl;
 var
   SampleNum: Integer;
   ChannelNum: Integer;
-  Volume: Single;
 begin
   Result := 1;
 
@@ -67,14 +38,12 @@ begin
   if (SampleNum <= 0) or (ChannelNum <= 0) then
     Exit;
 
-  Volume := GVolumeTrack.Value;
-  // Delay は Volume を内部で適用するため、有効時は通常 Volume 処理を省く。
-  if not ProcessDelay(Audio, SampleNum, ChannelNum, Volume) then
-    ProcessVolume(Audio, SampleNum, ChannelNum, Volume);
-
+  ProcessDelay(Audio, SampleNum, ChannelNum);
   ProcessEq(Audio, SampleNum, ChannelNum);
   ProcessCompressor(Audio, SampleNum, ChannelNum);
   ProcessDistortion(Audio, SampleNum, ChannelNum);
+  ProcessNoise(Audio, SampleNum, ChannelNum);
+  ProcessBitCrusher(Audio, SampleNum, ChannelNum);
   ProcessLimiter(Audio, SampleNum, ChannelNum);
   ProcessChorus(Audio, SampleNum, ChannelNum);
   ProcessReverb(Audio, SampleNum, ChannelNum);
@@ -93,12 +62,12 @@ begin
       FilterProcAudio
     );
 
-    AddGroup(GAudioGroup, 'Basic', 1);
-    AddTrack(GVolumeTrack, 'Volume', 1.0, 0.0, 2.0, 0.01);
     AddDelayItems;
     AddEqItems;
     AddCompressorItems;
     AddDistortionItems;
+    AddNoiseItems;
+    AddBitCrusherItems;
     AddLimiterItems;
     AddChorusItems;
     AddReverbItems;

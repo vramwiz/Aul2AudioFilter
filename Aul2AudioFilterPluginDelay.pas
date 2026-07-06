@@ -10,7 +10,7 @@ uses
   Aul2AudioFilterGui;
 
 procedure AddDelayItems;
-function ProcessDelay(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer; Volume: Single): Boolean;
+function ProcessDelay(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
 
 implementation
 
@@ -88,7 +88,7 @@ begin
 end;
 
 procedure ApplyDelay(var Buffer: TArray<Single>; Channel, SampleNum: Integer;
-  Volume, Dry, Wet, Feedback: Single);
+  Dry, Wet, Feedback: Single);
 var
   I: Integer;
   InputSample: Single;
@@ -99,7 +99,7 @@ begin
 
   for I := 0 to SampleNum - 1 do
   begin
-    InputSample := Buffer[I] * Volume;
+    InputSample := Buffer[I];
     DelayedSample := State^.Buffer[State^.Position];
     State^.Buffer[State^.Position] := InputSample + (DelayedSample * Feedback);
 
@@ -112,7 +112,7 @@ begin
 end;
 
 procedure ApplyPingPongDelay(var LeftBuffer, RightBuffer: TArray<Single>; SampleNum: Integer;
-  Volume, Dry, Wet, Feedback: Single);
+  Dry, Wet, Feedback: Single);
 var
   I: Integer;
   InputL: Single;
@@ -127,8 +127,8 @@ begin
 
   for I := 0 to SampleNum - 1 do
   begin
-    InputL := LeftBuffer[I] * Volume;
-    InputR := RightBuffer[I] * Volume;
+    InputL := LeftBuffer[I];
+    InputR := RightBuffer[I];
     DelayedL := LeftState^.Buffer[LeftState^.Position];
     DelayedR := RightState^.Buffer[RightState^.Position];
 
@@ -149,7 +149,7 @@ begin
 end;
 
 procedure ProcessNormalDelay(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer;
-  Volume, Dry, Wet, Feedback: Single);
+  Dry, Wet, Feedback: Single);
 var
   Channel: Integer;
   Buffer: TArray<Single>;
@@ -159,13 +159,13 @@ begin
   for Channel := 0 to ChannelNum - 1 do
   begin
     Audio^.GetSampleData(@Buffer[0], Channel);
-    ApplyDelay(Buffer, Channel, SampleNum, Volume, Dry, Wet, Feedback);
+    ApplyDelay(Buffer, Channel, SampleNum, Dry, Wet, Feedback);
     Audio^.SetSampleData(@Buffer[0], Channel);
   end;
 end;
 
 procedure ProcessPingPongDelay(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer;
-  Volume, Dry, Wet, Feedback: Single);
+  Dry, Wet, Feedback: Single);
 var
   Channel: Integer;
   LeftBuffer: TArray<Single>;
@@ -175,7 +175,7 @@ begin
   if ChannelNum < 2 then
   begin
     // モノラル入力では Ping-Pong の行き先がないため通常 Delay として処理する。
-    ProcessNormalDelay(Audio, SampleNum, ChannelNum, Volume, Dry, Wet, Feedback);
+    ProcessNormalDelay(Audio, SampleNum, ChannelNum, Dry, Wet, Feedback);
     Exit;
   end;
 
@@ -183,7 +183,7 @@ begin
   SetLength(RightBuffer, SampleNum);
   Audio^.GetSampleData(@LeftBuffer[0], 0);
   Audio^.GetSampleData(@RightBuffer[0], 1);
-  ApplyPingPongDelay(LeftBuffer, RightBuffer, SampleNum, Volume, Dry, Wet, Feedback);
+  ApplyPingPongDelay(LeftBuffer, RightBuffer, SampleNum, Dry, Wet, Feedback);
   Audio^.SetSampleData(@LeftBuffer[0], 0);
   Audio^.SetSampleData(@RightBuffer[0], 1);
 
@@ -191,7 +191,7 @@ begin
   for Channel := 2 to ChannelNum - 1 do
   begin
     Audio^.GetSampleData(@Buffer[0], Channel);
-    ApplyDelay(Buffer, Channel, SampleNum, Volume, Dry, Wet, Feedback);
+    ApplyDelay(Buffer, Channel, SampleNum, Dry, Wet, Feedback);
     Audio^.SetSampleData(@Buffer[0], Channel);
   end;
 end;
@@ -213,7 +213,7 @@ begin
   AddTrack(GFeedbackTrack, 'Delay: Feedback', 0.0, 0.0, 0.95, 0.01);
 end;
 
-function ProcessDelay(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer; Volume: Single): Boolean;
+function ProcessDelay(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
 var
   DelaySamples: Integer;
   Dry: Single;
@@ -241,9 +241,9 @@ begin
   EnsureDelayState(Audio, ChannelNum, DelaySamples, StereoMode);
 
   if StereoMode = DELAY_STEREO_PING_PONG then
-    ProcessPingPongDelay(Audio, SampleNum, ChannelNum, Volume, Dry, Wet, Feedback)
+    ProcessPingPongDelay(Audio, SampleNum, ChannelNum, Dry, Wet, Feedback)
   else
-    ProcessNormalDelay(Audio, SampleNum, ChannelNum, Volume, Dry, Wet, Feedback);
+    ProcessNormalDelay(Audio, SampleNum, ChannelNum, Dry, Wet, Feedback);
 
   GNextSampleIndex := Audio^.Object_^.SampleIndex + SampleNum;
 end;

@@ -6,7 +6,6 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 
 ## 現在の機能
 
-- `Volume`: 音量倍率
 - `Delay: Use`: ディレイの使用切り替え
 - `Delay: Stereo Mode`: ディレイのステレオ処理
 - `Delay: Time(ms)`: ディレイ時間
@@ -31,6 +30,14 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 - `Distortion: Tone`: 歪み音の強さ
 - `Distortion: Level(dB)`: 処理後の音量補正
 - `Distortion: Mix`: 元音と歪み音の混合量
+- `Noise: Use`: ノイズの使用切り替え
+- `Noise: Mode`: ノイズの種類
+- `Noise: Level(dB)`: 追加するノイズの音量
+- `Noise: Mix`: ノイズの混合量
+- `BitCrusher: Use`: ビットクラッシャーの使用切り替え
+- `BitCrusher: BitDepth`: 音量の段階数を粗くする強さ
+- `BitCrusher: SampleHold`: サンプル値を保持する長さ
+- `BitCrusher: Mix`: 元音とビットクラッシャー処理音の混合量
 - `Limiter: Use`: リミッターの使用切り替え
 - `Limiter: Ceiling(dB)`: 出力ピークの上限
 - `Limiter: Release(ms)`: 抑えたゲインを戻す速さ
@@ -49,10 +56,12 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 
 `Delay: Feedback` を `0.0` にすると単発ディレイ、値を上げるとエコーとして動作します。
 `Delay: Stereo Mode` は `Normal` と `Ping-Pong` を選択できます。
-`Delay: Use` を OFF にすると、Delay の内部バッファをクリアして Volume のみを適用します。
+`Delay: Use` を OFF にすると、Delay の内部バッファをクリアします。
 `EQ` は音の低域や高域を削るための簡易 EQ です。`Low Cut`、`High Cut`、`Band Pass` を選択できます。
 `Compressor` は大きい音を抑えて音量差を整えるためのエフェクトです。ナレーションやアナウンスを聞きやすくする用途に使います。
 `Distortion` は音を軽く歪ませ、電話、無線、メガホン、古い放送のような質感を作るためのエフェクトです。
+`Noise` は無線、古い録音、監視カメラ風などのざらついた質感を足すためのエフェクトです。
+`BitCrusher` は音の解像度や時間方向の細かさを粗くして、低音質通話、古い機械音声、ゲーム風の質感を作るためのエフェクトです。
 `Limiter` は出力ピークの上限を決め、音割れを防ぐためのエフェクトです。
 `Chorus` は短いディレイ時間を LFO で揺らす簡易コーラスです。
 `Chorus: Stereo Mode` は `Normal` と `Wide` を選択できます。`Wide` は右チャンネルの LFO 位相を 180 度ずらします。
@@ -62,11 +71,13 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 ## 配置
 
 - `Aul2AudioFilter.dpr` / `Aul2AudioFilter.dproj`: Delphi プロジェクト本体
-- `Aul2AudioFilterPlugin.pas`: プラグイン入口、基本 Volume、各エフェクトユニットの接続
+- `Aul2AudioFilterPlugin.pas`: プラグイン入口、各エフェクトユニットの接続
 - `Aul2AudioFilterPluginDelay.pas`: Delay / Echo 系の GUI 項目、状態、音声処理
 - `Aul2AudioFilterPluginEq.pas`: EQ 系の GUI 項目、状態、音声処理
 - `Aul2AudioFilterPluginCompressor.pas`: Compressor 系の GUI 項目、状態、音声処理
 - `Aul2AudioFilterPluginDistortion.pas`: Distortion 系の GUI 項目、音声処理
+- `Aul2AudioFilterPluginNoise.pas`: Noise 系の GUI 項目、状態、音声処理
+- `Aul2AudioFilterPluginBitCrusher.pas`: BitCrusher 系の GUI 項目、状態、音声処理
 - `Aul2AudioFilterPluginLimiter.pas`: Limiter 系の GUI 項目、状態、音声処理
 - `Aul2AudioFilterPluginChorus.pas`: Chorus 系の GUI 項目、状態、音声処理
 - `Aul2AudioFilterPluginReverb.pas`: Reverb 系の GUI 項目、状態、音声処理
@@ -83,6 +94,11 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 ```
 
 開発ルールやビルド方法は [note.md](note.md) を参照してください。
+
+## グループへの適用
+
+複数の音声素材へまとめて効果をかけたい場合は、AviUtl2 の「グループ制御（音声）」を使います。
+通常の「グループ制御」ではなく、「グループ制御（音声）」にサウンドエフェクターを追加してください。
 
 ## EQ
 
@@ -119,6 +135,26 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 
 `Distortion` は音を軽く荒らして、電話、無線、メガホン、古い放送のような質感を作るためのエフェクトです。
 初期状態では `Distortion: Use` は OFF です。
+
+## Noise
+
+- `Noise: Use`: ノイズの使用切り替え
+- `Noise: Mode`: `White`、`Crackle` から選択
+- `Noise: Level(dB)`: 追加するノイズの音量
+- `Noise: Mix`: ノイズの混合量
+
+`Noise` は無線、古い録音、監視カメラ風などのざらついた質感を足すためのエフェクトです。
+初期状態では `Noise: Use` は OFF です。
+
+## BitCrusher
+
+- `BitCrusher: Use`: ビットクラッシャーの使用切り替え
+- `BitCrusher: BitDepth`: 音量の段階数を粗くする強さ
+- `BitCrusher: SampleHold`: サンプル値を保持する長さ
+- `BitCrusher: Mix`: 元音とビットクラッシャー処理音の混合量
+
+`BitCrusher` は音の解像度や時間方向の細かさを粗くして、低音質通話、古い機械音声、ゲーム風の質感を作るためのエフェクトです。
+初期状態では `BitCrusher: Use` は OFF です。
 
 ## Limiter
 
