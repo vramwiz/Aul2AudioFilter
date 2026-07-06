@@ -116,6 +116,8 @@
         <DCCReference Include="Aul2AudioFilterPluginDelay.pas"/>
         <DCCReference Include="Aul2AudioFilterPluginEq.pas"/>
         <DCCReference Include="Aul2AudioFilterPluginCompressor.pas"/>
+        <DCCReference Include="Aul2AudioFilterPluginDistortion.pas"/>
+        <DCCReference Include="Aul2AudioFilterPluginLimiter.pas"/>
         <DCCReference Include="Aul2AudioFilterPluginChorus.pas"/>
         <DCCReference Include="Aul2AudioFilterPluginReverb.pas"/>
         <DCCReference Include="Aul2AudioFilterPlugin.pas"/>

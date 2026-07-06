@@ -25,6 +25,16 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 - `Compressor: Release(ms)`: 抑えた音量を戻す速さ
 - `Compressor: Makeup(dB)`: 処理後の音量補正
 - `Compressor: Mix`: 元音とコンプレッサー処理音の混合量
+- `Distortion: Use`: 歪みの使用切り替え
+- `Distortion: Mode`: 歪みの種類
+- `Distortion: Drive(dB)`: 歪ませる強さ
+- `Distortion: Tone`: 歪み音の強さ
+- `Distortion: Level(dB)`: 処理後の音量補正
+- `Distortion: Mix`: 元音と歪み音の混合量
+- `Limiter: Use`: リミッターの使用切り替え
+- `Limiter: Ceiling(dB)`: 出力ピークの上限
+- `Limiter: Release(ms)`: 抑えたゲインを戻す速さ
+- `Limiter: Mix`: 元音とリミッター処理音の混合量
 - `Chorus: Use`: コーラスの使用切り替え
 - `Chorus: Stereo Mode`: コーラスのステレオ処理
 - `Chorus: Delay(ms)`: コーラスの基準ディレイ時間
@@ -42,6 +52,8 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 `Delay: Use` を OFF にすると、Delay の内部バッファをクリアして Volume のみを適用します。
 `EQ` は音の低域や高域を削るための簡易 EQ です。`Low Cut`、`High Cut`、`Band Pass` を選択できます。
 `Compressor` は大きい音を抑えて音量差を整えるためのエフェクトです。ナレーションやアナウンスを聞きやすくする用途に使います。
+`Distortion` は音を軽く歪ませ、電話、無線、メガホン、古い放送のような質感を作るためのエフェクトです。
+`Limiter` は出力ピークの上限を決め、音割れを防ぐためのエフェクトです。
 `Chorus` は短いディレイ時間を LFO で揺らす簡易コーラスです。
 `Chorus: Stereo Mode` は `Normal` と `Wide` を選択できます。`Wide` は右チャンネルの LFO 位相を 180 度ずらします。
 
@@ -54,6 +66,8 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 - `Aul2AudioFilterPluginDelay.pas`: Delay / Echo 系の GUI 項目、状態、音声処理
 - `Aul2AudioFilterPluginEq.pas`: EQ 系の GUI 項目、状態、音声処理
 - `Aul2AudioFilterPluginCompressor.pas`: Compressor 系の GUI 項目、状態、音声処理
+- `Aul2AudioFilterPluginDistortion.pas`: Distortion 系の GUI 項目、音声処理
+- `Aul2AudioFilterPluginLimiter.pas`: Limiter 系の GUI 項目、状態、音声処理
 - `Aul2AudioFilterPluginChorus.pas`: Chorus 系の GUI 項目、状態、音声処理
 - `Aul2AudioFilterPluginReverb.pas`: Reverb 系の GUI 項目、状態、音声処理
 - `Lib`: 共通ライブラリ
@@ -93,6 +107,28 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 
 `Compressor` は小さい声と大きい声の差を整え、ナレーションやアナウンスを聞きやすくするための基礎になる音量補正です。
 初期状態では `Compressor: Use` は OFF です。
+
+## Distortion
+
+- `Distortion: Use`: 歪みの使用切り替え
+- `Distortion: Mode`: `Soft Clip`、`Hard Clip` から選択
+- `Distortion: Drive(dB)`: 歪ませる強さ
+- `Distortion: Tone`: 歪み音の強さ
+- `Distortion: Level(dB)`: 処理後の音量補正
+- `Distortion: Mix`: 元音と歪み音の混合量
+
+`Distortion` は音を軽く荒らして、電話、無線、メガホン、古い放送のような質感を作るためのエフェクトです。
+初期状態では `Distortion: Use` は OFF です。
+
+## Limiter
+
+- `Limiter: Use`: リミッターの使用切り替え
+- `Limiter: Ceiling(dB)`: 出力ピークの上限
+- `Limiter: Release(ms)`: 抑えたゲインを戻す速さ
+- `Limiter: Mix`: 元音とリミッター処理音の混合量
+
+`Limiter` は大きすぎる瞬間的な音を上限以下に抑え、音割れを防ぐための仕上げ用エフェクトです。
+初期状態では `Limiter: Use` は OFF です。
 
 ## Reverb
 

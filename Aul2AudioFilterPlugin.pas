@@ -11,6 +11,8 @@ uses
   Aul2AudioFilterPluginDelay,
   Aul2AudioFilterPluginEq,
   Aul2AudioFilterPluginCompressor,
+  Aul2AudioFilterPluginDistortion,
+  Aul2AudioFilterPluginLimiter,
   Aul2AudioFilterPluginChorus,
   Aul2AudioFilterPluginReverb;
 
@@ -72,6 +74,8 @@ begin
 
   ProcessEq(Audio, SampleNum, ChannelNum);
   ProcessCompressor(Audio, SampleNum, ChannelNum);
+  ProcessDistortion(Audio, SampleNum, ChannelNum);
+  ProcessLimiter(Audio, SampleNum, ChannelNum);
   ProcessChorus(Audio, SampleNum, ChannelNum);
   ProcessReverb(Audio, SampleNum, ChannelNum);
 end;
@@ -94,6 +98,8 @@ begin
     AddDelayItems;
     AddEqItems;
     AddCompressorItems;
+    AddDistortionItems;
+    AddLimiterItems;
     AddChorusItems;
     AddReverbItems;
   end;
