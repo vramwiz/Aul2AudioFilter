@@ -8,6 +8,7 @@ uses
   System.SysUtils,
   Aul2AudioFilterTypes,
   Aul2AudioFilterGui,
+  Aul2AudioFilterPluginSoundStyle,
   Aul2AudioFilterPluginDelay,
   Aul2AudioFilterPluginEq,
   Aul2AudioFilterPluginCompressor,
@@ -38,6 +39,7 @@ begin
   if (SampleNum <= 0) or (ChannelNum <= 0) then
     Exit;
 
+  ProcessSoundStyle(Audio, SampleNum, ChannelNum);
   ProcessDelay(Audio, SampleNum, ChannelNum);
   ProcessEq(Audio, SampleNum, ChannelNum);
   ProcessCompressor(Audio, SampleNum, ChannelNum);
@@ -62,6 +64,7 @@ begin
       FilterProcAudio
     );
 
+    AddSoundStyleItems;
     AddDelayItems;
     AddEqItems;
     AddCompressorItems;

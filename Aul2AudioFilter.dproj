@@ -113,6 +113,7 @@
         </DelphiCompile>
         <DCCReference Include="Lib\Aul2AudioFilterTypes.pas"/>
         <DCCReference Include="Lib\Aul2AudioFilterGui.pas"/>
+        <DCCReference Include="Aul2AudioFilterPluginSoundStyle.pas"/>
         <DCCReference Include="Aul2AudioFilterPluginDelay.pas"/>
         <DCCReference Include="Aul2AudioFilterPluginEq.pas"/>
         <DCCReference Include="Aul2AudioFilterPluginCompressor.pas"/>

@@ -8,6 +8,7 @@ uses
   Winapi.Windows,
   Aul2AudioFilterTypes in 'Lib\Aul2AudioFilterTypes.pas',
   Aul2AudioFilterGui in 'Lib\Aul2AudioFilterGui.pas',
+  Aul2AudioFilterPluginSoundStyle in 'Aul2AudioFilterPluginSoundStyle.pas',
   Aul2AudioFilterPluginDelay in 'Aul2AudioFilterPluginDelay.pas',
   Aul2AudioFilterPluginEq in 'Aul2AudioFilterPluginEq.pas',
   Aul2AudioFilterPluginCompressor in 'Aul2AudioFilterPluginCompressor.pas',
