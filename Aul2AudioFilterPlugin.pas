@@ -27,6 +27,7 @@ var
   GDelayMsTrack   : TFILTER_ITEM_TRACK;
   GDryTrack       : TFILTER_ITEM_TRACK;
   GWetTrack       : TFILTER_ITEM_TRACK;
+  GFeedbackTrack  : TFILTER_ITEM_TRACK;
   GDelayChannels  : array of TDelayChannelState;
   GDelaySamples   : Integer;
   GLastObjectID   : Int64;
@@ -79,7 +80,7 @@ begin
 end;
 
 procedure ApplyDelay(var Buffer: TArray<Single>; Channel, SampleNum: Integer;
-  Volume, Dry, Wet: Single);
+  Volume, Dry, Wet, Feedback: Single);
 var
   I: Integer;
   InputSample: Single;
@@ -92,7 +93,7 @@ begin
   begin
     InputSample := Buffer[I] * Volume;
     DelayedSample := State^.Buffer[State^.Position];
-    State^.Buffer[State^.Position] := InputSample;
+    State^.Buffer[State^.Position] := InputSample + (DelayedSample * Feedback);
 
     Buffer[I] := (InputSample * Dry) + (DelayedSample * Wet);
 
@@ -111,6 +112,7 @@ var
   Volume: Single;
   Dry: Single;
   Wet: Single;
+  Feedback: Single;
   UseDelay: Boolean;
   Buffer: TArray<Single>;
 begin
@@ -127,6 +129,7 @@ begin
   Volume := GVolumeTrack.Value;
   Dry := GDryTrack.Value;
   Wet := GWetTrack.Value;
+  Feedback := GFeedbackTrack.Value;
   UseDelay := GDelayUseCheck.Value <> 0;
   SetLength(Buffer, SampleNum);
 
@@ -144,7 +147,7 @@ begin
     Audio^.GetSampleData(@Buffer[0], Channel);
 
     if UseDelay then
-      ApplyDelay(Buffer, Channel, SampleNum, Volume, Dry, Wet)
+      ApplyDelay(Buffer, Channel, SampleNum, Volume, Dry, Wet, Feedback)
     else
       ApplyVolume(Buffer, SampleNum, Volume);
 
@@ -178,6 +181,7 @@ begin
     AddTrack(GDelayMsTrack, 'Delay: Time(ms)', 250.0, 1.0, 1000.0, 1.0);
     AddTrack(GDryTrack, 'Delay: Dry', 1.0, 0.0, 2.0, 0.01);
     AddTrack(GWetTrack, 'Delay: Wet', 0.0, 0.0, 2.0, 0.01);
+    AddTrack(GFeedbackTrack, 'Delay: Feedback', 0.0, 0.0, 0.95, 0.01);
   end;
 
   Result := @GTable;
