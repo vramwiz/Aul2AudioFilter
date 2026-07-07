@@ -18,6 +18,10 @@
 - `プリセット` は直接音声処理をせず、詳細エフェクトの初期値を設定する入口として扱う。
 - グループ分けしても項目名が後続エフェクトと紛らわしくなる可能性があるため、効果固有の項目は `Delay: Wet` のように効果名を prefix する。
 - 複数音声素材へまとめて適用する場合は、AviUtl2 の通常の「グループ制御」ではなく「グループ制御（音声）」を使う。
+- 本プラグインは音楽制作向けではなく、声、セリフ、効果音素材に用途が伝わる加工をすばやくかける道具として設計する。
+- エフェクトの GUI 並びは、プリセットを除き、実際に音声へ処理される順番へ揃える。利用者が上から順に音が変わると理解できる状態を保つ。
+- 最終段にユーザーが触れる `Output: Gain(dB)` のような出力音量調整を追加する方針。音量を上げた後のピーク保護のため、最終 Limiter はその後段に置く。
+- 完全自動の音量復元は、ノイズや残響まで不自然に持ち上げる可能性があるため基本機能にはしない。必要なら後で `AutoGain` として独立した任意エフェクトにする。
 
 ## 検証状況
 
@@ -98,6 +102,25 @@
 - エフェクト固有の GUI 項目、状態バッファ、処理関数は `Aul2AudioFilterPluginXxx.pas` へ分ける。
 - 新しいエフェクトを追加する場合は、原則として `Aul2AudioFilterPluginXxx.pas` を追加し、`AddXxxItems` と `ProcessXxx` を公開する。
 - エフェクト処理順は `Aul2AudioFilterPlugin.pas` の `FilterProcAudio` で管理する。
+- GUI 登録順は `GetFilterTable` 内の `AddXxxItems` 呼び出し順で管理し、原則として `FilterProcAudio` の `ProcessXxx` 呼び出し順と一致させる。
+
+## 今後の声向け機能候補
+
+- 追加プリセット候補は `風邪`、`ロボ`、`恐怖`、`叫び`、`ささやき`、`水中`、`男性寄り`、`女性寄り`、`壁越し`、`遠く`、`夢/回想`。
+- `風邪`: ガラガラした声。EQ、Noise、Distortion、Tremble、Whisper/Breath を組み合わせる候補。
+- `ロボ`: 機械がしゃべる感じ。棒読みは音声合成ソフト側で作る前提とし、こちらは RingMod、PitchStep、BitCrusher、EQ で機械質を作る。
+- `恐怖`: 声が震えている感じ。Tremble、Wobble、Reverb、EQ を組み合わせる候補。
+- `叫び`: 音圧を上げ、割れそうで割れない圧のある声。VoiceDrive、Compressor、Limiter、Output Gain を使う候補。
+- `ささやき`: ヒソヒソ声。Whisper/Breath、EQ、Noise、Compressor、Limiter を使う候補。
+- `水中`: 水中でしゃべっている感じ。Muffle、Wobble、Chorus、Reverb、EQ を使う候補。
+- `男性寄り` / `女性寄り`: PitchShift と FormantShift が必要。単純なピッチ変更だけでは声質が不自然になりやすい点に注意する。
+- 追加エフェクト候補は優先度順に `Output Gain`、`Tremble`、`Whisper/Breath`、`VoiceDrive`、`Wobble`、`PitchShift`、`FormantShift`、`RingMod`、`PitchStep`、`Muffle`、`AutoGain`、`NoiseGate`、`ReverseReverb/Ghost`。
+- `Output Gain`: 最終段の手動音量調整。`Output: Gain(dB)` を基本項目にする。Limiter より前に置く。
+- `Tremble`: 細かい音量揺れやピッチ揺れで、恐怖、風邪、水中、夢/回想に使い回す。
+- `Whisper/Breath`: 息成分やヒソヒソ感を足し、ささやきや風邪に使う。
+- `VoiceDrive`: 声の圧、叫び、荒さを作る。既存 Distortion より声用途に寄せる。
+- `Wobble`: ゆっくりした揺らぎを作り、水中、夢/回想、恐怖に使う。
+- `PitchShift` / `FormantShift`: 男性声を女性寄り、女性声を男性寄りにする中核候補。ただし実装難度が高いため、品質を確認しながら進める。
 
 ## ビルド方法
 
@@ -215,6 +238,10 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - 出力は L/R Peak 約 `0.414991`、RMS 約 `0.282386`、NaN なし。440Hz 成分は約 `-1.97dB` で、通過帯域内の信号として大きく消えないことを確認した。
 - 以上により、現在の簡易 EQ は基本機能完成扱いとする。
 - 今後の改善候補は、カット特性を強くする 2 段化、または biquad EQ への置き換え。
+- EQ の内部実装を one-pole から 2 次 biquad に置き換えた。GUI パラメーターは従来通り `EQ: Use`, `EQ: Mode`, `EQ: LowCut(Hz)`, `EQ: HighCut(Hz)`, `EQ: Mix` のまま。
+- `Low Cut` は Butterworth 相当の high-pass、`High Cut` は Butterworth 相当の low-pass、`Band Pass` は high-pass 後に low-pass を通す構成。
+- biquad 出力が NaN/Inf になった場合は対象フィルター状態をクリアし、異常値を後段へ流さない。
+- Release Win64 ビルド成功。`C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2` へコピー済み。
 
 ## Compressor implementation note
 
@@ -310,3 +337,30 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - 出力の値は L/R とも `-0.428571`, `-0.285714`, `-0.142857`, `0`, `0.142857`, `0.285714`, `0.428571` の 7 段階になり、4bit 相当の量子化を確認した。
 - 出力先頭では同じ値が 8 サンプル単位で保持され、`SampleHold = 8` の基本動作を確認した。
 - 440Hz 以外の高域成分も増えており、BitCrusher の基本動作は正常と判断する。
+
+## Output / Tremble / Whisper / VoiceDrive / Wobble implementation note
+
+- 優先度順に `Output Gain`, `Tremble`, `Whisper/Breath`, `VoiceDrive`, `Wobble` を追加した。
+- `Aul2AudioFilterPluginOutput.pas` を追加し、メインの `Aul2AudioFilterPlugin.pas` は `AddOutputItems` と `ProcessOutput` の呼び出しだけを持つ。
+- `Output` のパラメーターは `Output: Use`, `Output: Gain(dB)`。
+- `Output: Gain(dB)` は `-24dB` から `+24dB` の手動出力音量調整として扱う。
+- 処理順は `Limiter` の直前。音量を上げた後のピーク保護を後段 Limiter に任せる。
+- `Aul2AudioFilterPluginTremble.pas` を追加した。
+- `Tremble` のパラメーターは `Tremble: Use`, `Tremble: Rate(Hz)`, `Tremble: Depth`, `Tremble: Mix`。
+- `Tremble` は `SampleIndex` から計算した LFO で音量を周期的に下げる。音量を持ち上げないため、ピークを増やしにくい。
+- `Aul2AudioFilterPluginWhisper.pas` を追加した。
+- `Whisper/Breath` のパラメーターは `Whisper/Breath: Use`, `Whisper/Breath: Level(dB)`, `Whisper/Breath: Tone`, `Whisper/Breath: Mix`。
+- `Whisper/Breath` は入力音量に追従する envelope follower と疑似乱数ノイズで息成分を足す。無音部へ常時ノイズが乗りにくい設計にした。
+- `Whisper/Breath: Tone` は息成分の明るさを変える簡易パラメーターとして扱う。
+- `Aul2AudioFilterPluginVoiceDrive.pas` を追加した。
+- `VoiceDrive` のパラメーターは `VoiceDrive: Use`, `VoiceDrive: Drive(dB)`, `VoiceDrive: Body`, `VoiceDrive: Level(dB)`, `VoiceDrive: Mix`。
+- `VoiceDrive` は既存 `Distortion` より声の押し出し向けにし、低域状態を少し混ぜてから `tanh` でサチュレーションする。
+- 処理順は `Compressor` の後、既存 `Distortion` の前。
+- `Aul2AudioFilterPluginWobble.pas` を追加した。
+- `Wobble` のパラメーターは `Wobble: Use`, `Wobble: Delay(ms)`, `Wobble: Depth(ms)`, `Wobble: Rate(Hz)`, `Wobble: Mix`。
+- `Wobble` は短い可変ディレイとして実装し、`Chorus` より遅く深い時間揺れを作る。
+- 処理順は `Tremble` の後、`Whisper/Breath` の前。
+- `Aul2AudioFilterPluginPreset.pas` のプリセットリセット対象に、追加した各エフェクトの既定値を加えた。
+- 現時点では既存プリセットへ新エフェクトを積極的には組み込まず、詳細パラメーターとして手動調整できる状態にした。
+- Release Win64 ビルド成功。`C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2` へコピー済み。
+- 次の候補は `PitchShift` / `FormantShift`。実装難度が上がるため、品質確認しながら別区切りで進める。

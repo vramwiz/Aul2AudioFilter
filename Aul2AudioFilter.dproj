@@ -119,9 +119,14 @@
         <DCCReference Include="Source\Aul2AudioFilterPluginDelay.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginEq.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginCompressor.pas"/>
+        <DCCReference Include="Source\Aul2AudioFilterPluginVoiceDrive.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginDistortion.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginNoise.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginBitCrusher.pas"/>
+        <DCCReference Include="Source\Aul2AudioFilterPluginTremble.pas"/>
+        <DCCReference Include="Source\Aul2AudioFilterPluginWobble.pas"/>
+        <DCCReference Include="Source\Aul2AudioFilterPluginWhisper.pas"/>
+        <DCCReference Include="Source\Aul2AudioFilterPluginOutput.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginLimiter.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginChorus.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginReverb.pas"/>

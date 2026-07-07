@@ -21,9 +21,24 @@ const
   EQ_MODE_BAND_PASS = 2;
 
 type
+  TBiQuadCoeff = record
+    B0: Single;
+    B1: Single;
+    B2: Single;
+    A1: Single;
+    A2: Single;
+  end;
+
+  TBiQuadState = record
+    X1: Single;
+    X2: Single;
+    Y1: Single;
+    Y2: Single;
+  end;
+
   TEqChannelState = record
-    LowCutLP : Single; // Low Cut 用 high-pass を作るための low-pass 状態
-    HighCutLP: Single; // High Cut 用 low-pass 状態
+    LowCutHP : TBiQuadState; // Low Cut 用 2 次 high-pass 状態
+    HighCutLP: TBiQuadState; // High Cut 用 2 次 low-pass 状態
   end;
 
 var
@@ -59,8 +74,8 @@ begin
 
   for Channel := 0 to ChannelNum - 1 do
   begin
-    GEqChannels[Channel].LowCutLP := 0.0;
-    GEqChannels[Channel].HighCutLP := 0.0;
+    FillChar(GEqChannels[Channel].LowCutHP, SizeOf(TBiQuadState), 0);
+    FillChar(GEqChannels[Channel].HighCutLP, SizeOf(TBiQuadState), 0);
   end;
 
   GEqSampleRate := SampleRate;
@@ -96,26 +111,77 @@ begin
     Result := MaxValue;
 end;
 
-function LowPassCoeff(CutoffHz: Single; SampleRate: Integer): Single;
+function ClampCutoff(CutoffHz: Single; SampleRate: Integer): Single;
 var
-  Cutoff: Single;
   Nyquist: Single;
 begin
   Nyquist := SampleRate * 0.5;
-  Cutoff := ClampSingle(CutoffHz, 1.0, Nyquist * 0.99);
-  Result := 1.0 - Exp(-2.0 * Pi * Cutoff / SampleRate);
+  Result := ClampSingle(CutoffHz, 20.0, Nyquist * 0.95);
 end;
 
-function ApplyLowPass(InputSample: Single; Coeff: Single; var State: Single): Single;
+function MakeLowPassCoeff(CutoffHz: Single; SampleRate: Integer): TBiQuadCoeff;
+var
+  W0: Double;
+  C: Double;
+  S: Double;
+  Alpha: Double;
+  A0: Double;
 begin
-  State := State + (Coeff * (InputSample - State));
-  Result := State;
+  CutoffHz := ClampCutoff(CutoffHz, SampleRate);
+  W0 := 2.0 * Pi * CutoffHz / SampleRate;
+  C := Cos(W0);
+  S := Sin(W0);
+  Alpha := S / Sqrt(2.0);
+  A0 := 1.0 + Alpha;
+
+  Result.B0 := ((1.0 - C) * 0.5) / A0;
+  Result.B1 := (1.0 - C) / A0;
+  Result.B2 := Result.B0;
+  Result.A1 := (-2.0 * C) / A0;
+  Result.A2 := (1.0 - Alpha) / A0;
 end;
 
-function ApplyHighPass(InputSample: Single; Coeff: Single; var State: Single): Single;
+function MakeHighPassCoeff(CutoffHz: Single; SampleRate: Integer): TBiQuadCoeff;
+var
+  W0: Double;
+  C: Double;
+  S: Double;
+  Alpha: Double;
+  A0: Double;
 begin
-  State := State + (Coeff * (InputSample - State));
-  Result := InputSample - State;
+  CutoffHz := ClampCutoff(CutoffHz, SampleRate);
+  W0 := 2.0 * Pi * CutoffHz / SampleRate;
+  C := Cos(W0);
+  S := Sin(W0);
+  Alpha := S / Sqrt(2.0);
+  A0 := 1.0 + Alpha;
+
+  Result.B0 := ((1.0 + C) * 0.5) / A0;
+  Result.B1 := -(1.0 + C) / A0;
+  Result.B2 := Result.B0;
+  Result.A1 := (-2.0 * C) / A0;
+  Result.A2 := (1.0 - Alpha) / A0;
+end;
+
+function ApplyBiQuad(InputSample: Single; const Coeff: TBiQuadCoeff;
+  var State: TBiQuadState): Single;
+begin
+  Result := (Coeff.B0 * InputSample) +
+            (Coeff.B1 * State.X1) +
+            (Coeff.B2 * State.X2) -
+            (Coeff.A1 * State.Y1) -
+            (Coeff.A2 * State.Y2);
+
+  if IsNan(Result) or IsInfinite(Result) then
+  begin
+    FillChar(State, SizeOf(TBiQuadState), 0);
+    Result := 0.0;
+  end;
+
+  State.X2 := State.X1;
+  State.X1 := InputSample;
+  State.Y2 := State.Y1;
+  State.Y1 := Result;
 end;
 
 procedure ApplyEq(var Buffer: TArray<Single>; Channel, SampleNum, SampleRate, Mode: Integer;
@@ -124,16 +190,16 @@ var
   I: Integer;
   DrySample: Single;
   WetSample: Single;
-  LowCutCoeff: Single;
-  HighCutCoeff: Single;
+  LowCutCoeff: TBiQuadCoeff;
+  HighCutCoeff: TBiQuadCoeff;
   State: ^TEqChannelState;
 begin
   Mix := ClampSingle(Mix, 0.0, 1.0);
   if (Mode = EQ_MODE_BAND_PASS) and (HighCutHz <= LowCutHz) then
     HighCutHz := LowCutHz + 1.0;
 
-  LowCutCoeff := LowPassCoeff(LowCutHz, SampleRate);
-  HighCutCoeff := LowPassCoeff(HighCutHz, SampleRate);
+  LowCutCoeff := MakeHighPassCoeff(LowCutHz, SampleRate);
+  HighCutCoeff := MakeLowPassCoeff(HighCutHz, SampleRate);
   State := @GEqChannels[Channel];
 
   for I := 0 to SampleNum - 1 do
@@ -142,12 +208,12 @@ begin
 
     case Mode of
       EQ_MODE_LOW_CUT:
-        WetSample := ApplyHighPass(DrySample, LowCutCoeff, State^.LowCutLP);
+        WetSample := ApplyBiQuad(DrySample, LowCutCoeff, State^.LowCutHP);
       EQ_MODE_HIGH_CUT:
-        WetSample := ApplyLowPass(DrySample, HighCutCoeff, State^.HighCutLP);
+        WetSample := ApplyBiQuad(DrySample, HighCutCoeff, State^.HighCutLP);
     else
-      WetSample := ApplyHighPass(DrySample, LowCutCoeff, State^.LowCutLP);
-      WetSample := ApplyLowPass(WetSample, HighCutCoeff, State^.HighCutLP);
+      WetSample := ApplyBiQuad(DrySample, LowCutCoeff, State^.LowCutHP);
+      WetSample := ApplyBiQuad(WetSample, HighCutCoeff, State^.HighCutLP);
     end;
 
     Buffer[I] := (DrySample * (1.0 - Mix)) + (WetSample * Mix);

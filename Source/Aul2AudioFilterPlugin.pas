@@ -12,9 +12,14 @@ uses
   Aul2AudioFilterPluginDelay,
   Aul2AudioFilterPluginEq,
   Aul2AudioFilterPluginCompressor,
+  Aul2AudioFilterPluginVoiceDrive,
   Aul2AudioFilterPluginDistortion,
   Aul2AudioFilterPluginNoise,
   Aul2AudioFilterPluginBitCrusher,
+  Aul2AudioFilterPluginTremble,
+  Aul2AudioFilterPluginWobble,
+  Aul2AudioFilterPluginWhisper,
+  Aul2AudioFilterPluginOutput,
   Aul2AudioFilterPluginLimiter,
   Aul2AudioFilterPluginChorus,
   Aul2AudioFilterPluginReverb;
@@ -42,9 +47,14 @@ begin
   ProcessDelay(Audio, SampleNum, ChannelNum);
   ProcessEq(Audio, SampleNum, ChannelNum);
   ProcessCompressor(Audio, SampleNum, ChannelNum);
+  ProcessVoiceDrive(Audio, SampleNum, ChannelNum);
   ProcessDistortion(Audio, SampleNum, ChannelNum);
   ProcessNoise(Audio, SampleNum, ChannelNum);
   ProcessBitCrusher(Audio, SampleNum, ChannelNum);
+  ProcessTremble(Audio, SampleNum, ChannelNum);
+  ProcessWobble(Audio, SampleNum, ChannelNum);
+  ProcessWhisper(Audio, SampleNum, ChannelNum);
+  ProcessOutput(Audio, SampleNum, ChannelNum);
   ProcessLimiter(Audio, SampleNum, ChannelNum);
   ProcessChorus(Audio, SampleNum, ChannelNum);
   ProcessReverb(Audio, SampleNum, ChannelNum);
@@ -67,9 +77,14 @@ begin
     AddDelayItems;
     AddEqItems;
     AddCompressorItems;
+    AddVoiceDriveItems;
     AddDistortionItems;
     AddNoiseItems;
     AddBitCrusherItems;
+    AddTrembleItems;
+    AddWobbleItems;
+    AddWhisperItems;
+    AddOutputItems;
     AddLimiterItems;
     AddChorusItems;
     AddReverbItems;

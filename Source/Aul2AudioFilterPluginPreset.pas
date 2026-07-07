@@ -17,9 +17,14 @@ uses
   Aul2AudioFilterPluginDelay,
   Aul2AudioFilterPluginEq,
   Aul2AudioFilterPluginCompressor,
+  Aul2AudioFilterPluginVoiceDrive,
   Aul2AudioFilterPluginDistortion,
   Aul2AudioFilterPluginNoise,
   Aul2AudioFilterPluginBitCrusher,
+  Aul2AudioFilterPluginTremble,
+  Aul2AudioFilterPluginWobble,
+  Aul2AudioFilterPluginWhisper,
+  Aul2AudioFilterPluginOutput,
   Aul2AudioFilterPluginLimiter,
   Aul2AudioFilterPluginChorus,
   Aul2AudioFilterPluginReverb;
@@ -53,9 +58,14 @@ begin
   SetDelayGuiParams(False, 250.0, 1.0, 0.0, 0.0, False);
   SetEqBandPassGuiParams(False, 300.0, 3400.0, 1.0);
   SetCompressorGuiParams(False, -18.0, 4.0, 10.0, 120.0, 0.0, 1.0);
+  SetVoiceDriveGuiParams(False, 9.0, 0.45, -6.0, 0.6);
   SetDistortionGuiParams(False, False, 6.0, 1.0, -6.0, 1.0);
   SetNoiseGuiParams(False, False, -36.0, 1.0);
   SetBitCrusherGuiParams(False, 8.0, 4.0, 1.0);
+  SetTrembleGuiParams(False, 8.0, 0.35, 1.0);
+  SetWobbleGuiParams(False, 24.0, 12.0, 1.2, 0.65);
+  SetWhisperGuiParams(False, -18.0, 0.65, 0.5);
+  SetOutputGuiParams(False, 0.0);
   SetLimiterGuiParams(False, -1.0, 50.0, 1.0);
   SetChorusGuiParams(False, False, 15.0, 5.0, 0.5, 0.5);
   SetReverbGuiParams(False, 0, 0.5, 0.4, 1.0, 0.3);
@@ -165,6 +175,11 @@ begin
   SetPresetObjectItem(Edit, Obj, 'Compressor: Release(ms)', UTF8String('120'));
   SetPresetObjectItem(Edit, Obj, 'Compressor: Makeup(dB)', UTF8String('0'));
   SetPresetObjectItem(Edit, Obj, 'Compressor: Mix', UTF8String('1'));
+  SetPresetObjectItem(Edit, Obj, 'VoiceDrive: Use', UTF8String('0'));
+  SetPresetObjectItem(Edit, Obj, 'VoiceDrive: Drive(dB)', UTF8String('9'));
+  SetPresetObjectItem(Edit, Obj, 'VoiceDrive: Body', UTF8String('0.45'));
+  SetPresetObjectItem(Edit, Obj, 'VoiceDrive: Level(dB)', UTF8String('-6'));
+  SetPresetObjectItem(Edit, Obj, 'VoiceDrive: Mix', UTF8String('0.6'));
   SetPresetObjectItem(Edit, Obj, 'Distortion: Use', UTF8String('0'));
   SetPresetObjectItem(Edit, Obj, 'Distortion: Mode', UTF8String('0'));
   SetPresetObjectItem(Edit, Obj, 'Distortion: Drive(dB)', UTF8String('6'));
@@ -179,6 +194,21 @@ begin
   SetPresetObjectItem(Edit, Obj, 'BitCrusher: BitDepth', UTF8String('8'));
   SetPresetObjectItem(Edit, Obj, 'BitCrusher: SampleHold', UTF8String('4'));
   SetPresetObjectItem(Edit, Obj, 'BitCrusher: Mix', UTF8String('1'));
+  SetPresetObjectItem(Edit, Obj, 'Tremble: Use', UTF8String('0'));
+  SetPresetObjectItem(Edit, Obj, 'Tremble: Rate(Hz)', UTF8String('8'));
+  SetPresetObjectItem(Edit, Obj, 'Tremble: Depth', UTF8String('0.35'));
+  SetPresetObjectItem(Edit, Obj, 'Tremble: Mix', UTF8String('1'));
+  SetPresetObjectItem(Edit, Obj, 'Wobble: Use', UTF8String('0'));
+  SetPresetObjectItem(Edit, Obj, 'Wobble: Delay(ms)', UTF8String('24'));
+  SetPresetObjectItem(Edit, Obj, 'Wobble: Depth(ms)', UTF8String('12'));
+  SetPresetObjectItem(Edit, Obj, 'Wobble: Rate(Hz)', UTF8String('1.2'));
+  SetPresetObjectItem(Edit, Obj, 'Wobble: Mix', UTF8String('0.65'));
+  SetPresetObjectItem(Edit, Obj, 'Whisper/Breath: Use', UTF8String('0'));
+  SetPresetObjectItem(Edit, Obj, 'Whisper/Breath: Level(dB)', UTF8String('-18'));
+  SetPresetObjectItem(Edit, Obj, 'Whisper/Breath: Tone', UTF8String('0.65'));
+  SetPresetObjectItem(Edit, Obj, 'Whisper/Breath: Mix', UTF8String('0.5'));
+  SetPresetObjectItem(Edit, Obj, 'Output: Use', UTF8String('0'));
+  SetPresetObjectItem(Edit, Obj, 'Output: Gain(dB)', UTF8String('0'));
   SetPresetObjectItem(Edit, Obj, 'Limiter: Use', UTF8String('0'));
   SetPresetObjectItem(Edit, Obj, 'Limiter: Ceiling(dB)', UTF8String('-1'));
   SetPresetObjectItem(Edit, Obj, 'Limiter: Release(ms)', UTF8String('50'));
