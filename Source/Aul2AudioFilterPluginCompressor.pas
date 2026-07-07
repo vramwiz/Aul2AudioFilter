@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginCompressor;
+﻿unit Aul2AudioFilterPluginCompressor;
 
 // Compressor 系の GUI 項目、状態管理、音声処理を担当する。
 
@@ -151,13 +151,13 @@ end;
 procedure AddCompressorItems;
 begin
   AddGroup(GCompressorGroup, 'Compressor', 1);
-  AddCheck(GCompressorUseCheck, 'Compressor: Use', 0);
-  AddTrack(GThresholdTrack, 'Compressor: Threshold(dB)', -18.0, -60.0, 0.0, 0.1);
-  AddTrack(GRatioTrack, 'Compressor: Ratio', 4.0, 1.0, 20.0, 0.1);
-  AddTrack(GAttackTrack, 'Compressor: Attack(ms)', 10.0, 0.1, 200.0, 0.1);
-  AddTrack(GReleaseTrack, 'Compressor: Release(ms)', 120.0, 5.0, 1000.0, 1.0);
-  AddTrack(GMakeupTrack, 'Compressor: Makeup(dB)', 0.0, -24.0, 24.0, 0.1);
-  AddTrack(GCompressorMixTrack, 'Compressor: Mix', 1.0, 0.0, 1.0, 0.01);
+  AddCheck(GCompressorUseCheck, 'Comp: Use', 0);
+  AddTrack(GThresholdTrack, 'Comp: Threshold(dB)', -18.0, -60.0, 0.0, 0.1);
+  AddTrack(GRatioTrack, 'Comp: Ratio', 4.0, 1.0, 20.0, 0.1);
+  AddTrack(GAttackTrack, 'Comp: Attack(ms)', 10.0, 0.1, 200.0, 0.1);
+  AddTrack(GReleaseTrack, 'Comp: Release(ms)', 120.0, 5.0, 1000.0, 1.0);
+  AddTrack(GMakeupTrack, 'Comp: Makeup(dB)', 0.0, -24.0, 24.0, 0.1);
+  AddTrack(GCompressorMixTrack, 'Comp: Mix', 1.0, 0.0, 1.0, 0.01);
 end;
 
 procedure SetCompressorGuiParams(UseCompressor: Boolean; ThresholdDb, Ratio, AttackMs, ReleaseMs,

@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginLimiter;
+﻿unit Aul2AudioFilterPluginLimiter;
 
 // Limiter 系の GUI 項目、状態管理、音声処理を担当する。
 
@@ -132,10 +132,10 @@ end;
 procedure AddLimiterItems;
 begin
   AddGroup(GLimiterGroup, 'Limiter', 1);
-  AddCheck(GLimiterUseCheck, 'Limiter: Use', 0);
-  AddTrack(GCeilingTrack, 'Limiter: Ceiling(dB)', -1.0, -24.0, 0.0, 0.1);
-  AddTrack(GReleaseTrack, 'Limiter: Release(ms)', 50.0, 1.0, 1000.0, 1.0);
-  AddTrack(GLimiterMixTrack, 'Limiter: Mix', 1.0, 0.0, 1.0, 0.01);
+  AddCheck(GLimiterUseCheck, 'Lim: Use', 0);
+  AddTrack(GCeilingTrack, 'Lim: Ceiling(dB)', -1.0, -24.0, 0.0, 0.1);
+  AddTrack(GReleaseTrack, 'Lim: Release(ms)', 50.0, 1.0, 1000.0, 1.0);
+  AddTrack(GLimiterMixTrack, 'Lim: Mix', 1.0, 0.0, 1.0, 0.01);
 end;
 
 procedure SetLimiterGuiParams(UseLimiter: Boolean; CeilingDb, ReleaseMs, Mix: Double);

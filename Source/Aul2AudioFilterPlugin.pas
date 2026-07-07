@@ -18,10 +18,8 @@ uses
   Aul2AudioFilterPluginBitCrusher,
   Aul2AudioFilterPluginTremble,
   Aul2AudioFilterPluginWobble,
-  Aul2AudioFilterPluginPitchShift,
-  Aul2AudioFilterPluginFormantShift,
+  Aul2AudioFilterPluginPitch,
   Aul2AudioFilterPluginRingMod,
-  Aul2AudioFilterPluginPitchStep,
   Aul2AudioFilterPluginMuffle,
   Aul2AudioFilterPluginWhisper,
   Aul2AudioFilterPluginAutoGain,
@@ -61,10 +59,8 @@ begin
   ProcessBitCrusher(Audio, SampleNum, ChannelNum);
   ProcessTremble(Audio, SampleNum, ChannelNum);
   ProcessWobble(Audio, SampleNum, ChannelNum);
-  ProcessPitchShift(Audio, SampleNum, ChannelNum);
-  ProcessFormantShift(Audio, SampleNum, ChannelNum);
+  ProcessPitch(Audio, SampleNum, ChannelNum);
   ProcessRingMod(Audio, SampleNum, ChannelNum);
-  ProcessPitchStep(Audio, SampleNum, ChannelNum);
   ProcessMuffle(Audio, SampleNum, ChannelNum);
   ProcessWhisper(Audio, SampleNum, ChannelNum);
   ProcessAutoGain(Audio, SampleNum, ChannelNum);
@@ -99,10 +95,8 @@ begin
     AddBitCrusherItems;
     AddTrembleItems;
     AddWobbleItems;
-    AddPitchShiftItems;
-    AddFormantShiftItems;
+    AddPitchItems;
     AddRingModItems;
-    AddPitchStepItems;
     AddMuffleItems;
     AddWhisperItems;
     AddAutoGainItems;

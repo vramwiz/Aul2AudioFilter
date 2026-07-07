@@ -234,7 +234,7 @@ end;
 procedure AddReverbItems;
 begin
   AddGroup(GReverbGroup, 'Reverb', 1);
-  AddCheck(GReverbUseCheck, 'Reverb: Use', 0);
+  AddCheck(GReverbUseCheck, 'Rev: Use', 0);
   GReverbTypeList[0].Name := 'Room';
   GReverbTypeList[0].Value := REVERB_TYPE_ROOM;
   GReverbTypeList[1].Name := 'Hall';
@@ -243,11 +243,11 @@ begin
   GReverbTypeList[2].Value := REVERB_TYPE_PLATE;
   GReverbTypeList[3].Name := nil;
   GReverbTypeList[3].Value := 0;
-  AddSelect(GReverbTypeSelect, 'Reverb: Type', REVERB_TYPE_ROOM, @GReverbTypeList[0]);
-  AddTrack(GRoomSizeTrack, 'Reverb: RoomSize', 0.5, 0.0, 1.0, 0.01);
-  AddTrack(GDampingTrack, 'Reverb: Damping', 0.4, 0.0, 1.0, 0.01);
-  AddTrack(GReverbDryTrack, 'Reverb: Dry', 1.0, 0.0, 2.0, 0.01);
-  AddTrack(GReverbWetTrack, 'Reverb: Wet', 0.3, 0.0, 2.0, 0.01);
+  AddSelect(GReverbTypeSelect, 'Rev: Type', REVERB_TYPE_ROOM, @GReverbTypeList[0]);
+  AddTrack(GRoomSizeTrack, 'Rev: RoomSize', 0.5, 0.0, 1.0, 0.01);
+  AddTrack(GDampingTrack, 'Rev: Damping', 0.4, 0.0, 1.0, 0.01);
+  AddTrack(GReverbDryTrack, 'Rev: Dry', 1.0, 0.0, 2.0, 0.01);
+  AddTrack(GReverbWetTrack, 'Rev: Wet', 0.3, 0.0, 2.0, 0.01);
 end;
 
 procedure SetReverbGuiParams(UseReverb: Boolean; ReverbType: Integer;

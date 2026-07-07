@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginWhisper;
+﻿unit Aul2AudioFilterPluginWhisper;
 
 // Whisper/Breath 系の GUI 項目、状態管理、息成分の音声処理を担当する。
 
@@ -142,10 +142,10 @@ end;
 procedure AddWhisperItems;
 begin
   AddGroup(GWhisperGroup, 'Whisper/Breath', 1);
-  AddCheck(GWhisperUseCheck, 'Whisper/Breath: Use', 0);
-  AddTrack(GWhisperLevelTrack, 'Whisper/Breath: Level(dB)', -18.0, -48.0, 0.0, 0.1);
-  AddTrack(GWhisperToneTrack, 'Whisper/Breath: Tone', 0.65, 0.0, 1.0, 0.01);
-  AddTrack(GWhisperMixTrack, 'Whisper/Breath: Mix', 0.5, 0.0, 1.0, 0.01);
+  AddCheck(GWhisperUseCheck, 'Breath: Use', 0);
+  AddTrack(GWhisperLevelTrack, 'Breath: Level(dB)', -18.0, -48.0, 0.0, 0.1);
+  AddTrack(GWhisperToneTrack, 'Breath: Tone', 0.65, 0.0, 1.0, 0.01);
+  AddTrack(GWhisperMixTrack, 'Breath: Mix', 0.5, 0.0, 1.0, 0.01);
 end;
 
 procedure SetWhisperGuiParams(UseWhisper: Boolean; LevelDb, Tone, Mix: Double);

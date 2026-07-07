@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginRingMod;
+﻿unit Aul2AudioFilterPluginRingMod;
 
 // RingMod 系の GUI 項目と、機械的な振幅変調処理を担当する。
 
@@ -55,10 +55,10 @@ end;
 procedure AddRingModItems;
 begin
   AddGroup(GRingModGroup, 'RingMod', 1);
-  AddCheck(GRingModUseCheck, 'RingMod: Use', 0);
-  AddTrack(GRingModFreqTrack, 'RingMod: Frequency(Hz)', 45.0, 1.0, 2000.0, 1.0);
-  AddTrack(GRingModDepthTrack, 'RingMod: Depth', 0.7, 0.0, 1.0, 0.01);
-  AddTrack(GRingModMixTrack, 'RingMod: Mix', 0.7, 0.0, 1.0, 0.01);
+  AddCheck(GRingModUseCheck, 'Ring: Use', 0);
+  AddTrack(GRingModFreqTrack, 'Ring: Frequency(Hz)', 45.0, 1.0, 2000.0, 1.0);
+  AddTrack(GRingModDepthTrack, 'Ring: Depth', 0.7, 0.0, 1.0, 0.01);
+  AddTrack(GRingModMixTrack, 'Ring: Mix', 0.7, 0.0, 1.0, 0.01);
 end;
 
 procedure SetRingModGuiParams(UseRingMod: Boolean; FrequencyHz, Depth, Mix: Double);

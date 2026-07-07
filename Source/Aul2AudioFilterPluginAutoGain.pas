@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginAutoGain;
+﻿unit Aul2AudioFilterPluginAutoGain;
 
 // AutoGain 系の GUI 項目、状態管理、目標音量へ緩やかに寄せる処理を担当する。
 
@@ -131,11 +131,11 @@ end;
 procedure AddAutoGainItems;
 begin
   AddGroup(GAutoGainGroup, 'AutoGain', 1);
-  AddCheck(GAutoGainUseCheck, 'AutoGain: Use', 0);
-  AddTrack(GAutoGainTargetTrack, 'AutoGain: Target(dB)', -12.0, -36.0, -3.0, 0.1);
-  AddTrack(GAutoGainSpeedTrack, 'AutoGain: Speed(ms)', 400.0, 20.0, 2000.0, 10.0);
-  AddTrack(GAutoGainMaxGainTrack, 'AutoGain: MaxGain(dB)', 12.0, 0.0, 24.0, 0.1);
-  AddTrack(GAutoGainMixTrack, 'AutoGain: Mix', 1.0, 0.0, 1.0, 0.01);
+  AddCheck(GAutoGainUseCheck, 'AGain: Use', 0);
+  AddTrack(GAutoGainTargetTrack, 'AGain: Target(dB)', -12.0, -36.0, -3.0, 0.1);
+  AddTrack(GAutoGainSpeedTrack, 'AGain: Speed(ms)', 400.0, 20.0, 2000.0, 10.0);
+  AddTrack(GAutoGainMaxGainTrack, 'AGain: MaxGain(dB)', 12.0, 0.0, 24.0, 0.1);
+  AddTrack(GAutoGainMixTrack, 'AGain: Mix', 1.0, 0.0, 1.0, 0.01);
 end;
 
 procedure SetAutoGainGuiParams(UseAutoGain: Boolean; TargetDb, SpeedMs, MaxGainDb, Mix: Double);

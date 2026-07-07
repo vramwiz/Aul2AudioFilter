@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginDistortion;
+﻿unit Aul2AudioFilterPluginDistortion;
 
 // Distortion / Saturation 系の GUI 項目、音声処理を担当する。
 
@@ -89,18 +89,18 @@ end;
 procedure AddDistortionItems;
 begin
   AddGroup(GDistortionGroup, 'Distortion', 1);
-  AddCheck(GDistortionUseCheck, 'Distortion: Use', 0);
+  AddCheck(GDistortionUseCheck, 'Dist: Use', 0);
   GDistortionModeList[0].Name := 'Soft Clip';
   GDistortionModeList[0].Value := DISTORTION_MODE_SOFT_CLIP;
   GDistortionModeList[1].Name := 'Hard Clip';
   GDistortionModeList[1].Value := DISTORTION_MODE_HARD_CLIP;
   GDistortionModeList[2].Name := nil;
   GDistortionModeList[2].Value := 0;
-  AddSelect(GDistortionModeSelect, 'Distortion: Mode', DISTORTION_MODE_SOFT_CLIP, @GDistortionModeList[0]);
-  AddTrack(GDriveTrack, 'Distortion: Drive(dB)', 6.0, 0.0, 36.0, 0.1);
-  AddTrack(GToneTrack, 'Distortion: Tone', 1.0, 0.0, 1.0, 0.01);
-  AddTrack(GLevelTrack, 'Distortion: Level(dB)', -6.0, -24.0, 12.0, 0.1);
-  AddTrack(GDistortionMixTrack, 'Distortion: Mix', 1.0, 0.0, 1.0, 0.01);
+  AddSelect(GDistortionModeSelect, 'Dist: Mode', DISTORTION_MODE_SOFT_CLIP, @GDistortionModeList[0]);
+  AddTrack(GDriveTrack, 'Dist: Drive(dB)', 6.0, 0.0, 36.0, 0.1);
+  AddTrack(GToneTrack, 'Dist: Tone', 1.0, 0.0, 1.0, 0.01);
+  AddTrack(GLevelTrack, 'Dist: Level(dB)', -6.0, -24.0, 12.0, 0.1);
+  AddTrack(GDistortionMixTrack, 'Dist: Mix', 1.0, 0.0, 1.0, 0.01);
 end;
 
 procedure SetDistortionGuiParams(UseDistortion: Boolean; HardClip: Boolean;

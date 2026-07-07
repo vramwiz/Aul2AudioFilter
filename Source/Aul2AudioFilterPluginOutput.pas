@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginOutput;
+﻿unit Aul2AudioFilterPluginOutput;
 
 // Output 系の GUI 項目と、最終段付近の手動音量調整を担当する。
 
@@ -36,8 +36,8 @@ end;
 procedure AddOutputItems;
 begin
   AddGroup(GOutputGroup, 'Output', 1);
-  AddCheck(GOutputUseCheck, 'Output: Use', 0);
-  AddTrack(GOutputGainTrack, 'Output: Gain(dB)', 0.0, -24.0, 24.0, 0.1);
+  AddCheck(GOutputUseCheck, 'Out: Use', 0);
+  AddTrack(GOutputGainTrack, 'Out: Gain(dB)', 0.0, -24.0, 24.0, 0.1);
 end;
 
 procedure SetOutputGuiParams(UseOutput: Boolean; GainDb: Double);

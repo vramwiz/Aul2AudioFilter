@@ -154,18 +154,18 @@ end;
 procedure AddChorusItems;
 begin
   AddGroup(GChorusGroup, 'Chorus', 1);
-  AddCheck(GChorusUseCheck, 'Chorus: Use', 0);
+  AddCheck(GChorusUseCheck, 'Cho: Use', 0);
   GChorusModeList[0].Name := 'Normal';
   GChorusModeList[0].Value := CHORUS_STEREO_NORMAL;
   GChorusModeList[1].Name := 'Wide';
   GChorusModeList[1].Value := CHORUS_STEREO_WIDE;
   GChorusModeList[2].Name := nil;
   GChorusModeList[2].Value := 0;
-  AddSelect(GChorusStereoMode, 'Chorus: Stereo Mode', CHORUS_STEREO_NORMAL, @GChorusModeList[0]);
-  AddTrack(GChorusDelayTrack, 'Chorus: Delay(ms)', 15.0, 1.0, 50.0, 0.1);
-  AddTrack(GChorusDepthTrack, 'Chorus: Depth(ms)', 5.0, 0.0, 20.0, 0.1);
-  AddTrack(GChorusRateTrack, 'Chorus: Rate(Hz)', 0.5, 0.01, 10.0, 0.01);
-  AddTrack(GChorusMixTrack, 'Chorus: Mix', 0.5, 0.0, 1.0, 0.01);
+  AddSelect(GChorusStereoMode, 'Cho: Stereo Mode', CHORUS_STEREO_NORMAL, @GChorusModeList[0]);
+  AddTrack(GChorusDelayTrack, 'Cho: Delay(ms)', 15.0, 1.0, 50.0, 0.1);
+  AddTrack(GChorusDepthTrack, 'Cho: Depth(ms)', 5.0, 0.0, 20.0, 0.1);
+  AddTrack(GChorusRateTrack, 'Cho: Rate(Hz)', 0.5, 0.01, 10.0, 0.01);
+  AddTrack(GChorusMixTrack, 'Cho: Mix', 0.5, 0.0, 1.0, 0.01);
 end;
 
 procedure SetChorusGuiParams(UseChorus: Boolean; Wide: Boolean; DelayMs, DepthMs, RateHz, Mix: Double);

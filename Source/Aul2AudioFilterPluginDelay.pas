@@ -200,18 +200,18 @@ end;
 procedure AddDelayItems;
 begin
   AddGroup(GDelayGroup, 'Delay', 1);
-  AddCheck(GDelayUseCheck, 'Delay: Use', 0);
+  AddCheck(GDelayUseCheck, 'Dly: Use', 0);
   GDelayModeList[0].Name := 'Normal';
   GDelayModeList[0].Value := DELAY_STEREO_NORMAL;
   GDelayModeList[1].Name := 'Ping-Pong';
   GDelayModeList[1].Value := DELAY_STEREO_PING_PONG;
   GDelayModeList[2].Name := nil;
   GDelayModeList[2].Value := 0;
-  AddSelect(GDelayStereoMode, 'Delay: Stereo Mode', DELAY_STEREO_NORMAL, @GDelayModeList[0]);
-  AddTrack(GDelayMsTrack, 'Delay: Time(ms)', 250.0, 1.0, 1000.0, 1.0);
-  AddTrack(GDryTrack, 'Delay: Dry', 1.0, 0.0, 2.0, 0.01);
-  AddTrack(GWetTrack, 'Delay: Wet', 0.0, 0.0, 2.0, 0.01);
-  AddTrack(GFeedbackTrack, 'Delay: Feedback', 0.0, 0.0, 0.95, 0.01);
+  AddSelect(GDelayStereoMode, 'Dly: Stereo Mode', DELAY_STEREO_NORMAL, @GDelayModeList[0]);
+  AddTrack(GDelayMsTrack, 'Dly: Time(ms)', 250.0, 1.0, 1000.0, 1.0);
+  AddTrack(GDryTrack, 'Dly: Dry', 1.0, 0.0, 2.0, 0.01);
+  AddTrack(GWetTrack, 'Dly: Wet', 0.0, 0.0, 2.0, 0.01);
+  AddTrack(GFeedbackTrack, 'Dly: Feedback', 0.0, 0.0, 0.95, 0.01);
 end;
 
 procedure SetDelayGuiParams(UseDelay: Boolean; TimeMs, Dry, Wet, Feedback: Double; PingPong: Boolean);

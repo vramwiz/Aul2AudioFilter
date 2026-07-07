@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginBitCrusher;
+﻿unit Aul2AudioFilterPluginBitCrusher;
 
 // BitCrusher 系の GUI 項目、状態管理、音声処理を担当する。
 
@@ -126,10 +126,10 @@ end;
 procedure AddBitCrusherItems;
 begin
   AddGroup(GBitCrusherGroup, 'BitCrusher', 1);
-  AddCheck(GBitCrusherUseCheck, 'BitCrusher: Use', 0);
-  AddTrack(GBitDepthTrack, 'BitCrusher: BitDepth', 8.0, 2.0, 16.0, 1.0);
-  AddTrack(GSampleHoldTrack, 'BitCrusher: SampleHold', 4.0, 1.0, 64.0, 1.0);
-  AddTrack(GBitCrusherMixTrack, 'BitCrusher: Mix', 1.0, 0.0, 1.0, 0.01);
+  AddCheck(GBitCrusherUseCheck, 'Crush: Use', 0);
+  AddTrack(GBitDepthTrack, 'Crush: BitDepth', 8.0, 2.0, 16.0, 1.0);
+  AddTrack(GSampleHoldTrack, 'Crush: SampleHold', 4.0, 1.0, 64.0, 1.0);
+  AddTrack(GBitCrusherMixTrack, 'Crush: Mix', 1.0, 0.0, 1.0, 0.01);
 end;
 
 procedure SetBitCrusherGuiParams(UseBitCrusher: Boolean; BitDepth, SampleHold, Mix: Double);

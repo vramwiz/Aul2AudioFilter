@@ -27,7 +27,7 @@ var
 implementation
 
 const
-  MAX_GUI_ITEMS = 100; // GTable.Items に登録できる最大 GUI 項目数
+  MAX_GUI_ITEMS = 256; // GTable.Items に登録できる最大 GUI 項目数
 
 var
   FItemIndex: Integer;                              // 次に登録する Items の位置

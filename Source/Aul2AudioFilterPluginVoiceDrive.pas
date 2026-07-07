@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginVoiceDrive;
+﻿unit Aul2AudioFilterPluginVoiceDrive;
 
 // VoiceDrive 系の GUI 項目、状態管理、声向けサチュレーション処理を担当する。
 
@@ -125,11 +125,11 @@ end;
 procedure AddVoiceDriveItems;
 begin
   AddGroup(GVoiceDriveGroup, 'VoiceDrive', 1);
-  AddCheck(GVoiceDriveUseCheck, 'VoiceDrive: Use', 0);
-  AddTrack(GVoiceDriveDriveTrack, 'VoiceDrive: Drive(dB)', 9.0, 0.0, 30.0, 0.1);
-  AddTrack(GVoiceDriveBodyTrack, 'VoiceDrive: Body', 0.45, 0.0, 1.0, 0.01);
-  AddTrack(GVoiceDriveLevelTrack, 'VoiceDrive: Level(dB)', -6.0, -24.0, 6.0, 0.1);
-  AddTrack(GVoiceDriveMixTrack, 'VoiceDrive: Mix', 0.6, 0.0, 1.0, 0.01);
+  AddCheck(GVoiceDriveUseCheck, 'Drive: Use', 0);
+  AddTrack(GVoiceDriveDriveTrack, 'Drive: Drive(dB)', 9.0, 0.0, 30.0, 0.1);
+  AddTrack(GVoiceDriveBodyTrack, 'Drive: Body', 0.45, 0.0, 1.0, 0.01);
+  AddTrack(GVoiceDriveLevelTrack, 'Drive: Level(dB)', -6.0, -24.0, 6.0, 0.1);
+  AddTrack(GVoiceDriveMixTrack, 'Drive: Mix', 0.6, 0.0, 1.0, 0.01);
 end;
 
 procedure SetVoiceDriveGuiParams(UseVoiceDrive: Boolean; DriveDb, Body, LevelDb, Mix: Double);

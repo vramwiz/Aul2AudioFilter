@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginNoiseGate;
+﻿unit Aul2AudioFilterPluginNoiseGate;
 
 // NoiseGate 系の GUI 項目、状態管理、小さい音を抑える処理を担当する。
 
@@ -135,11 +135,11 @@ end;
 procedure AddNoiseGateItems;
 begin
   AddGroup(GNoiseGateGroup, 'NoiseGate', 1);
-  AddCheck(GNoiseGateUseCheck, 'NoiseGate: Use', 0);
-  AddTrack(GGateThresholdTrack, 'NoiseGate: Threshold(dB)', -45.0, -80.0, 0.0, 0.1);
-  AddTrack(GGateAttackTrack, 'NoiseGate: Attack(ms)', 5.0, 1.0, 200.0, 1.0);
-  AddTrack(GGateReleaseTrack, 'NoiseGate: Release(ms)', 120.0, 10.0, 1000.0, 10.0);
-  AddTrack(GGateFloorTrack, 'NoiseGate: Floor(dB)', -60.0, -80.0, -6.0, 1.0);
+  AddCheck(GNoiseGateUseCheck, 'Gate: Use', 0);
+  AddTrack(GGateThresholdTrack, 'Gate: Threshold(dB)', -45.0, -80.0, 0.0, 0.1);
+  AddTrack(GGateAttackTrack, 'Gate: Attack(ms)', 5.0, 1.0, 200.0, 1.0);
+  AddTrack(GGateReleaseTrack, 'Gate: Release(ms)', 120.0, 10.0, 1000.0, 10.0);
+  AddTrack(GGateFloorTrack, 'Gate: Floor(dB)', -60.0, -80.0, -6.0, 1.0);
 end;
 
 procedure SetNoiseGateGuiParams(UseNoiseGate: Boolean; ThresholdDb, AttackMs, ReleaseMs, FloorDb: Double);

@@ -125,10 +125,8 @@
         <DCCReference Include="Source\Aul2AudioFilterPluginBitCrusher.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginTremble.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginWobble.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginPitchShift.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginFormantShift.pas"/>
+        <DCCReference Include="Source\Aul2AudioFilterPluginPitch.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginRingMod.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginPitchStep.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginMuffle.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginWhisper.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginAutoGain.pas"/>

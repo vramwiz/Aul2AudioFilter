@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginGhost;
+﻿unit Aul2AudioFilterPluginGhost;
 
 // ReverseReverb/Ghost 系の GUI 項目、状態管理、幽霊的な残響影を作る処理を担当する。
 
@@ -124,11 +124,11 @@ end;
 procedure AddGhostItems;
 begin
   AddGroup(GGhostGroup, 'ReverseReverb/Ghost', 1);
-  AddCheck(GGhostUseCheck, 'ReverseReverb/Ghost: Use', 0);
-  AddTrack(GGhostSizeTrack, 'ReverseReverb/Ghost: Size(ms)', 420.0, 80.0, 1500.0, 10.0);
-  AddTrack(GGhostFeedbackTrack, 'ReverseReverb/Ghost: Feedback', 0.45, 0.0, 0.95, 0.01);
-  AddTrack(GGhostWetTrack, 'ReverseReverb/Ghost: Wet', 0.35, 0.0, 1.0, 0.01);
-  AddTrack(GGhostMixTrack, 'ReverseReverb/Ghost: Mix', 1.0, 0.0, 1.0, 0.01);
+  AddCheck(GGhostUseCheck, 'Ghost: Use', 0);
+  AddTrack(GGhostSizeTrack, 'Ghost: Size(ms)', 420.0, 80.0, 1500.0, 10.0);
+  AddTrack(GGhostFeedbackTrack, 'Ghost: Feedback', 0.45, 0.0, 0.95, 0.01);
+  AddTrack(GGhostWetTrack, 'Ghost: Wet', 0.35, 0.0, 1.0, 0.01);
+  AddTrack(GGhostMixTrack, 'Ghost: Mix', 1.0, 0.0, 1.0, 0.01);
 end;
 
 procedure SetGhostGuiParams(UseGhost: Boolean; SizeMs, Feedback, Wet, Mix: Double);

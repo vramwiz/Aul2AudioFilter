@@ -411,3 +411,15 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - `風邪`, `遠く` は専用プリセットとしては未追加。既存の `ささやき`, `壁越し`, `Muffle`, `Noise`, `Whisper/Breath` などの組み合わせで近い調整は可能。
 - Release Win64 ビルド成功。`C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2` へコピー済み。
 - 今後の主な作業は、AviUtl2 上で各新規エフェクトと追加プリセットを声素材で聴感確認し、強すぎる初期値や破綻しやすい値を調整すること。
+- 追加後の GUI 項目数が 100 を超え、登録時に `Too many filter GUI items` の Delphi 例外が出たため、`Aul2AudioFilterGui.pas` の内部 `MAX_GUI_ITEMS` を `256` へ増やした。
+- GUI 上でパラメーター名が見切れやすかったため、項目名の effect prefix を短縮した。対応は `Delay` -> `Dly`, `Compressor` -> `Comp`, `VoiceDrive` -> `Drive`, `Distortion` -> `Dist`, `BitCrusher` -> `Crush`, `Tremble` -> `Trem`, `Wobble` -> `Wob`, `PitchShift` -> `Pitch`, `FormantShift` -> `Form`, `RingMod` -> `Ring`, `PitchStep` -> `Step`, `Whisper/Breath` -> `Breath`, `AutoGain` -> `AGain`, `NoiseGate` -> `Gate`, `ReverseReverb/Ghost` -> `Ghost`, `Output` -> `Out`, `Limiter` -> `Lim`, `Chorus` -> `Cho`, `Reverb` -> `Rev`。`EQ`, `Noise`, `Muffle` はそのまま。
+
+## Pitch effect merge note
+
+- `PitchShift`, `FormantShift`, `PitchStep` は GUI 上の個別エフェクトとしては廃止し、`Aul2AudioFilterPluginPitch.pas` の `Pitch` エフェクトへ統合した。
+- `Pitch` のパラメーターは `Pitch: Use`, `Pitch: Mode`, `Pitch: Semitone`, `Pitch: Window(ms)`, `Pitch: Formant`, `Pitch: Amount`, `Pitch: Step(semi)`, `Pitch: Rate(Hz)`, `Pitch: Mix`。
+- `Pitch: Mode` は `Natural`, `Pitch Only`, `Formant Only`, `Step`。`Natural` は従来の `PitchShift` と `FormantShift` を同じグループ内で続けて処理し、男性寄り・女性寄りプリセットの挙動を維持する。
+- `Step` は従来の `PitchStep` 相当で、ロボ声プリセットから使う。
+- メイン処理順は `Wobble` 後に `Pitch`、その後 `RingMod`, `Muffle`... とした。旧3ユニットはプロジェクト参照から外し、ソースファイルも削除した。
+- `README.md` のエフェクト一覧、パラメーター一覧、プリセット説明を `Pitch` 統合後の表記へ更新した。
+- Release/Win64 ビルド成功。出力は `C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2`。

@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginWobble;
+﻿unit Aul2AudioFilterPluginWobble;
 
 // Wobble 系の GUI 項目、状態管理、ゆっくりした可変ディレイ処理を担当する。
 
@@ -140,11 +140,11 @@ end;
 procedure AddWobbleItems;
 begin
   AddGroup(GWobbleGroup, 'Wobble', 1);
-  AddCheck(GWobbleUseCheck, 'Wobble: Use', 0);
-  AddTrack(GWobbleDelayTrack, 'Wobble: Delay(ms)', 24.0, 1.0, 120.0, 0.1);
-  AddTrack(GWobbleDepthTrack, 'Wobble: Depth(ms)', 12.0, 0.0, 80.0, 0.1);
-  AddTrack(GWobbleRateTrack, 'Wobble: Rate(Hz)', 1.2, 0.05, 8.0, 0.01);
-  AddTrack(GWobbleMixTrack, 'Wobble: Mix', 0.65, 0.0, 1.0, 0.01);
+  AddCheck(GWobbleUseCheck, 'Wob: Use', 0);
+  AddTrack(GWobbleDelayTrack, 'Wob: Delay(ms)', 24.0, 1.0, 120.0, 0.1);
+  AddTrack(GWobbleDepthTrack, 'Wob: Depth(ms)', 12.0, 0.0, 80.0, 0.1);
+  AddTrack(GWobbleRateTrack, 'Wob: Rate(Hz)', 1.2, 0.05, 8.0, 0.01);
+  AddTrack(GWobbleMixTrack, 'Wob: Mix', 0.65, 0.0, 1.0, 0.01);
 end;
 
 procedure SetWobbleGuiParams(UseWobble: Boolean; DelayMs, DepthMs, RateHz, Mix: Double);

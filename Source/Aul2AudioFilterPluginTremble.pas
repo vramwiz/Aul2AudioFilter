@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginTremble;
+﻿unit Aul2AudioFilterPluginTremble;
 
 // Tremble 系の GUI 項目と、細かい音量揺れの音声処理を担当する。
 
@@ -59,10 +59,10 @@ end;
 procedure AddTrembleItems;
 begin
   AddGroup(GTrembleGroup, 'Tremble', 1);
-  AddCheck(GTrembleUseCheck, 'Tremble: Use', 0);
-  AddTrack(GTrembleRateTrack, 'Tremble: Rate(Hz)', 8.0, 0.1, 30.0, 0.1);
-  AddTrack(GTrembleDepthTrack, 'Tremble: Depth', 0.35, 0.0, 1.0, 0.01);
-  AddTrack(GTrembleMixTrack, 'Tremble: Mix', 1.0, 0.0, 1.0, 0.01);
+  AddCheck(GTrembleUseCheck, 'Trem: Use', 0);
+  AddTrack(GTrembleRateTrack, 'Trem: Rate(Hz)', 8.0, 0.1, 30.0, 0.1);
+  AddTrack(GTrembleDepthTrack, 'Trem: Depth', 0.35, 0.0, 1.0, 0.01);
+  AddTrack(GTrembleMixTrack, 'Trem: Mix', 1.0, 0.0, 1.0, 0.01);
 end;
 
 procedure SetTrembleGuiParams(UseTremble: Boolean; RateHz, Depth, Mix: Double);
