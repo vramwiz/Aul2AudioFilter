@@ -4,7 +4,7 @@
         <ProjectVersion>20.4</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
+        <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <ProjectName Condition="'$(ProjectName)'==''">Aul2AudioFilter</ProjectName>
         <TargetedPlatforms>2</TargetedPlatforms>
@@ -91,6 +91,7 @@
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PostBuildEvent><![CDATA[copy /Y "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll" "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).auf2"]]></PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+        <Debugger_HostApplication>D:\aviutl2beta50\aviutl2.exe</Debugger_HostApplication>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <BT_BuildType>Release</BT_BuildType>

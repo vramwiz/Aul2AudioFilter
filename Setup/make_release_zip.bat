@@ -5,6 +5,7 @@ set "PROJECT_ROOT=%~dp0.."
 set "PLUGIN_DIR=C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter"
 set "PLUGIN_FILE=%PLUGIN_DIR%\Aul2AudioFilter.auf2"
 set "README_FILE=%PROJECT_ROOT%\README.md"
+set "TAIL_NOISE_FILE=%PROJECT_ROOT%\Sample\echo_tail_silent_noise_3s.wav"
 set "PACKAGE_NAME=Aul2AudioFilter"
 set "WORK_DIR=%~dp0%PACKAGE_NAME%"
 set "ZIP_FILE=%~dp0%PACKAGE_NAME%.zip"
@@ -22,12 +23,20 @@ if not exist "%README_FILE%" (
   exit /b 1
 )
 
+if not exist "%TAIL_NOISE_FILE%" (
+  echo Silent noise tail WAV not found:
+  echo   %TAIL_NOISE_FILE%
+  exit /b 1
+)
+
 if exist "%WORK_DIR%" rmdir /S /Q "%WORK_DIR%"
 if exist "%ZIP_FILE%" del /Q "%ZIP_FILE%"
 
 mkdir "%WORK_DIR%"
+mkdir "%WORK_DIR%\Sample"
 copy /Y "%PLUGIN_FILE%" "%WORK_DIR%\Aul2AudioFilter.auf2" >nul
 copy /Y "%README_FILE%" "%WORK_DIR%\README.md" >nul
+copy /Y "%TAIL_NOISE_FILE%" "%WORK_DIR%\Sample\echo_tail_silent_noise_3s.wav" >nul
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "Compress-Archive -Path '%WORK_DIR%' -DestinationPath '%ZIP_FILE%' -Force"
