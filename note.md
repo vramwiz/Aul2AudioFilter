@@ -364,3 +364,50 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - 現時点では既存プリセットへ新エフェクトを積極的には組み込まず、詳細パラメーターとして手動調整できる状態にした。
 - Release Win64 ビルド成功。`C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2` へコピー済み。
 - 次の候補は `PitchShift` / `FormantShift`。実装難度が上がるため、品質確認しながら別区切りで進める。
+
+## PitchShift / FormantShift implementation note
+
+- `Aul2AudioFilterPluginPitchShift.pas` を追加した。
+- `PitchShift` のパラメーターは `PitchShift: Use`, `PitchShift: Semitone`, `PitchShift: Window(ms)`, `PitchShift: Mix`。
+- `PitchShift: Semitone` は `-12` から `+12` までの半音単位として扱う。
+- 実装は二重可変ディレイのクロスフェード方式。読み出しディレイを周期的に増減させて、再生時間を変えずに音程を変える簡易方式にした。
+- `PitchShift: Window(ms)` は可変ディレイの窓長で、短いほど反応は速いが荒れやすく、長いほど滑らかだが遅れ感が出やすい。
+- `PitchShift: Use` OFF 時、対象オブジェクト変更時、非連続サンプル位置、チャンネル数変更、窓長変更時は内部状態をリセットする。
+- `Aul2AudioFilterPluginFormantShift.pas` を追加した。
+- `FormantShift` のパラメーターは `FormantShift: Use`, `FormantShift: Shift`, `FormantShift: Amount`, `FormantShift: Mix`。
+- 現在の `FormantShift` は本格的なフォルマント解析ではなく、低域成分と高域成分の重心を動かす簡易声色補正として実装した。
+- `FormantShift: Shift` が正なら軽く明るい方向、負なら低く太い方向へ寄せる。
+- 処理順は `Wobble` の後、`Whisper/Breath` の前。
+- プリセットに `男性寄り` と `女性寄り` を追加した。
+- `男性寄り` は `PitchShift: Semitone = -3`, `FormantShift: Shift = -4` を中心に、軽い EQ と Limiter を組み合わせる。
+- `女性寄り` は `PitchShift: Semitone = +3`, `FormantShift: Shift = +4` を中心に、軽い EQ と Limiter を組み合わせる。
+- Release Win64 ビルド成功。`C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2` へコピー済み。
+- 今後の改善候補は、`PitchShift` の窓つなぎ品質の確認、声素材での `男性寄り` / `女性寄り` プリセット値調整、より本格的な Formant 処理への置き換え。
+- 次の追加候補は `RingMod`。
+
+## Additional voice effect implementation note
+
+- 必要候補の追加を進め、`RingMod`, `PitchStep`, `Muffle`, `AutoGain`, `NoiseGate`, `ReverseReverb/Ghost` を追加した。
+- `Aul2AudioFilterPluginRingMod.pas` を追加した。
+- `RingMod` のパラメーターは `RingMod: Use`, `RingMod: Frequency(Hz)`, `RingMod: Depth`, `RingMod: Mix`。
+- `RingMod` は `SampleIndex` から計算したサイン波で振幅変調し、ロボットや機械質の声に使う。
+- `Aul2AudioFilterPluginPitchStep.pas` を追加した。
+- `PitchStep` のパラメーターは `PitchStep: Use`, `PitchStep: Step(semitone)`, `PitchStep: Rate(Hz)`, `PitchStep: Mix`。
+- `PitchStep` は二重可変ディレイ方式を使い、指定レートで上下のピッチを交互に切り替える。
+- `Aul2AudioFilterPluginMuffle.pas` を追加した。
+- `Muffle` のパラメーターは `Muffle: Use`, `Muffle: Cutoff(Hz)`, `Muffle: Amount`, `Muffle: Mix`。
+- `Muffle` は 2 段 one-pole low-pass を使い、水中、壁越し、遠い声などのこもりを作る。
+- `Aul2AudioFilterPluginAutoGain.pas` を追加した。
+- `AutoGain` のパラメーターは `AutoGain: Use`, `AutoGain: Target(dB)`, `AutoGain: Speed(ms)`, `AutoGain: MaxGain(dB)`, `AutoGain: Mix`。
+- `AutoGain` は envelope follower で入力レベルを追い、目標レベルへ緩やかに近づける。ノイズや残響を持ち上げやすいため初期値は OFF のままとする。
+- `Aul2AudioFilterPluginNoiseGate.pas` を追加した。
+- `NoiseGate` のパラメーターは `NoiseGate: Use`, `NoiseGate: Threshold(dB)`, `NoiseGate: Attack(ms)`, `NoiseGate: Release(ms)`, `NoiseGate: Floor(dB)`。
+- `NoiseGate` は小さい音を `Floor(dB)` まで抑え、ささやきやノイズ混じり素材の後処理に使う。
+- `Aul2AudioFilterPluginGhost.pas` を追加した。
+- GUI 名は `ReverseReverb/Ghost`。パラメーターは `ReverseReverb/Ghost: Use`, `ReverseReverb/Ghost: Size(ms)`, `ReverseReverb/Ghost: Feedback`, `ReverseReverb/Ghost: Wet`, `ReverseReverb/Ghost: Mix`。
+- 現在の `ReverseReverb/Ghost` はリアルタイム処理の制約上、厳密な逆再生リバーブではなく、履歴バッファから遅れた残響影を作るゴースト系エフェクトとして扱う。
+- 処理順は `PitchShift` / `FormantShift` 後に、`RingMod`, `PitchStep`, `Muffle`, `Whisper/Breath`, `AutoGain`, `NoiseGate`, `ReverseReverb/Ghost`, `Output`, `Limiter` とした。
+- 追加プリセットとして `ロボ`, `恐怖`, `叫び`, `ささやき`, `水中`, `壁越し`, `夢/回想` を追加した。
+- `風邪`, `遠く` は専用プリセットとしては未追加。既存の `ささやき`, `壁越し`, `Muffle`, `Noise`, `Whisper/Breath` などの組み合わせで近い調整は可能。
+- Release Win64 ビルド成功。`C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2` へコピー済み。
+- 今後の主な作業は、AviUtl2 上で各新規エフェクトと追加プリセットを声素材で聴感確認し、強すぎる初期値や破綻しやすい値を調整すること。
