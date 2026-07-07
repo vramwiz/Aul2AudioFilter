@@ -41,35 +41,39 @@ var
 begin
   Result := 1;
 
-  // AviUtl2 から無効な処理対象が渡された場合は成功扱いで何もしない。
-  if (Audio = nil) or (Audio^.Scene = nil) or (Audio^.Object_ = nil) then
-    Exit;
+  try
+    // AviUtl2 から無効な処理対象が渡された場合は成功扱いで何もしない。
+    if (Audio = nil) or (Audio^.Scene = nil) or (Audio^.Object_ = nil) then
+      Exit;
 
-  SampleNum := Audio^.Object_^.SampleNum;
-  ChannelNum := Audio^.Object_^.ChannelNum;
-  if (SampleNum <= 0) or (ChannelNum <= 0) then
-    Exit;
+    SampleNum := Audio^.Object_^.SampleNum;
+    ChannelNum := Audio^.Object_^.ChannelNum;
+    if (SampleNum <= 0) or (ChannelNum <= 0) then
+      Exit;
 
-  ProcessDelay(Audio, SampleNum, ChannelNum);
-  ProcessEq(Audio, SampleNum, ChannelNum);
-  ProcessCompressor(Audio, SampleNum, ChannelNum);
-  ProcessVoiceDrive(Audio, SampleNum, ChannelNum);
-  ProcessDistortion(Audio, SampleNum, ChannelNum);
-  ProcessNoise(Audio, SampleNum, ChannelNum);
-  ProcessBitCrusher(Audio, SampleNum, ChannelNum);
-  ProcessTremble(Audio, SampleNum, ChannelNum);
-  ProcessWobble(Audio, SampleNum, ChannelNum);
-  ProcessPitch(Audio, SampleNum, ChannelNum);
-  ProcessRingMod(Audio, SampleNum, ChannelNum);
-  ProcessMuffle(Audio, SampleNum, ChannelNum);
-  ProcessWhisper(Audio, SampleNum, ChannelNum);
-  ProcessAutoGain(Audio, SampleNum, ChannelNum);
-  ProcessNoiseGate(Audio, SampleNum, ChannelNum);
-  ProcessGhost(Audio, SampleNum, ChannelNum);
-  ProcessOutput(Audio, SampleNum, ChannelNum);
-  ProcessLimiter(Audio, SampleNum, ChannelNum);
-  ProcessChorus(Audio, SampleNum, ChannelNum);
-  ProcessReverb(Audio, SampleNum, ChannelNum);
+    ProcessDelay(Audio, SampleNum, ChannelNum);
+    ProcessEq(Audio, SampleNum, ChannelNum);
+    ProcessCompressor(Audio, SampleNum, ChannelNum);
+    ProcessVoiceDrive(Audio, SampleNum, ChannelNum);
+    ProcessDistortion(Audio, SampleNum, ChannelNum);
+    ProcessNoise(Audio, SampleNum, ChannelNum);
+    ProcessBitCrusher(Audio, SampleNum, ChannelNum);
+    ProcessTremble(Audio, SampleNum, ChannelNum);
+    ProcessWobble(Audio, SampleNum, ChannelNum);
+    ProcessPitch(Audio, SampleNum, ChannelNum);
+    ProcessRingMod(Audio, SampleNum, ChannelNum);
+    ProcessMuffle(Audio, SampleNum, ChannelNum);
+    ProcessWhisper(Audio, SampleNum, ChannelNum);
+    ProcessAutoGain(Audio, SampleNum, ChannelNum);
+    ProcessNoiseGate(Audio, SampleNum, ChannelNum);
+    ProcessGhost(Audio, SampleNum, ChannelNum);
+    ProcessChorus(Audio, SampleNum, ChannelNum);
+    ProcessReverb(Audio, SampleNum, ChannelNum);
+    ProcessOutput(Audio, SampleNum, ChannelNum);
+    ProcessLimiter(Audio, SampleNum, ChannelNum);
+  except
+    Result := 0;
+  end;
 end;
 
 function GetFilterTable: PFILTER_PLUGIN_TABLE;

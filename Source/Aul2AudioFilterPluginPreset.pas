@@ -58,7 +58,7 @@ const
 
 var
   GSoundPresetSelect: TFILTER_ITEM_SELECT;
-  GSoundPresetList  : array[0..19] of TFILTER_ITEM_SELECT_ITEM;
+  GSoundPresetList  : array[0..18] of TFILTER_ITEM_SELECT_ITEM;
   GSoundPresetButton: TFILTER_ITEM_BUTTON;
 
 procedure AddPresetItem(Index: Integer; Name: PWideChar; Value: Integer);
@@ -109,94 +109,113 @@ begin
       end;
     SOUND_PRESET_REVERB:
       begin
-        // ホールは Reverb だけを有効にし、部屋の広さや湿り具合を手動調整しやすくする。
-        SetReverbGuiParams(True, 1, 0.65, 0.35, 1.0, 0.45);
+        // ホールはスピーカー確認でも分かるよう、直音より残響を少し前に出す。
+        SetReverbGuiParams(True, 1, 0.90, 0.20, 0.85, 0.95);
       end;
     SOUND_PRESET_WIDE:
       begin
-        // 空間は Wide Chorus で左右差を作る。
+        // 空間は Wide Chorus で左右差を作り、最後に少し音量を戻す。
         SetChorusGuiParams(True, True, 18.0, 7.0, 0.45, 0.45);
+        SetOutputGuiParams(True, 4.0);
+        SetLimiterGuiParams(True, -1.0, 50.0, 1.0);
       end;
     SOUND_PRESET_NARRATION:
       begin
-        // ナレーションは声向けの EQ / Compressor / Limiter をまとめて設定する。
-        SetEqBandPassGuiParams(True, 120.0, 9000.0, 1.0);
-        SetCompressorGuiParams(True, -18.0, 3.0, 5.0, 120.0, 2.0, 1.0);
+        // ナレーションは声を前に出す EQ / Compressor / VoiceDrive / Output / Limiter をまとめて設定する。
+        SetEqBandPassGuiParams(True, 140.0, 8500.0, 1.0);
+        SetCompressorGuiParams(True, -26.0, 4.5, 3.0, 90.0, 5.0, 1.0);
+        SetVoiceDriveGuiParams(True, 7.0, 0.35, -2.0, 0.40);
+        SetOutputGuiParams(True, 3.0);
         SetLimiterGuiParams(True, -1.0, 50.0, 1.0);
       end;
     SOUND_PRESET_TELEPHONE:
       begin
-        // 電話は帯域制限に軽い歪みと粗さを足し、通話越しの質感を作る。
-        SetEqBandPassGuiParams(True, 350.0, 3200.0, 1.0);
-        SetDistortionGuiParams(True, False, 5.0, 0.65, -3.0, 0.35);
-        SetBitCrusherGuiParams(True, 10.0, 1.0, 0.35);
+        // 電話は帯域制限に軽い歪みと粗さを足し、最後に体感音量を戻す。
+        SetEqBandPassGuiParams(True, 500.0, 2600.0, 1.0);
+        SetDistortionGuiParams(True, False, 8.0, 0.80, -3.0, 0.50);
+        SetBitCrusherGuiParams(True, 9.0, 1.0, 0.50);
+        SetOutputGuiParams(True, 4.0);
+        SetLimiterGuiParams(True, -1.0, 50.0, 1.0);
       end;
     SOUND_PRESET_RADIO:
       begin
-        // 無線は狭い帯域、歪み、ノイズ、粗さを組み合わせる。
-        SetEqBandPassGuiParams(True, 500.0, 2800.0, 1.0);
-        SetDistortionGuiParams(True, False, 10.0, 0.90, -4.0, 0.60);
-        SetNoiseGuiParams(True, True, -38.0, 0.80);
-        SetBitCrusherGuiParams(True, 8.0, 2.0, 0.50);
+        // 無線は狭い帯域、歪み、粗さを組み合わせる。Noise はクラッシュ対策で使わない。
+        SetEqBandPassGuiParams(True, 700.0, 2300.0, 1.0);
+        SetDistortionGuiParams(True, False, 14.0, 1.0, -5.0, 0.75);
+        SetNoiseGuiParams(False, False, -36.0, 0.0);
+        SetBitCrusherGuiParams(True, 7.0, 3.0, 0.70);
         SetLimiterGuiParams(True, -1.0, 40.0, 1.0);
       end;
     SOUND_PRESET_MEGAPHONE:
       begin
-        // 拡声器は中域寄りの帯域、強めの歪み、圧縮で押し出しを作る。
-        SetEqBandPassGuiParams(True, 450.0, 5200.0, 1.0);
-        SetCompressorGuiParams(True, -22.0, 4.0, 3.0, 100.0, 3.0, 1.0);
-        SetDistortionGuiParams(True, True, 14.0, 1.0, -6.0, 0.75);
+        // 拡声器は中域寄りの帯域、強い圧縮、声向け押し出し、硬い歪みで作る。
+        SetEqBandPassGuiParams(True, 550.0, 4800.0, 1.0);
+        SetCompressorGuiParams(True, -28.0, 6.0, 2.0, 80.0, 6.0, 1.0);
+        SetVoiceDriveGuiParams(True, 12.0, 0.55, -3.0, 0.65);
+        SetDistortionGuiParams(True, True, 18.0, 1.0, -7.0, 0.85);
+        SetOutputGuiParams(True, -2.2);
         SetLimiterGuiParams(True, -1.0, 35.0, 1.0);
       end;
     SOUND_PRESET_LOW_QUALITY:
       begin
-        // 劣化は BitCrusher を中心に、軽い帯域制限とノイズを加える。
-        SetEqBandPassGuiParams(True, 220.0, 5000.0, 1.0);
-        SetNoiseGuiParams(True, False, -45.0, 0.35);
-        SetBitCrusherGuiParams(True, 6.0, 8.0, 0.85);
+        // 劣化は BitCrusher と軽い歪みを中心に作る。Noise は処理例外対策で使わない。
+        SetEqBandPassGuiParams(True, 300.0, 4200.0, 1.0);
+        SetDistortionGuiParams(True, False, 8.0, 0.85, -4.0, 0.45);
+        SetNoiseGuiParams(False, False, -45.0, 0.0);
+        SetBitCrusherGuiParams(True, 5.0, 10.0, 0.85);
+        SetOutputGuiParams(True, 3.0);
+        SetLimiterGuiParams(True, -1.0, 50.0, 1.0);
       end;
     SOUND_PRESET_MALE:
       begin
-        // 男性寄りは音程と声色の重心を下げ、低域を少し残す。
-        SetPitchGuiParams(True, 0, -3.0, 70.0, -4.0, 0.8, 5.0, 4.0, 1.0);
+        // 男性は音程と声色の重心を下げる。Dry も混ぜてぶつ切れを抑える。
+        SetPitchGuiParams(True, 0, -2.0, 110.0, -2.5, 0.6, 5.0, 4.0, 0.60);
         SetEqBandPassGuiParams(True, 90.0, 7600.0, 1.0);
+        SetOutputGuiParams(True, 5.0);
         SetLimiterGuiParams(True, -1.0, 50.0, 1.0);
       end;
     SOUND_PRESET_FEMALE:
       begin
-        // 女性寄りは音程と声色の重心を上げ、低域の重さを少し抑える。
-        SetPitchGuiParams(True, 0, 3.0, 55.0, 4.0, 0.8, 5.0, 4.0, 1.0);
+        // 女性は音程と声色の重心を上げる。Dry も混ぜてぶつ切れを抑える。
+        SetPitchGuiParams(True, 0, 2.0, 100.0, 2.5, 0.6, 5.0, 4.0, 0.60);
         SetEqBandPassGuiParams(True, 150.0, 9000.0, 1.0);
+        SetOutputGuiParams(True, 5.0);
         SetLimiterGuiParams(True, -1.0, 50.0, 1.0);
       end;
     SOUND_PRESET_ROBOT:
       begin
-        SetRingModGuiParams(True, 55.0, 0.85, 0.75);
-        SetPitchGuiParams(True, 3, 0.0, 60.0, 0.0, 0.7, 4.0, 5.0, 0.65);
-        SetBitCrusherGuiParams(True, 7.0, 2.0, 0.45);
-        SetEqBandPassGuiParams(True, 180.0, 5200.0, 1.0);
+        SetRingModGuiParams(True, 95.0, 1.0, 0.90);
+        SetPitchGuiParams(True, 3, 0.0, 90.0, 0.0, 0.7, 3.0, 7.0, 0.45);
+        SetBitCrusherGuiParams(True, 6.0, 3.0, 0.65);
+        SetEqBandPassGuiParams(True, 220.0, 4800.0, 1.0);
+        SetOutputGuiParams(True, 10.0);
         SetLimiterGuiParams(True, -1.0, 45.0, 1.0);
       end;
     SOUND_PRESET_FEAR:
       begin
-        SetTrembleGuiParams(True, 9.0, 0.35, 0.8);
-        SetWobbleGuiParams(True, 22.0, 14.0, 1.0, 0.45);
-        SetGhostGuiParams(True, 520.0, 0.35, 0.25, 0.8);
-        SetReverbGuiParams(True, 0, 0.55, 0.55, 1.0, 0.28);
+        SetTrembleGuiParams(True, 11.0, 0.75, 1.0);
+        SetWobbleGuiParams(True, 35.0, 28.0, 0.70, 0.75);
+        SetPitchGuiParams(True, 0, -1.5, 100.0, -2.0, 0.5, 5.0, 4.0, 0.55);
+        SetMuffleGuiParams(True, 2600.0, 0.45, 0.60);
+        SetGhostGuiParams(True, 650.0, 0.55, 0.45, 1.0);
+        SetReverbGuiParams(True, 1, 0.70, 0.40, 1.0, 0.45);
+        SetOutputGuiParams(True, 3.0);
+        SetLimiterGuiParams(True, -1.0, 60.0, 1.0);
       end;
     SOUND_PRESET_SHOUT:
       begin
-        SetCompressorGuiParams(True, -24.0, 5.0, 3.0, 90.0, 4.0, 1.0);
-        SetVoiceDriveGuiParams(True, 14.0, 0.55, -5.0, 0.75);
-        SetOutputGuiParams(True, 3.0);
-        SetLimiterGuiParams(True, -1.0, 35.0, 1.0);
+        SetCompressorGuiParams(True, -30.0, 8.0, 1.5, 70.0, 7.0, 1.0);
+        SetVoiceDriveGuiParams(True, 18.0, 0.65, -4.0, 0.85);
+        SetDistortionGuiParams(True, True, 10.0, 1.0, -8.0, 0.35);
+        SetOutputGuiParams(True, 5.0);
+        SetLimiterGuiParams(True, -1.0, 25.0, 1.0);
       end;
     SOUND_PRESET_WHISPER:
       begin
-        SetWhisperGuiParams(True, -12.0, 0.8, 0.7);
-        SetEqBandPassGuiParams(True, 300.0, 8500.0, 1.0);
-        SetCompressorGuiParams(True, -26.0, 3.0, 8.0, 180.0, 3.0, 0.8);
-        SetNoiseGateGuiParams(True, -55.0, 10.0, 180.0, -70.0);
+        SetWhisperGuiParams(True, 0.0, 1.0, 1.0);
+        SetEqBandPassGuiParams(True, 900.0, 11000.0, 1.0);
+        SetCompressorGuiParams(True, -38.0, 2.0, 18.0, 260.0, 0.0, 0.45);
+        SetOutputGuiParams(True, 9.0);
         SetLimiterGuiParams(True, -1.0, 50.0, 1.0);
       end;
     SOUND_PRESET_UNDERWATER:
@@ -205,19 +224,25 @@ begin
         SetWobbleGuiParams(True, 35.0, 22.0, 0.75, 0.55);
         SetChorusGuiParams(True, True, 22.0, 9.0, 0.35, 0.35);
         SetReverbGuiParams(True, 0, 0.45, 0.75, 1.0, 0.25);
+        SetOutputGuiParams(True, 14.0);
+        SetLimiterGuiParams(True, -1.0, 50.0, 1.0);
       end;
     SOUND_PRESET_WALL:
       begin
         SetMuffleGuiParams(True, 650.0, 1.0, 1.0);
         SetEqBandPassGuiParams(True, 120.0, 1800.0, 1.0);
         SetReverbGuiParams(True, 0, 0.25, 0.7, 1.0, 0.12);
+        SetOutputGuiParams(True, 6.0);
+        SetLimiterGuiParams(True, -1.0, 50.0, 1.0);
       end;
     SOUND_PRESET_DREAM:
       begin
-        SetWobbleGuiParams(True, 30.0, 18.0, 0.45, 0.45);
-        SetChorusGuiParams(True, True, 24.0, 10.0, 0.25, 0.45);
-        SetGhostGuiParams(True, 680.0, 0.45, 0.32, 0.9);
-        SetReverbGuiParams(True, 1, 0.62, 0.45, 1.0, 0.38);
+        SetWobbleGuiParams(True, 34.0, 24.0, 0.38, 0.62);
+        SetChorusGuiParams(True, True, 28.0, 13.0, 0.22, 0.58);
+        SetGhostGuiParams(True, 760.0, 0.52, 0.42, 1.0);
+        SetReverbGuiParams(True, 1, 0.72, 0.42, 1.0, 0.48);
+        SetOutputGuiParams(True, 6.0);
+        SetLimiterGuiParams(True, -1.0, 50.0, 1.0);
       end;
   else
     begin
@@ -368,9 +393,10 @@ begin
       begin
         SetPresetObjectItem(Edit, Obj, 'Rev: Use', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'Rev: Type', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Rev: RoomSize', UTF8String('0.65'));
-        SetPresetObjectItem(Edit, Obj, 'Rev: Damping', UTF8String('0.35'));
-        SetPresetObjectItem(Edit, Obj, 'Rev: Wet', UTF8String('0.45'));
+        SetPresetObjectItem(Edit, Obj, 'Rev: RoomSize', UTF8String('0.90'));
+        SetPresetObjectItem(Edit, Obj, 'Rev: Damping', UTF8String('0.20'));
+        SetPresetObjectItem(Edit, Obj, 'Rev: Dry', UTF8String('0.85'));
+        SetPresetObjectItem(Edit, Obj, 'Rev: Wet', UTF8String('0.95'));
       end;
     SOUND_PRESET_WIDE:
       begin
@@ -380,193 +406,252 @@ begin
         SetPresetObjectItem(Edit, Obj, 'Cho: Depth(ms)', UTF8String('7'));
         SetPresetObjectItem(Edit, Obj, 'Cho: Rate(Hz)', UTF8String('0.45'));
         SetPresetObjectItem(Edit, Obj, 'Cho: Mix', UTF8String('0.45'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('4'));
+        SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
       end;
     SOUND_PRESET_NARRATION:
       begin
         SetPresetObjectItem(Edit, Obj, 'EQ: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('120'));
-        SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('9000'));
+        SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('140'));
+        SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('8500'));
         SetPresetObjectItem(Edit, Obj, 'Comp: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Threshold(dB)', UTF8String('-18'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Ratio', UTF8String('3'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Attack(ms)', UTF8String('5'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Release(ms)', UTF8String('120'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Makeup(dB)', UTF8String('2'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Threshold(dB)', UTF8String('-26'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Ratio', UTF8String('4.5'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Attack(ms)', UTF8String('3'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Release(ms)', UTF8String('90'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Makeup(dB)', UTF8String('5'));
+        SetPresetObjectItem(Edit, Obj, 'Drive: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Drive: Drive(dB)', UTF8String('7'));
+        SetPresetObjectItem(Edit, Obj, 'Drive: Body', UTF8String('0.35'));
+        SetPresetObjectItem(Edit, Obj, 'Drive: Level(dB)', UTF8String('-2'));
+        SetPresetObjectItem(Edit, Obj, 'Drive: Mix', UTF8String('0.40'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('3'));
         SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
       end;
     SOUND_PRESET_TELEPHONE:
       begin
         SetPresetObjectItem(Edit, Obj, 'EQ: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('350'));
-        SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('3200'));
+        SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('500'));
+        SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('2600'));
         SetPresetObjectItem(Edit, Obj, 'Dist: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Dist: Drive(dB)', UTF8String('5'));
-        SetPresetObjectItem(Edit, Obj, 'Dist: Tone', UTF8String('0.65'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Drive(dB)', UTF8String('8'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Tone', UTF8String('0.80'));
         SetPresetObjectItem(Edit, Obj, 'Dist: Level(dB)', UTF8String('-3'));
-        SetPresetObjectItem(Edit, Obj, 'Dist: Mix', UTF8String('0.35'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Mix', UTF8String('0.50'));
         SetPresetObjectItem(Edit, Obj, 'Crush: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Crush: BitDepth', UTF8String('10'));
+        SetPresetObjectItem(Edit, Obj, 'Crush: BitDepth', UTF8String('9'));
         SetPresetObjectItem(Edit, Obj, 'Crush: SampleHold', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Crush: Mix', UTF8String('0.35'));
+        SetPresetObjectItem(Edit, Obj, 'Crush: Mix', UTF8String('0.50'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('4'));
+        SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
       end;
     SOUND_PRESET_RADIO:
       begin
         SetPresetObjectItem(Edit, Obj, 'EQ: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('500'));
-        SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('2800'));
+        SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('700'));
+        SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('2300'));
         SetPresetObjectItem(Edit, Obj, 'Dist: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Dist: Drive(dB)', UTF8String('10'));
-        SetPresetObjectItem(Edit, Obj, 'Dist: Tone', UTF8String('0.90'));
-        SetPresetObjectItem(Edit, Obj, 'Dist: Level(dB)', UTF8String('-4'));
-        SetPresetObjectItem(Edit, Obj, 'Dist: Mix', UTF8String('0.60'));
-        SetPresetObjectItem(Edit, Obj, 'Noise: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Noise: Mode', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Noise: Level(dB)', UTF8String('-38'));
-        SetPresetObjectItem(Edit, Obj, 'Noise: Mix', UTF8String('0.80'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Drive(dB)', UTF8String('14'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Tone', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Level(dB)', UTF8String('-5'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Mix', UTF8String('0.75'));
+        SetPresetObjectItem(Edit, Obj, 'Noise: Use', UTF8String('0'));
+        SetPresetObjectItem(Edit, Obj, 'Noise: Mode', UTF8String('0'));
+        SetPresetObjectItem(Edit, Obj, 'Noise: Level(dB)', UTF8String('-36'));
+        SetPresetObjectItem(Edit, Obj, 'Noise: Mix', UTF8String('0'));
         SetPresetObjectItem(Edit, Obj, 'Crush: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Crush: BitDepth', UTF8String('8'));
-        SetPresetObjectItem(Edit, Obj, 'Crush: SampleHold', UTF8String('2'));
-        SetPresetObjectItem(Edit, Obj, 'Crush: Mix', UTF8String('0.50'));
+        SetPresetObjectItem(Edit, Obj, 'Crush: BitDepth', UTF8String('7'));
+        SetPresetObjectItem(Edit, Obj, 'Crush: SampleHold', UTF8String('3'));
+        SetPresetObjectItem(Edit, Obj, 'Crush: Mix', UTF8String('0.70'));
         SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'Lim: Release(ms)', UTF8String('40'));
       end;
     SOUND_PRESET_MEGAPHONE:
       begin
         SetPresetObjectItem(Edit, Obj, 'EQ: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('450'));
-        SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('5200'));
+        SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('550'));
+        SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('4800'));
         SetPresetObjectItem(Edit, Obj, 'Comp: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Threshold(dB)', UTF8String('-22'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Ratio', UTF8String('4'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Attack(ms)', UTF8String('3'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Release(ms)', UTF8String('100'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Makeup(dB)', UTF8String('3'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Threshold(dB)', UTF8String('-28'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Ratio', UTF8String('6'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Attack(ms)', UTF8String('2'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Release(ms)', UTF8String('80'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Makeup(dB)', UTF8String('6'));
+        SetPresetObjectItem(Edit, Obj, 'Drive: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Drive: Drive(dB)', UTF8String('12'));
+        SetPresetObjectItem(Edit, Obj, 'Drive: Body', UTF8String('0.55'));
+        SetPresetObjectItem(Edit, Obj, 'Drive: Level(dB)', UTF8String('-3'));
+        SetPresetObjectItem(Edit, Obj, 'Drive: Mix', UTF8String('0.65'));
         SetPresetObjectItem(Edit, Obj, 'Dist: Use', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'Dist: Mode', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Dist: Drive(dB)', UTF8String('14'));
-        SetPresetObjectItem(Edit, Obj, 'Dist: Level(dB)', UTF8String('-6'));
-        SetPresetObjectItem(Edit, Obj, 'Dist: Mix', UTF8String('0.75'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Drive(dB)', UTF8String('18'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Level(dB)', UTF8String('-7'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Mix', UTF8String('0.85'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('-2.2'));
         SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'Lim: Release(ms)', UTF8String('35'));
       end;
     SOUND_PRESET_LOW_QUALITY:
       begin
         SetPresetObjectItem(Edit, Obj, 'EQ: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('220'));
-        SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('5000'));
-        SetPresetObjectItem(Edit, Obj, 'Noise: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('300'));
+        SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('4200'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Drive(dB)', UTF8String('8'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Tone', UTF8String('0.85'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Level(dB)', UTF8String('-4'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Mix', UTF8String('0.45'));
+        SetPresetObjectItem(Edit, Obj, 'Noise: Use', UTF8String('0'));
         SetPresetObjectItem(Edit, Obj, 'Noise: Level(dB)', UTF8String('-45'));
-        SetPresetObjectItem(Edit, Obj, 'Noise: Mix', UTF8String('0.35'));
+        SetPresetObjectItem(Edit, Obj, 'Noise: Mix', UTF8String('0'));
         SetPresetObjectItem(Edit, Obj, 'Crush: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Crush: BitDepth', UTF8String('6'));
-        SetPresetObjectItem(Edit, Obj, 'Crush: SampleHold', UTF8String('8'));
+        SetPresetObjectItem(Edit, Obj, 'Crush: BitDepth', UTF8String('5'));
+        SetPresetObjectItem(Edit, Obj, 'Crush: SampleHold', UTF8String('10'));
         SetPresetObjectItem(Edit, Obj, 'Crush: Mix', UTF8String('0.85'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('3'));
+        SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
       end;
     SOUND_PRESET_MALE:
       begin
         SetPresetObjectItem(Edit, Obj, 'Pitch: Use', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'Pitch: Mode', UTF8String('0'));
-        SetPresetObjectItem(Edit, Obj, 'Pitch: Semitone', UTF8String('-3'));
-        SetPresetObjectItem(Edit, Obj, 'Pitch: Window(ms)', UTF8String('70'));
-        SetPresetObjectItem(Edit, Obj, 'Pitch: Formant', UTF8String('-4'));
-        SetPresetObjectItem(Edit, Obj, 'Pitch: Amount', UTF8String('0.8'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Semitone', UTF8String('-2'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Window(ms)', UTF8String('110'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Formant', UTF8String('-2.5'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Amount', UTF8String('0.6'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Mix', UTF8String('0.60'));
         SetPresetObjectItem(Edit, Obj, 'EQ: Use', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('90'));
         SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('7600'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('5'));
         SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
       end;
     SOUND_PRESET_FEMALE:
       begin
         SetPresetObjectItem(Edit, Obj, 'Pitch: Use', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'Pitch: Mode', UTF8String('0'));
-        SetPresetObjectItem(Edit, Obj, 'Pitch: Semitone', UTF8String('3'));
-        SetPresetObjectItem(Edit, Obj, 'Pitch: Window(ms)', UTF8String('55'));
-        SetPresetObjectItem(Edit, Obj, 'Pitch: Formant', UTF8String('4'));
-        SetPresetObjectItem(Edit, Obj, 'Pitch: Amount', UTF8String('0.8'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Semitone', UTF8String('2'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Window(ms)', UTF8String('100'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Formant', UTF8String('2.5'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Amount', UTF8String('0.6'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Mix', UTF8String('0.60'));
         SetPresetObjectItem(Edit, Obj, 'EQ: Use', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('150'));
         SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('9000'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('5'));
         SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
       end;
     SOUND_PRESET_ROBOT:
       begin
         SetPresetObjectItem(Edit, Obj, 'Ring: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Ring: Frequency(Hz)', UTF8String('55'));
-        SetPresetObjectItem(Edit, Obj, 'Ring: Depth', UTF8String('0.85'));
-        SetPresetObjectItem(Edit, Obj, 'Ring: Mix', UTF8String('0.75'));
+        SetPresetObjectItem(Edit, Obj, 'Ring: Frequency(Hz)', UTF8String('95'));
+        SetPresetObjectItem(Edit, Obj, 'Ring: Depth', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Ring: Mix', UTF8String('0.90'));
         SetPresetObjectItem(Edit, Obj, 'Pitch: Use', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'Pitch: Mode', UTF8String('3'));
-        SetPresetObjectItem(Edit, Obj, 'Pitch: Step(semi)', UTF8String('4'));
-        SetPresetObjectItem(Edit, Obj, 'Pitch: Rate(Hz)', UTF8String('5'));
-        SetPresetObjectItem(Edit, Obj, 'Pitch: Mix', UTF8String('0.65'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Window(ms)', UTF8String('90'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Step(semi)', UTF8String('3'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Rate(Hz)', UTF8String('7'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Mix', UTF8String('0.45'));
         SetPresetObjectItem(Edit, Obj, 'Crush: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Crush: BitDepth', UTF8String('7'));
-        SetPresetObjectItem(Edit, Obj, 'Crush: SampleHold', UTF8String('2'));
-        SetPresetObjectItem(Edit, Obj, 'Crush: Mix', UTF8String('0.45'));
+        SetPresetObjectItem(Edit, Obj, 'Crush: BitDepth', UTF8String('6'));
+        SetPresetObjectItem(Edit, Obj, 'Crush: SampleHold', UTF8String('3'));
+        SetPresetObjectItem(Edit, Obj, 'Crush: Mix', UTF8String('0.65'));
         SetPresetObjectItem(Edit, Obj, 'EQ: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('180'));
-        SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('5200'));
+        SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('220'));
+        SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('4800'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('10'));
         SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'Lim: Release(ms)', UTF8String('45'));
       end;
     SOUND_PRESET_FEAR:
       begin
         SetPresetObjectItem(Edit, Obj, 'Trem: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Trem: Rate(Hz)', UTF8String('9'));
-        SetPresetObjectItem(Edit, Obj, 'Trem: Depth', UTF8String('0.35'));
-        SetPresetObjectItem(Edit, Obj, 'Trem: Mix', UTF8String('0.8'));
+        SetPresetObjectItem(Edit, Obj, 'Trem: Rate(Hz)', UTF8String('11'));
+        SetPresetObjectItem(Edit, Obj, 'Trem: Depth', UTF8String('0.75'));
+        SetPresetObjectItem(Edit, Obj, 'Trem: Mix', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'Wob: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Wob: Depth(ms)', UTF8String('14'));
-        SetPresetObjectItem(Edit, Obj, 'Wob: Rate(Hz)', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Wob: Mix', UTF8String('0.45'));
+        SetPresetObjectItem(Edit, Obj, 'Wob: Delay(ms)', UTF8String('35'));
+        SetPresetObjectItem(Edit, Obj, 'Wob: Depth(ms)', UTF8String('28'));
+        SetPresetObjectItem(Edit, Obj, 'Wob: Rate(Hz)', UTF8String('0.70'));
+        SetPresetObjectItem(Edit, Obj, 'Wob: Mix', UTF8String('0.75'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Mode', UTF8String('0'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Semitone', UTF8String('-1.5'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Window(ms)', UTF8String('100'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Formant', UTF8String('-2'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Amount', UTF8String('0.5'));
+        SetPresetObjectItem(Edit, Obj, 'Pitch: Mix', UTF8String('0.55'));
+        SetPresetObjectItem(Edit, Obj, 'Muffle: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Muffle: Cutoff(Hz)', UTF8String('2600'));
+        SetPresetObjectItem(Edit, Obj, 'Muffle: Amount', UTF8String('0.45'));
+        SetPresetObjectItem(Edit, Obj, 'Muffle: Mix', UTF8String('0.60'));
         SetPresetObjectItem(Edit, Obj, 'Ghost: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Ghost: Size(ms)', UTF8String('520'));
-        SetPresetObjectItem(Edit, Obj, 'Ghost: Feedback', UTF8String('0.35'));
-        SetPresetObjectItem(Edit, Obj, 'Ghost: Wet', UTF8String('0.25'));
-        SetPresetObjectItem(Edit, Obj, 'Ghost: Mix', UTF8String('0.8'));
+        SetPresetObjectItem(Edit, Obj, 'Ghost: Size(ms)', UTF8String('650'));
+        SetPresetObjectItem(Edit, Obj, 'Ghost: Feedback', UTF8String('0.55'));
+        SetPresetObjectItem(Edit, Obj, 'Ghost: Wet', UTF8String('0.45'));
+        SetPresetObjectItem(Edit, Obj, 'Ghost: Mix', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'Rev: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Rev: RoomSize', UTF8String('0.55'));
-        SetPresetObjectItem(Edit, Obj, 'Rev: Damping', UTF8String('0.55'));
-        SetPresetObjectItem(Edit, Obj, 'Rev: Wet', UTF8String('0.28'));
+        SetPresetObjectItem(Edit, Obj, 'Rev: Type', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Rev: RoomSize', UTF8String('0.70'));
+        SetPresetObjectItem(Edit, Obj, 'Rev: Damping', UTF8String('0.40'));
+        SetPresetObjectItem(Edit, Obj, 'Rev: Wet', UTF8String('0.45'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('3'));
+        SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Lim: Release(ms)', UTF8String('60'));
       end;
     SOUND_PRESET_SHOUT:
       begin
         SetPresetObjectItem(Edit, Obj, 'Comp: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Threshold(dB)', UTF8String('-24'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Ratio', UTF8String('5'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Attack(ms)', UTF8String('3'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Release(ms)', UTF8String('90'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Makeup(dB)', UTF8String('4'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Threshold(dB)', UTF8String('-30'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Ratio', UTF8String('8'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Attack(ms)', UTF8String('1.5'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Release(ms)', UTF8String('70'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Makeup(dB)', UTF8String('7'));
         SetPresetObjectItem(Edit, Obj, 'Drive: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Drive: Drive(dB)', UTF8String('14'));
-        SetPresetObjectItem(Edit, Obj, 'Drive: Body', UTF8String('0.55'));
-        SetPresetObjectItem(Edit, Obj, 'Drive: Level(dB)', UTF8String('-5'));
-        SetPresetObjectItem(Edit, Obj, 'Drive: Mix', UTF8String('0.75'));
+        SetPresetObjectItem(Edit, Obj, 'Drive: Drive(dB)', UTF8String('18'));
+        SetPresetObjectItem(Edit, Obj, 'Drive: Body', UTF8String('0.65'));
+        SetPresetObjectItem(Edit, Obj, 'Drive: Level(dB)', UTF8String('-4'));
+        SetPresetObjectItem(Edit, Obj, 'Drive: Mix', UTF8String('0.85'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Mode', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Drive(dB)', UTF8String('10'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Tone', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Level(dB)', UTF8String('-8'));
+        SetPresetObjectItem(Edit, Obj, 'Dist: Mix', UTF8String('0.35'));
         SetPresetObjectItem(Edit, Obj, 'Out: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('3'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('5'));
         SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Lim: Release(ms)', UTF8String('35'));
+        SetPresetObjectItem(Edit, Obj, 'Lim: Release(ms)', UTF8String('25'));
       end;
     SOUND_PRESET_WHISPER:
       begin
         SetPresetObjectItem(Edit, Obj, 'Breath: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Breath: Level(dB)', UTF8String('-12'));
-        SetPresetObjectItem(Edit, Obj, 'Breath: Tone', UTF8String('0.8'));
-        SetPresetObjectItem(Edit, Obj, 'Breath: Mix', UTF8String('0.7'));
+        SetPresetObjectItem(Edit, Obj, 'Breath: Level(dB)', UTF8String('0'));
+        SetPresetObjectItem(Edit, Obj, 'Breath: Tone', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Breath: Mix', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'EQ: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('300'));
-        SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('8500'));
+        SetPresetObjectItem(Edit, Obj, 'EQ: LowCut(Hz)', UTF8String('900'));
+        SetPresetObjectItem(Edit, Obj, 'EQ: HighCut(Hz)', UTF8String('11000'));
         SetPresetObjectItem(Edit, Obj, 'Comp: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Threshold(dB)', UTF8String('-26'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Ratio', UTF8String('3'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Attack(ms)', UTF8String('8'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Release(ms)', UTF8String('180'));
-        SetPresetObjectItem(Edit, Obj, 'Comp: Makeup(dB)', UTF8String('3'));
-        SetPresetObjectItem(Edit, Obj, 'Gate: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Gate: Threshold(dB)', UTF8String('-55'));
-        SetPresetObjectItem(Edit, Obj, 'Gate: Attack(ms)', UTF8String('10'));
-        SetPresetObjectItem(Edit, Obj, 'Gate: Release(ms)', UTF8String('180'));
-        SetPresetObjectItem(Edit, Obj, 'Gate: Floor(dB)', UTF8String('-70'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Threshold(dB)', UTF8String('-38'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Ratio', UTF8String('2'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Attack(ms)', UTF8String('18'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Release(ms)', UTF8String('260'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Makeup(dB)', UTF8String('0'));
+        SetPresetObjectItem(Edit, Obj, 'Comp: Mix', UTF8String('0.45'));
+        SetPresetObjectItem(Edit, Obj, 'Gate: Use', UTF8String('0'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('9'));
         SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
       end;
     SOUND_PRESET_UNDERWATER:
@@ -589,6 +674,9 @@ begin
         SetPresetObjectItem(Edit, Obj, 'Rev: RoomSize', UTF8String('0.45'));
         SetPresetObjectItem(Edit, Obj, 'Rev: Damping', UTF8String('0.75'));
         SetPresetObjectItem(Edit, Obj, 'Rev: Wet', UTF8String('0.25'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('14'));
+        SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
       end;
     SOUND_PRESET_WALL:
       begin
@@ -602,30 +690,36 @@ begin
         SetPresetObjectItem(Edit, Obj, 'Rev: RoomSize', UTF8String('0.25'));
         SetPresetObjectItem(Edit, Obj, 'Rev: Damping', UTF8String('0.7'));
         SetPresetObjectItem(Edit, Obj, 'Rev: Wet', UTF8String('0.12'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('6'));
+        SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
       end;
     SOUND_PRESET_DREAM:
       begin
         SetPresetObjectItem(Edit, Obj, 'Wob: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Wob: Delay(ms)', UTF8String('30'));
-        SetPresetObjectItem(Edit, Obj, 'Wob: Depth(ms)', UTF8String('18'));
-        SetPresetObjectItem(Edit, Obj, 'Wob: Rate(Hz)', UTF8String('0.45'));
-        SetPresetObjectItem(Edit, Obj, 'Wob: Mix', UTF8String('0.45'));
+        SetPresetObjectItem(Edit, Obj, 'Wob: Delay(ms)', UTF8String('34'));
+        SetPresetObjectItem(Edit, Obj, 'Wob: Depth(ms)', UTF8String('24'));
+        SetPresetObjectItem(Edit, Obj, 'Wob: Rate(Hz)', UTF8String('0.38'));
+        SetPresetObjectItem(Edit, Obj, 'Wob: Mix', UTF8String('0.62'));
         SetPresetObjectItem(Edit, Obj, 'Cho: Use', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'Cho: Stereo Mode', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Cho: Delay(ms)', UTF8String('24'));
-        SetPresetObjectItem(Edit, Obj, 'Cho: Depth(ms)', UTF8String('10'));
-        SetPresetObjectItem(Edit, Obj, 'Cho: Rate(Hz)', UTF8String('0.25'));
-        SetPresetObjectItem(Edit, Obj, 'Cho: Mix', UTF8String('0.45'));
+        SetPresetObjectItem(Edit, Obj, 'Cho: Delay(ms)', UTF8String('28'));
+        SetPresetObjectItem(Edit, Obj, 'Cho: Depth(ms)', UTF8String('13'));
+        SetPresetObjectItem(Edit, Obj, 'Cho: Rate(Hz)', UTF8String('0.22'));
+        SetPresetObjectItem(Edit, Obj, 'Cho: Mix', UTF8String('0.58'));
         SetPresetObjectItem(Edit, Obj, 'Ghost: Use', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Ghost: Size(ms)', UTF8String('680'));
-        SetPresetObjectItem(Edit, Obj, 'Ghost: Feedback', UTF8String('0.45'));
-        SetPresetObjectItem(Edit, Obj, 'Ghost: Wet', UTF8String('0.32'));
-        SetPresetObjectItem(Edit, Obj, 'Ghost: Mix', UTF8String('0.9'));
+        SetPresetObjectItem(Edit, Obj, 'Ghost: Size(ms)', UTF8String('760'));
+        SetPresetObjectItem(Edit, Obj, 'Ghost: Feedback', UTF8String('0.52'));
+        SetPresetObjectItem(Edit, Obj, 'Ghost: Wet', UTF8String('0.42'));
+        SetPresetObjectItem(Edit, Obj, 'Ghost: Mix', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'Rev: Use', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'Rev: Type', UTF8String('1'));
-        SetPresetObjectItem(Edit, Obj, 'Rev: RoomSize', UTF8String('0.62'));
-        SetPresetObjectItem(Edit, Obj, 'Rev: Damping', UTF8String('0.45'));
-        SetPresetObjectItem(Edit, Obj, 'Rev: Wet', UTF8String('0.38'));
+        SetPresetObjectItem(Edit, Obj, 'Rev: RoomSize', UTF8String('0.72'));
+        SetPresetObjectItem(Edit, Obj, 'Rev: Damping', UTF8String('0.42'));
+        SetPresetObjectItem(Edit, Obj, 'Rev: Wet', UTF8String('0.48'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Out: Gain(dB)', UTF8String('6'));
+        SetPresetObjectItem(Edit, Obj, 'Lim: Use', UTF8String('1'));
       end;
   end;
 end;
@@ -663,16 +757,15 @@ begin
   AddPresetItem(7, '無線', SOUND_PRESET_RADIO);
   AddPresetItem(8, '拡声器', SOUND_PRESET_MEGAPHONE);
   AddPresetItem(9, '劣化', SOUND_PRESET_LOW_QUALITY);
-  AddPresetItem(10, '男性寄り', SOUND_PRESET_MALE);
-  AddPresetItem(11, '女性寄り', SOUND_PRESET_FEMALE);
+  AddPresetItem(10, '男性', SOUND_PRESET_MALE);
+  AddPresetItem(11, '女性', SOUND_PRESET_FEMALE);
   AddPresetItem(12, 'ロボ', SOUND_PRESET_ROBOT);
   AddPresetItem(13, '恐怖', SOUND_PRESET_FEAR);
   AddPresetItem(14, '叫び', SOUND_PRESET_SHOUT);
-  AddPresetItem(15, 'ささやき', SOUND_PRESET_WHISPER);
-  AddPresetItem(16, '水中', SOUND_PRESET_UNDERWATER);
-  AddPresetItem(17, '壁越し', SOUND_PRESET_WALL);
-  AddPresetItem(18, '夢/回想', SOUND_PRESET_DREAM);
-  AddPresetItem(19, nil, 0);
+  AddPresetItem(15, '水中', SOUND_PRESET_UNDERWATER);
+  AddPresetItem(16, '壁越し', SOUND_PRESET_WALL);
+  AddPresetItem(17, '夢/回想', SOUND_PRESET_DREAM);
+  AddPresetItem(18, nil, 0);
   AddSelect(GSoundPresetSelect, 'プリセット', SOUND_PRESET_NONE, @GSoundPresetList[0]);
   AddButton(GSoundPresetButton, 'プリセット適用', ApplyPresetButton);
 end;

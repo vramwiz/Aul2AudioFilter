@@ -432,3 +432,92 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - この用途のサンプル名を `Sample\無音_極小ノイズ_ループ推奨.wav` とした。-90dB 相当の極小ノイズ入り無音で、ループ配置を想定する。
 - `Setup\make_release_zip.bat` で配布 zip の `Sample\無音_極小ノイズ_ループ推奨.wav` へ同梱するようにした。
 - `README.md` へ、完全無音ではなく極小ノイズ入り余白を使う注意と、配布 zip に含まれるサンプルの説明を追記した。
+
+## Hall preset listening note
+
+- スピーカー確認で `ホール` プリセットの効果が感じにくいという指摘があった。
+- `エコー` / `反響` は似すぎているためいったん保留とし、`ホール` だけを調整対象にした。
+- `ホール` は `Rev: RoomSize = 0.90`, `Rev: Damping = 0.20`, `Rev: Dry = 0.85`, `Rev: Wet = 0.95` に変更した。
+- 直音を少し下げ、残響量と残響時間を増やして、プリセット適用直後に広い場所の尾が分かりやすい方向へ寄せた。
+
+## Wide preset output note
+
+- `空間` は `Wide Chorus` のため、`ホール` と違って残響の尾ではなく左右の広がりを作る。
+- スピーカー確認で `空間` の音量が小さく感じるという指摘があった。
+- `Output` / `Limiter` が `Chorus` / `Reverb` より前に処理されていたため、最終段の音量調整になるよう `Chorus`, `Reverb`, `Output`, `Limiter` の順に変更した。
+- `空間` プリセットは `Out: Use = 1`, `Out: Gain(dB) = 4`, `Lim: Use = 1` を追加し、Wide Chorus 後の体感音量を戻すようにした。
+
+## Narration preset listening note
+
+- スピーカー確認で `ナレーション` の効果が分かりにくいという指摘があった。
+- 歪みやノイズは足さず、声を前に出す方向で EQ / Compressor / Output を強めた。
+- `ナレーション` は `EQ: LowCut(Hz) = 140`, `EQ: HighCut(Hz) = 8500`, `Comp: Threshold(dB) = -24`, `Comp: Ratio = 4`, `Comp: Attack(ms) = 3`, `Comp: Release(ms) = 100`, `Comp: Makeup(dB) = 4`, `Out: Gain(dB) = 2`, `Lim: Use = 1` に変更した。
+- まだ効果が分かりにくかったため、軽い `VoiceDrive` を追加し、`Comp: Threshold(dB) = -26`, `Comp: Ratio = 4.5`, `Comp: Release(ms) = 90`, `Comp: Makeup(dB) = 5`, `Drive: Drive(dB) = 7`, `Drive: Body = 0.35`, `Drive: Level(dB) = -2`, `Drive: Mix = 0.40`, `Out: Gain(dB) = 3` へ再調整した。
+
+## Telephone preset output note
+
+- `電話` は band-pass により体感音量が下がりやすいという指摘があった。
+- 電話らしい帯域制限、軽い歪み、粗さは維持し、最後に `Out: Gain(dB) = 4` と `Lim: Use = 1` を追加して音量を戻すようにした。
+- 音量は良くなったが効果をもう少し強くしたいという指摘があったため、`EQ: LowCut(Hz) = 450`, `EQ: HighCut(Hz) = 2800`, `Dist: Drive(dB) = 7`, `Dist: Tone = 0.75`, `Dist: Mix = 0.45`, `Crush: BitDepth = 9`, `Crush: Mix = 0.45` へ調整した。
+- さらに少しだけ強めるため、`EQ: LowCut(Hz) = 500`, `EQ: HighCut(Hz) = 2600`, `Dist: Drive(dB) = 8`, `Dist: Tone = 0.80`, `Dist: Mix = 0.50`, `Crush: Mix = 0.50` へ調整した。
+
+## Radio preset listening note
+
+- `無線` が `電話` と似ていて違いが分かりにくいという指摘があった。
+- `無線` は電話風の通話音ではなく、通信機らしい細さ、強い歪み、クラックルノイズ、粗いサンプル感を前に出す方向へ変更した。
+- `無線` は `EQ: LowCut(Hz) = 650`, `EQ: HighCut(Hz) = 2400`, `Dist: Drive(dB) = 13`, `Dist: Tone = 1`, `Dist: Level(dB) = -5`, `Dist: Mix = 0.70`, `Noise: Level(dB) = -30`, `Noise: Mix = 1`, `Crush: BitDepth = 7`, `Crush: SampleHold = 3`, `Crush: Mix = 0.65`, `Out: Gain(dB) = 3` に変更した。
+- その後、`無線` プリセット適用時に AviUtl2 が落ちる報告があったため、クラッシュ対策として強すぎる組み合わせを戻した。
+- 安全側の `無線` は `EQ: LowCut(Hz) = 600`, `EQ: HighCut(Hz) = 2500`, `Dist: Drive(dB) = 11`, `Dist: Tone = 0.95`, `Dist: Level(dB) = -5`, `Dist: Mix = 0.60`, `Noise: Level(dB) = -36`, `Noise: Mix = 0.65`, `Crush: BitDepth = 8`, `Crush: SampleHold = 2`, `Crush: Mix = 0.50`, `Lim: Use = 1` とした。
+- それでも `無線` 適用で `table.func_proc_audio() structured exception` が出る報告があったため、`無線` から `Noise` を外して、`EQ`, `Distortion`, `BitCrusher`, `Limiter` のみへ戻した。
+- 併せて、音声処理中の Delphi 例外が AviUtl2 まで漏れないよう `FilterProcAudio` 全体に `try..except` の保護を追加した。例外時は `Result := 0` を返し、アプリ全体のクラッシュを避ける。
+- クラッシュしなくなったが効果が弱いという指摘があったため、Noise は外したまま、`EQ: LowCut(Hz) = 700`, `EQ: HighCut(Hz) = 2300`, `Dist: Drive(dB) = 14`, `Dist: Tone = 1`, `Dist: Mix = 0.75`, `Crush: BitDepth = 7`, `Crush: SampleHold = 3`, `Crush: Mix = 0.70` へ強めた。
+
+## Megaphone preset listening note
+
+- `拡声器` の効果が感じにくいという指摘があった。
+- 電話/無線のように極端に細くするのではなく、声の押し出し、音圧、硬い歪みを強める方向へ変更した。
+- `拡声器` は `EQ: LowCut(Hz) = 550`, `EQ: HighCut(Hz) = 4800`, `Comp: Threshold(dB) = -28`, `Comp: Ratio = 6`, `Comp: Attack(ms) = 2`, `Comp: Release(ms) = 80`, `Comp: Makeup(dB) = 6`, `Drive: Drive(dB) = 12`, `Drive: Body = 0.55`, `Drive: Level(dB) = -3`, `Drive: Mix = 0.65`, `Dist: Drive(dB) = 18`, `Dist: Level(dB) = -7`, `Dist: Mix = 0.85`, `Out: Gain(dB) = 4`, `Lim: Use = 1` に変更した。
+- 効果は良いが音量が大きくなるという指摘があったため、質感は維持して `Out: Gain(dB)` を `4` から `1.5` へ下げた。
+- さらに聴感上 `-2.2dB` 付近が良いという確認があったため、`Out: Gain(dB) = -2.2` へ再調整した。
+
+## Low quality preset listening note
+
+- `劣化` プリセットで音が鳴らないという報告があった。
+- `無線` と同じく `Noise` が処理例外や無音化の原因になっている可能性があるため、`劣化` からも `Noise` を外した。
+- `劣化` は `EQ: LowCut(Hz) = 220`, `EQ: HighCut(Hz) = 5000`, `Dist: Drive(dB) = 5`, `Dist: Tone = 0.75`, `Dist: Level(dB) = -4`, `Dist: Mix = 0.30`, `Crush: BitDepth = 7`, `Crush: SampleHold = 5`, `Crush: Mix = 0.70`, `Out: Gain(dB) = 2`, `Lim: Use = 1` とした。
+- 音は鳴るが劣化感が弱いという指摘があったため、Noise は外したまま、`EQ: LowCut(Hz) = 300`, `EQ: HighCut(Hz) = 4200`, `Dist: Drive(dB) = 8`, `Dist: Tone = 0.85`, `Dist: Mix = 0.45`, `Crush: BitDepth = 5`, `Crush: SampleHold = 10`, `Crush: Mix = 0.85`, `Out: Gain(dB) = 3` へ強めた。
+
+## Male and female preset listening note
+
+- `男性` はゲインが `+5dB` 必要で、声の一部が発音しないようなぶつ切れがあるという指摘があった。
+- `Pitch: Mix = 1.0` で全量ピッチ処理音になっていたため、窓つなぎの弱い箇所が目立つ可能性がある。
+- `男性` は `Pitch: Semitone = -2`, `Pitch: Window(ms) = 110`, `Pitch: Formant = -2.5`, `Pitch: Amount = 0.6`, `Pitch: Mix = 0.60`, `Out: Gain(dB) = 5`, `Lim: Use = 1` に変更した。
+- `女性` も同様にゲインとぶつ切れを調整し、`Pitch: Semitone = 2`, `Pitch: Window(ms) = 100`, `Pitch: Formant = 2.5`, `Pitch: Amount = 0.6`, `Pitch: Mix = 0.60`, `Out: Gain(dB) = 5`, `Lim: Use = 1` とした。
+
+## Preset listening final note
+
+- スピーカー確認でプリセットを一通り試聴し、`夢/回想` まで確認完了とした。
+- `エコー` と `反響` は似すぎているため、今回の作業では保留とした。
+- `ささやき` は、ささやく感じが出にくくノイズも目立つため、プリセット一覧から削除した。`Whisper/Breath` エフェクト自体は手動調整用として残す。
+- プリセット名は `男性寄り` / `女性寄り` から `男性` / `女性` へ変更した。
+- `無線` と `劣化` は `Noise` 使用時に無音化や AviUtl2 側の例外が出る可能性があったため、プリセットからは `Noise` を外した。代わりに `Distortion` と `BitCrusher` を強めて質感を作る。
+- `FilterProcAudio` 全体を `try..except` で保護し、音声処理中の Delphi 例外が AviUtl2 まで漏れないようにした。
+- `Output` と `Limiter` は最終段で効くよう、処理順を `Chorus`, `Reverb`, `Output`, `Limiter` の順へ変更した。
+
+最終的な主な調整値:
+
+- `ホール`: `Rev: RoomSize = 0.90`, `Rev: Damping = 0.20`, `Rev: Dry = 0.85`, `Rev: Wet = 0.95`
+- `空間`: `Cho: Stereo Mode = Wide`, `Out: Gain(dB) = 4`, `Lim: Use = 1`
+- `ナレーション`: `EQ: 140-8500Hz`, `Comp: Threshold = -26`, `Comp: Ratio = 4.5`, `Drive: Mix = 0.40`, `Out: Gain(dB) = 3`
+- `電話`: `EQ: 500-2600Hz`, `Dist: Drive = 8`, `Dist: Mix = 0.50`, `Crush: BitDepth = 9`, `Out: Gain(dB) = 4`
+- `無線`: `EQ: 700-2300Hz`, `Dist: Drive = 14`, `Dist: Mix = 0.75`, `Crush: BitDepth = 7`, `Crush: SampleHold = 3`, `Noise: Use = 0`
+- `拡声器`: `EQ: 550-4800Hz`, `Comp: Ratio = 6`, `Drive: Drive = 12`, `Dist: Drive = 18`, `Out: Gain(dB) = -2.2`
+- `劣化`: `EQ: 300-4200Hz`, `Dist: Drive = 8`, `Crush: BitDepth = 5`, `Crush: SampleHold = 10`, `Out: Gain(dB) = 3`
+- `男性`: `Pitch: Semitone = -2`, `Pitch: Formant = -2.5`, `Pitch: Mix = 0.60`, `Out: Gain(dB) = 5`
+- `女性`: `Pitch: Semitone = 2`, `Pitch: Formant = 2.5`, `Pitch: Mix = 0.60`, `Out: Gain(dB) = 5`
+- `ロボ`: `Ring: Frequency = 95`, `Ring: Mix = 0.90`, `Pitch: Mode = Step`, `Crush: BitDepth = 6`, `Out: Gain(dB) = 3`
+- `恐怖`: `Trem: Depth = 0.75`, `Wob: Mix = 0.75`, `Pitch: Semitone = -1.5`, `Muffle: Cutoff = 2600`, `Ghost: Wet = 0.45`, `Rev: Wet = 0.45`, `Out: Gain(dB) = 10`
+- `叫び`: `Comp: Ratio = 8`, `Drive: Drive = 18`, `Drive: Mix = 0.85`, `Dist: Mix = 0.35`, `Out: Gain(dB) = 5`
+- `水中`: `Muffle: Cutoff = 850`, `Muffle: Amount = 0.95`, `Wob: Mix = 0.55`, `Cho: Mix = 0.35`, `Rev: Wet = 0.25`, `Out: Gain(dB) = 14`
+- `壁越し`: `Muffle: Cutoff = 650`, `EQ: 120-1800Hz`, `Rev: Wet = 0.12`, `Out: Gain(dB) = 6`
+- `夢/回想`: `Wob: Depth = 24`, `Wob: Mix = 0.62`, `Cho: Mix = 0.58`, `Ghost: Wet = 0.42`, `Rev: RoomSize = 0.72`, `Rev: Wet = 0.48`, `Out: Gain(dB) = 6`
