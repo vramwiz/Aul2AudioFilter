@@ -429,6 +429,6 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 - AviUtl2/ExEdit2 では完全無音区間で音声フィルターが呼ばれないことがあり、Delay/Reverb などの尾もそこで出力されない。
 - 1 秒の音 + 2 秒の完全無音 WAV では、後半が処理されずエコーが途切れることを確認した。
 - 後半 2 秒へ -90dB 相当の極小ノイズを入れた WAV では処理が継続され、Delay の尾が正常に出ることを確認した。
-- この用途のサンプル名を `Sample\echo_tail_silent_noise_3s.wav` とした。先頭 1 秒は 880Hz、後半 2 秒は極小ノイズ。
-- `Setup\make_release_zip.bat` で配布 zip の `Sample\echo_tail_silent_noise_3s.wav` へ同梱するようにした。
+- この用途のサンプル名を `Sample\無音_極小ノイズ_ループ推奨.wav` とした。-90dB 相当の極小ノイズ入り無音で、ループ配置を想定する。
+- `Setup\make_release_zip.bat` で配布 zip の `Sample\無音_極小ノイズ_ループ推奨.wav` へ同梱するようにした。
 - `README.md` へ、完全無音ではなく極小ノイズ入り余白を使う注意と、配布 zip に含まれるサンプルの説明を追記した。

@@ -257,7 +257,7 @@ Aul2AudioFilter.auf2
 配布 zip には、エコーやリバーブの尾を確認しやすくするサンプルとして次の WAV も含めます。
 
 ```text
-Sample\echo_tail_silent_noise_3s.wav
+Sample\無音_極小ノイズ_ループ推奨.wav
 ```
 
 ## グループへの適用
@@ -309,4 +309,4 @@ Sample\echo_tail_silent_noise_3s.wav
 
 エコーや残響は、音声フィルターが呼ばれる区間でだけ処理されます。
 AviUtl2 では完全無音区間で音声フィルターが呼ばれないことがあるため、音声の末尾で効果が途切れる場合は、完全無音ではなく極小ノイズ入りの余白を使ってください。
-配布 zip に含まれる `Sample\echo_tail_silent_noise_3s.wav` は、その確認用サンプルです。
+配布 zip に含まれる `Sample\無音_極小ノイズ_ループ推奨.wav` は、その用途のためのサンプルです。
