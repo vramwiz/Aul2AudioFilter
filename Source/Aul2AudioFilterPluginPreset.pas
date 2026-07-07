@@ -58,7 +58,7 @@ begin
   SetBitCrusherGuiParams(False, 8.0, 4.0, 1.0);
   SetLimiterGuiParams(False, -1.0, 50.0, 1.0);
   SetChorusGuiParams(False, False, 15.0, 5.0, 0.5, 0.5);
-  SetReverbGuiParams(False, 0.5, 0.4, 1.0, 0.3);
+  SetReverbGuiParams(False, 0, 0.5, 0.4, 1.0, 0.3);
 end;
 
 procedure ApplyPresetToLocalItems(Preset: Integer);
@@ -79,7 +79,7 @@ begin
     SOUND_PRESET_REVERB:
       begin
         // ホールは Reverb だけを有効にし、部屋の広さや湿り具合を手動調整しやすくする。
-        SetReverbGuiParams(True, 0.65, 0.35, 1.0, 0.45);
+        SetReverbGuiParams(True, 1, 0.65, 0.35, 1.0, 0.45);
       end;
     SOUND_PRESET_WIDE:
       begin
@@ -190,6 +190,7 @@ begin
   SetPresetObjectItem(Edit, Obj, 'Chorus: Rate(Hz)', UTF8String('0.5'));
   SetPresetObjectItem(Edit, Obj, 'Chorus: Mix', UTF8String('0.5'));
   SetPresetObjectItem(Edit, Obj, 'Reverb: Use', UTF8String('0'));
+  SetPresetObjectItem(Edit, Obj, 'Reverb: Type', UTF8String('0'));
   SetPresetObjectItem(Edit, Obj, 'Reverb: RoomSize', UTF8String('0.5'));
   SetPresetObjectItem(Edit, Obj, 'Reverb: Damping', UTF8String('0.4'));
   SetPresetObjectItem(Edit, Obj, 'Reverb: Dry', UTF8String('1'));
@@ -219,6 +220,7 @@ begin
     SOUND_PRESET_REVERB:
       begin
         SetPresetObjectItem(Edit, Obj, 'Reverb: Use', UTF8String('1'));
+        SetPresetObjectItem(Edit, Obj, 'Reverb: Type', UTF8String('1'));
         SetPresetObjectItem(Edit, Obj, 'Reverb: RoomSize', UTF8String('0.65'));
         SetPresetObjectItem(Edit, Obj, 'Reverb: Damping', UTF8String('0.35'));
         SetPresetObjectItem(Edit, Obj, 'Reverb: Wet', UTF8String('0.45'));

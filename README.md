@@ -15,7 +15,7 @@ AviUtl ExEdit2 用の音声フィルタープラグインです。
 - `Noise`: ホワイトノイズ、クラックルノイズ
 - `BitCrusher`: 低音質通話や古い機械音声のような粗い質感
 - `Chorus`: 揺れのあるコーラス効果
-- `Reverb`: 部屋や空間の残響
+- `Reverb`: Room / Hall / Plate を選べる部屋や空間の残響
 
 ## 配布ファイルの配置
 
@@ -67,6 +67,13 @@ Aul2AudioFilter.auf2
 | `無線` | `EQ`, `Distortion`, `Noise`, `BitCrusher`, `Limiter` | 無線機のような荒い音 |
 | `拡声器` | `EQ`, `Compressor`, `Distortion`, `Limiter` | メガホンや場内放送のような音 |
 | `劣化` | `EQ`, `Noise`, `BitCrusher` | 古い機械音声や低音質な音 |
+
+## Reverb
+
+- `Reverb: Type`: 残響の種類を `Room`、`Hall`、`Plate` から選択
+- `Room`: 短めで部屋の反射に近い残響
+- `Hall`: 長めで広い場所に近い残響
+- `Plate`: 短めで明るい質感の残響
 
 エコーや残響は、音声オブジェクトの長さを超えて鳴り続けることはできません。
 必要な場合は、音声素材の後ろに無音部分を足してから適用してください。
