@@ -40,6 +40,7 @@ type
     procedure CreateButtonClick(Sender: TObject);
     procedure DragRequest(Sender: TObject; FileNames: TStringList);
     procedure SetDarkStyle(Control: TControl);
+    function ScalePx(Value: Integer): Integer;
     function GetSelectedLayer: Integer;
     function ReadParams: TAul2AudioBaseAliasParams;
     procedure SetStatus(const Text: string);
@@ -95,6 +96,17 @@ begin
   FLastLayoutHeight := -1;
 end;
 
+function TAul2AudioBasePanel.ScalePx(Value: Integer): Integer;
+var
+  PPI: Integer;
+begin
+  PPI := Font.PixelsPerInch;
+  if PPI <= 0 then
+    PPI := 96;
+
+  Result := MulDiv(Value, PPI, 96);
+end;
+
 destructor TAul2AudioBasePanel.Destroy;
 begin
   FDrag.Free;
@@ -141,7 +153,7 @@ begin
   begin
     TListBox(Control).Color := UI_EDIT;
     TListBox(Control).Font.Color := UI_TEXT;
-    TListBox(Control).ItemHeight := 22;
+    TListBox(Control).ItemHeight := ScalePx(22);
   end
   else if Control is TPanel then
   begin
@@ -286,52 +298,52 @@ begin
   FLastLayoutWidth := Width;
   FLastLayoutHeight := Height;
 
-  Margin := 6;
-  LabelW := 44;
-  EditW := 58;
-  SettingsW := 255;
-  LayerW := 160;
-  SendW := 150;
+  Margin := ScalePx(6);
+  LabelW := ScalePx(58);
+  EditW := ScalePx(66);
+  SettingsW := ScalePx(320);
+  LayerW := ScalePx(170);
+  SendW := ScalePx(180);
   PanelH := Height - Margin * 2;
-  if PanelH < 52 then
-    PanelH := 52;
-  if PanelH > 64 then
-    PanelH := 64;
+  if PanelH < ScalePx(60) then
+    PanelH := ScalePx(60);
+  if PanelH > ScalePx(74) then
+    PanelH := ScalePx(74);
 
   DisableAlign;
   try
     SetBoundsIfChanged(FSettingsPanel, Margin, Margin, SettingsW, PanelH);
     SetBoundsIfChanged(FLayerPanel, FSettingsPanel.Left + FSettingsPanel.Width + Margin, Margin, LayerW, PanelH);
 
-    X := 8;
-    Row1 := 6;
-    Row2 := 34;
-    SetBoundsIfChanged(FTitleLabel, X, Row1 + 2, 1, 1);
+    X := ScalePx(8);
+    Row1 := ScalePx(7);
+    Row2 := ScalePx(39);
+    SetBoundsIfChanged(FTitleLabel, X, Row1 + ScalePx(2), 1, 1);
 
-    SetBoundsIfChanged(FWidthLabel, X, Row1 + 4, LabelW, 18);
+    SetBoundsIfChanged(FWidthLabel, X, Row1 + ScalePx(4), LabelW, ScalePx(20));
     Inc(X, LabelW);
-    SetBoundsIfChanged(FWidthEdit, X, Row1, EditW, 22);
+    SetBoundsIfChanged(FWidthEdit, X, Row1, EditW, ScalePx(24));
 
-    Inc(X, EditW + 10);
-    SetBoundsIfChanged(FHeightLabel, X, Row1 + 4, LabelW, 18);
+    Inc(X, EditW + ScalePx(10));
+    SetBoundsIfChanged(FHeightLabel, X, Row1 + ScalePx(4), LabelW, ScalePx(20));
     Inc(X, LabelW);
-    SetBoundsIfChanged(FHeightEdit, X, Row1, EditW, 22);
+    SetBoundsIfChanged(FHeightEdit, X, Row1, EditW, ScalePx(24));
 
-    X := 8;
-    SetBoundsIfChanged(FSecondsLabel, X, Row2 + 4, LabelW, 18);
+    X := ScalePx(8);
+    SetBoundsIfChanged(FSecondsLabel, X, Row2 + ScalePx(4), LabelW, ScalePx(20));
     Inc(X, LabelW);
-    SetBoundsIfChanged(FSecondsEdit, X, Row2, EditW, 22);
+    SetBoundsIfChanged(FSecondsEdit, X, Row2, EditW, ScalePx(24));
 
-    Inc(X, EditW + 10);
-    SetBoundsIfChanged(FFpsLabel, X, Row2 + 4, LabelW, 18);
+    Inc(X, EditW + ScalePx(10));
+    SetBoundsIfChanged(FFpsLabel, X, Row2 + ScalePx(4), LabelW, ScalePx(20));
     Inc(X, LabelW);
-    SetBoundsIfChanged(FFpsEdit, X, Row2, EditW, 22);
+    SetBoundsIfChanged(FFpsEdit, X, Row2, EditW, ScalePx(24));
 
-    SetBoundsIfChanged(FCreateButton, FLayerPanel.Left + FLayerPanel.Width + Margin, Margin, SendW, 26);
+    SetBoundsIfChanged(FCreateButton, FLayerPanel.Left + FLayerPanel.Width + Margin, Margin, SendW, ScalePx(32));
 
     StatusW := Width - FCreateButton.Left - FCreateButton.Width - Margin * 2;
-    if StatusW < 120 then
-      StatusW := 120;
+    if StatusW < ScalePx(120) then
+      StatusW := ScalePx(120);
     SetBoundsIfChanged(FStatusLabel, FCreateButton.Left + FCreateButton.Width + Margin, Margin, StatusW, PanelH);
 
     SetBoundsIfChanged(FLayerLabel, 0, 0, 1, 1);

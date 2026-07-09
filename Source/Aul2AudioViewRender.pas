@@ -33,13 +33,28 @@ begin
     Video^.SetImageData(PPIXEL_RGBA(Buffer), Width, Height);
 end;
 
+function GetCurrentFrame(Video: PFILTER_PROC_VIDEO): Integer;
+var
+  ObjectInfo: POBJECT_INFO;
+begin
+  Result := -1;
+  if (Video = nil) or (Video^.Object_ = nil) then
+    Exit;
+
+  ObjectInfo := Video^.Object_;
+  Result := ObjectInfo^.Frame;
+  if (ObjectInfo^.FrameS <= ObjectInfo^.FrameE) and
+     ((Result < ObjectInfo^.FrameS) or (Result > ObjectInfo^.FrameE)) then
+    Result := ObjectInfo^.FrameS + ObjectInfo^.Frame;
+end;
+
 procedure DrawViewType(Buffer: PPIXEL_RGBA; Width, Height: Integer;
-  const Settings: TAul2AudioViewSettings);
+  const Settings: TAul2AudioViewSettings; CurrentFrame: Integer);
 begin
   case Settings.ViewType of
-    VIEW_TYPE_EQUALIZER_BARS: DrawEqualizerBars(Buffer, Width, Height, Settings);
+    VIEW_TYPE_EQUALIZER_BARS: DrawEqualizerBars(Buffer, Width, Height, Settings, CurrentFrame);
   else
-    DrawEqualizerBars(Buffer, Width, Height, Settings);
+    DrawEqualizerBars(Buffer, Width, Height, Settings, CurrentFrame);
   end;
 end;
 
@@ -47,6 +62,7 @@ procedure RenderView(Video: PFILTER_PROC_VIDEO; const Settings: TAul2AudioViewSe
 var
   Width: Integer;
   Height: Integer;
+  CurrentFrame: Integer;
   Buffer: PPIXEL_RGBA;
   BufferSize: NativeUInt;
 begin
@@ -58,10 +74,12 @@ begin
   if (Width <= 0) or (Height <= 0) then
     Exit;
 
+  CurrentFrame := GetCurrentFrame(Video);
+
   BufferSize := NativeUInt(Width) * NativeUInt(Height) * SizeOf(TPIXEL_RGBA);
   GetMem(Buffer, BufferSize);
   try
-    DrawViewType(Buffer, Width, Height, Settings);
+    DrawViewType(Buffer, Width, Height, Settings, CurrentFrame);
     OutputImageData(Video, Buffer, Width, Height);
   finally
     FreeMem(Buffer);

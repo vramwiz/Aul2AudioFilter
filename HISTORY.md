@@ -4,6 +4,14 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-10 Aul2AudioMonitor/View stale display guard
+
+- Monitor のツールバーボタンを少し小さくし、DPI 対応後の余白を詰めた。
+- Monitor/View が共有メモリ上の直前データを拾い、エフェクト範囲外でも波形/スペクトラムが残る問題を調査した。
+- `Local\Aul2AudioMonitorState` / `Local\Aul2AudioMonitorSpectrum` に更新時刻と元オブジェクトのフレーム範囲情報を追加した。
+- Monitor は古い更新を待機表示へ戻し、View は現在描画フレームが元フレーム範囲内の時だけスペクトラムを使うようにした。
+- `Aul2AudioFilter.dproj` / `Aul2AudioView.dproj` / `Aul2AudioMonitor.dproj` の Release Win64 ビルドが警告なしで成功し、各プラグイン出力先へのコピーまで確認した。
+
 ## 2026-07-09 Aul2AudioMonitor waveform/spectrum monitor adoption
 
 - `Aul2AudioMonitor.aux2` を `Aul2AudioFilter.auf2` と同時配布する表示用拡張プラグインとして本採用した。

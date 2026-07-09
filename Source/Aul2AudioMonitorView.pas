@@ -249,6 +249,9 @@ begin
 
   MonitorForm := TFormAudioMonitor.Create(nil);
   MonitorForm.ParentWindow := ClientWindow;
+  MonitorForm.ParentFont := False;
+  MonitorForm.Font.Name := 'Yu Gothic UI';
+  MonitorForm.Font.Size := 9;
   MonitorForm.Font.Color := RGB(230, 230, 230);
   MonitorForm.DoubleBuffered := True;
 
@@ -268,10 +271,12 @@ begin
   ToolBar := TToolBar.Create(MonitorForm);
   ToolBar.Parent := RootPanel;
   ToolBar.Align := alTop;
-  ToolBar.Height := 24;
+  ToolBar.Height := MulDiv(28, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.EdgeBorders := [];
   ToolBar.ShowCaptions := True;
   ToolBar.Flat := True;
+  ToolBar.ParentFont := False;
+  ToolBar.Font.Assign(MonitorForm.Font);
 
   ButtonWave := TToolButton.Create(MonitorForm);
   ButtonWave.Parent := ToolBar;

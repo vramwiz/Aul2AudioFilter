@@ -11,7 +11,7 @@ uses
 procedure InitializeEqualizerBars;
 procedure FinalizeEqualizerBars;
 procedure DrawEqualizerBars(Buffer: PPIXEL_RGBA; Width, Height: Integer;
-  const Settings: TAul2AudioViewSettings);
+  const Settings: TAul2AudioViewSettings; CurrentFrame: Integer);
 
 implementation
 
@@ -119,7 +119,7 @@ begin
 end;
 
 procedure DrawEqualizerBars(Buffer: PPIXEL_RGBA; Width, Height: Integer;
-  const Settings: TAul2AudioViewSettings);
+  const Settings: TAul2AudioViewSettings; CurrentFrame: Integer);
 var
   MarginX: Integer;
   MarginY: Integer;
@@ -131,7 +131,7 @@ begin
     Exit;
 
   ClearPixels(Buffer, Width, Height);
-  UpdateViewSpectrum(Settings.Smooth, CurrentBands, CurrentBandsValid);
+  UpdateViewSpectrum(Settings.Smooth, CurrentBands, CurrentBandsValid, CurrentFrame);
 
   MarginX := Max(8, Width div 28);
   MarginY := Max(6, Height div 16);

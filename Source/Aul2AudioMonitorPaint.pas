@@ -39,12 +39,40 @@ var
   DisplayOutputBands: TAudioMonitorSpectrumData;
   DisplaySpectrumValid: Boolean;
 
+function TickIsFresh(UpdateTick: UInt64): Boolean;
+const
+  MONITOR_STALE_MS = 800;
+var
+  NowTick: UInt64;
+begin
+  if UpdateTick = 0 then
+    Exit(False);
+
+  NowTick := GetTickCount64;
+  Result := (NowTick >= UpdateTick) and ((NowTick - UpdateTick) <= MONITOR_STALE_MS);
+end;
+
+function MonitorStateValid(State: PAul2AudioMonitorState): Boolean;
+begin
+  Result := (State <> nil) and
+    (State^.Magic = AUDIO_MONITOR_SHARED_MAGIC) and
+    (State^.Version = AUDIO_MONITOR_SHARED_VERSION) and
+    TickIsFresh(State^.UpdateTick);
+end;
+
+function SpectrumStateValid(State: PAul2AudioMonitorSpectrumState): Boolean;
+begin
+  Result := (State <> nil) and
+    (State^.Magic = AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) and
+    (State^.Version = AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) and
+    TickIsFresh(State^.UpdateTick);
+end;
+
 procedure UpdateDisplayPeaks(State: PAul2AudioMonitorState);
 const
   PEAK_DECAY = 0.84;
 begin
-  if (State <> nil) and (State^.Magic = AUDIO_MONITOR_SHARED_MAGIC) and
-     (State^.Version = AUDIO_MONITOR_SHARED_VERSION) then
+  if MonitorStateValid(State) then
   begin
     DisplayPeakInputL := Max(State^.InputPeakL, DisplayPeakInputL * PEAK_DECAY);
     DisplayPeakInputR := Max(State^.InputPeakR, DisplayPeakInputR * PEAK_DECAY);
@@ -75,8 +103,7 @@ procedure UpdateDisplayWave(State: PAul2AudioMonitorState);
 var
   Point: Integer;
 begin
-  if (State = nil) or (State^.Magic <> AUDIO_MONITOR_SHARED_MAGIC) or
-     (State^.Version <> AUDIO_MONITOR_SHARED_VERSION) then
+  if not MonitorStateValid(State) then
     Exit;
 
   if not DisplayWaveValid then
@@ -118,9 +145,7 @@ procedure UpdateDisplaySpectrum(SpectrumState: PAul2AudioMonitorSpectrumState);
 var
   Band: Integer;
 begin
-  if (SpectrumState = nil) or
-     (SpectrumState^.Magic <> AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) or
-     (SpectrumState^.Version <> AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) then
+  if not SpectrumStateValid(SpectrumState) then
     Exit;
 
   if not DisplaySpectrumValid then
@@ -194,10 +219,10 @@ begin
   Canvas.Brush.Style := bsClear;
 
   try
-    StateValid := (State <> nil) and (State^.Magic = AUDIO_MONITOR_SHARED_MAGIC) and
-      (State^.Version = AUDIO_MONITOR_SHARED_VERSION);
-    if (not StateValid) and (not DisplayWaveValid) then
+    StateValid := MonitorStateValid(State);
+    if not StateValid then
     begin
+      DisplayWaveValid := False;
       Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8,
         'Wave - waiting audio data');
       Exit;
@@ -209,8 +234,7 @@ begin
       CaptionText := 'Wave';
     Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8, CaptionText);
 
-    if StateValid then
-      UpdateDisplayWave(State);
+    UpdateDisplayWave(State);
 
     CenterY := (PlotRect.Top + PlotRect.Bottom) div 2;
     Canvas.Pen.Color := RGB(84, 84, 84);
@@ -391,6 +415,7 @@ procedure DrawPeakMeters(Canvas: TCanvas; const MeterRect: TRect;
 var
   BarRect: TRect;
   BalanceRect: TRect;
+  StateValid: Boolean;
   BarTop: Integer;
   BarBottom: Integer;
   BarWidth: Integer;
@@ -400,6 +425,7 @@ begin
   if (MeterRect.Right <= MeterRect.Left) or (MeterRect.Bottom <= MeterRect.Top) then
     Exit;
 
+  StateValid := MonitorStateValid(State);
   UpdateDisplayPeaks(State);
 
   Canvas.Pen.Color := RGB(56, 56, 56);
@@ -409,7 +435,7 @@ begin
   Canvas.Font.Color := RGB(220, 220, 220);
   Canvas.TextOut(MeterRect.Left + 2, MeterRect.Top, 'Peak');
 
-  if not DisplayPeakValid then
+  if (not DisplayPeakValid) or (not StateValid) then
   begin
     Canvas.Font.Color := RGB(150, 150, 150);
     Canvas.TextOut(MeterRect.Left + 2, MeterRect.Top + 18, 'wait');
@@ -490,9 +516,9 @@ begin
   Canvas.Brush.Style := bsClear;
 
   try
-    if (SpectrumState = nil) or (SpectrumState^.Magic <> AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) or
-       (SpectrumState^.Version <> AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) then
+    if not SpectrumStateValid(SpectrumState) then
     begin
+      DisplaySpectrumValid := False;
       Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8,
         'Spectrum - waiting audio data');
       DrawPeakMeters(Canvas, MeterRect, MonitorState);

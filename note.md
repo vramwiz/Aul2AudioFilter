@@ -200,9 +200,10 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioMonitor.aux2
 - 同じ右側領域の下部には `InputRmsL/R` と `OutputRmsL/R` から計算した Stereo Balance を表示する。中央を 0、左寄りを L、右寄りを R として、入力をグリーン、出力をアンバーの小さなマーカーで描く。
 - Peak Meter は `Stage` による `wait` 表示切り替えで点滅しやすかったため、直近ピークを保持して減衰表示する。`TBitmap` へ描いてから `TPaintBox` へ転送し、非表示パネルは Invalidate しない。サイズが変わらない 50ms 更新では `SetBounds` / `Realign` しない。
 - 音声処理が止まると `.auf2` は最後のスペクトラム値を書いたまま更新機会を失うため、`.aux2` 側で `Generation` 更新を監視する。
-- `Spectrum` は描画側の stale 判定による 0 クリアは行わない。`.aux2` は共有メモリ上の現在値を元に、上昇は即時、下降は軽い減衰で表示する。`Generation` が止まっただけでは、音声処理更新周期や停止中のプレビュー状態を正しく判定できず、データがあるのに消えるため、推測で消さない。
+- 共有メモリには更新時刻と、音声フィルター側の `FrameS` / `FrameE` などの元フレーム情報を持たせる。Monitor 側は更新が止まった古いデータを 800ms 程度で待機表示へ戻し、View 側は現在描画フレームが共有メモリの元フレーム範囲内にある場合だけ `OutputBands` を使う。これにより、エフェクトが載っていない場所で直前のスペクトラムが残る誤表示を避ける。
 - 高速更新されるメーター/スペクトラムで赤と青/シアンの強い組み合わせは禁止。一般的な DTM アプリ寄りに、入力は落ち着いたグリーン、出力はアンバー/イエロー系を使う。
 - 凡例は右上固定にすると狭い幅で欠けやすいため、スペクトラムでは左上に `Input` / `Output` を並べて表示する。
+- Monitor のツールバーや Base ページ UI は DPI 差で文字だけ大きくなり、固定ピクセルの高さ/幅に収まらないことがある。`ToolBarPanelManager` は caption の実測幅と DPI スケール値からボタン幅/高さを決める。Base ページの `SetBounds` 寸法も `Font.PixelsPerInch` を使ってスケールする。
 
 ## Aul2AudioMonitor 現在の表示構成
 

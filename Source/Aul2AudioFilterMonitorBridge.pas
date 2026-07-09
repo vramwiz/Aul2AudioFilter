@@ -16,6 +16,7 @@ procedure AudioMonitorFinalize;
 implementation
 
 uses
+  Winapi.Windows,
   System.Math,
   System.SysUtils,
   Aul2AudioMonitorShared,
@@ -65,10 +66,16 @@ begin
 
     State^.Magic := AUDIO_MONITOR_SHARED_MAGIC;
     State^.Version := AUDIO_MONITOR_SHARED_VERSION;
+    State^.UpdateTick := GetTickCount64;
     State^.Stage := 1;
     State^.SampleRate := 0;
     State^.SampleNum := 0;
     State^.ChannelNum := 0;
+    State^.SourceFrame := 0;
+    State^.SourceFrameS := 0;
+    State^.SourceFrameE := 0;
+    State^.SourceLayer := 0;
+    State^.SourceIndex := 0;
     State^.SampleIndex := 0;
     State^.InputPeakL := 0;
     State^.InputPeakR := 0;
@@ -91,9 +98,15 @@ begin
     begin
       SpectrumState^.Magic := AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC;
       SpectrumState^.Version := AUDIO_MONITOR_SPECTRUM_SHARED_VERSION;
+      SpectrumState^.UpdateTick := GetTickCount64;
       SpectrumState^.SampleRate := 0;
       SpectrumState^.SampleNum := 0;
       SpectrumState^.ChannelNum := 0;
+      SpectrumState^.SourceFrame := 0;
+      SpectrumState^.SourceFrameS := 0;
+      SpectrumState^.SourceFrameE := 0;
+      SpectrumState^.SourceLayer := 0;
+      SpectrumState^.SourceIndex := 0;
       SpectrumState^.SampleIndex := 0;
       SpectrumState^.BandCount := AUDIO_MONITOR_SPECTRUM_BAND_COUNT;
       SpectrumState^.MinHz := 20;
@@ -118,6 +131,7 @@ begin
 
     State^.Magic := AUDIO_MONITOR_SHARED_MAGIC;
     State^.Version := AUDIO_MONITOR_SHARED_VERSION;
+    State^.UpdateTick := GetTickCount64;
     State^.Stage := Stage;
 
     if (Audio <> nil) and (Audio^.Scene <> nil) then
@@ -127,6 +141,11 @@ begin
     begin
       State^.SampleNum := Audio^.Object_^.SampleNum;
       State^.ChannelNum := Audio^.Object_^.ChannelNum;
+      State^.SourceFrame := Audio^.Object_^.Frame;
+      State^.SourceFrameS := Audio^.Object_^.FrameS;
+      State^.SourceFrameE := Audio^.Object_^.FrameE;
+      State^.SourceLayer := Audio^.Object_^.Layer;
+      State^.SourceIndex := Audio^.Object_^.Index;
       State^.SampleIndex := Audio^.Object_^.SampleIndex;
     end;
 
@@ -408,10 +427,16 @@ begin
 
     State^.Magic := AUDIO_MONITOR_SHARED_MAGIC;
     State^.Version := AUDIO_MONITOR_SHARED_VERSION;
+    State^.UpdateTick := GetTickCount64;
     State^.Stage := 3;
     State^.SampleRate := Audio^.Scene^.SampleRate;
     State^.SampleNum := SampleNum;
     State^.ChannelNum := ChannelNum;
+    State^.SourceFrame := Audio^.Object_^.Frame;
+    State^.SourceFrameS := Audio^.Object_^.FrameS;
+    State^.SourceFrameE := Audio^.Object_^.FrameE;
+    State^.SourceLayer := Audio^.Object_^.Layer;
+    State^.SourceIndex := Audio^.Object_^.Index;
     State^.SampleIndex := Audio^.Object_^.SampleIndex;
     State^.InputPeakL := LastInputPeakL;
     State^.InputPeakR := LastInputPeakR;
@@ -435,9 +460,15 @@ begin
     begin
       SpectrumState^.Magic := AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC;
       SpectrumState^.Version := AUDIO_MONITOR_SPECTRUM_SHARED_VERSION;
+      SpectrumState^.UpdateTick := GetTickCount64;
       SpectrumState^.SampleRate := Audio^.Scene^.SampleRate;
       SpectrumState^.SampleNum := SampleNum;
       SpectrumState^.ChannelNum := ChannelNum;
+      SpectrumState^.SourceFrame := Audio^.Object_^.Frame;
+      SpectrumState^.SourceFrameS := Audio^.Object_^.FrameS;
+      SpectrumState^.SourceFrameE := Audio^.Object_^.FrameE;
+      SpectrumState^.SourceLayer := Audio^.Object_^.Layer;
+      SpectrumState^.SourceIndex := Audio^.Object_^.Index;
       SpectrumState^.SampleIndex := Audio^.Object_^.SampleIndex;
       SpectrumState^.BandCount := AUDIO_MONITOR_SPECTRUM_BAND_COUNT;
       SpectrumState^.MinHz := 20;

@@ -10,7 +10,7 @@ uses
 procedure InitializeViewSpectrum;
 procedure FinalizeViewSpectrum;
 procedure UpdateViewSpectrum(Smooth: Integer; out Bands: TAudioMonitorSpectrumData;
-  out Valid: Boolean);
+  out Valid: Boolean; CurrentFrame: Integer);
 
 implementation
 
@@ -55,8 +55,25 @@ begin
   DisplayValue := DisplayValue + ((NewValue - DisplayValue) * Alpha);
 end;
 
+function StateMatchesFrame(State: PAul2AudioMonitorSpectrumState; CurrentFrame: Integer): Boolean;
+begin
+  if CurrentFrame < 0 then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  if (State^.SourceFrameS <= 0) and (State^.SourceFrameE <= 0) then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  Result := (CurrentFrame >= State^.SourceFrameS) and (CurrentFrame <= State^.SourceFrameE);
+end;
+
 procedure UpdateViewSpectrum(Smooth: Integer; out Bands: TAudioMonitorSpectrumData;
-  out Valid: Boolean);
+  out Valid: Boolean; CurrentFrame: Integer);
 var
   State: PAul2AudioMonitorSpectrumState;
   Band: Integer;
@@ -75,6 +92,12 @@ begin
      (State^.Magic <> AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) or
      (State^.Version <> AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) then
     Exit;
+
+  if not StateMatchesFrame(State, CurrentFrame) then
+  begin
+    DisplayBandsValid := False;
+    Exit;
+  end;
 
   if not DisplayBandsValid then
   begin
