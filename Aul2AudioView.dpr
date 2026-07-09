@@ -12,6 +12,8 @@ uses
   Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
   AviUtl2GpuTextureOut in 'Source\Lib\AviUtl2GpuTextureOut.pas',
   Aul2AudioViewParams in 'Source\Aul2AudioViewParams.pas',
+  Aul2AudioViewRenderUtils in 'Source\Aul2AudioViewRenderUtils.pas',
+  Aul2AudioViewSpectrum in 'Source\Aul2AudioViewSpectrum.pas',
   Aul2AudioViewRenderEqualizer in 'Source\Aul2AudioViewRenderEqualizer.pas',
   Aul2AudioViewRender in 'Source\Aul2AudioViewRender.pas',
   Aul2AudioViewPlugin in 'Source\Aul2AudioViewPlugin.pas';

@@ -42,6 +42,8 @@
 - `View: Color Style` は `Solid` / `Rainbow` を用意した。
 - `Aul2AudioViewParams.pas` を追加し、表示タイプ、スタイル、色バリエーション、共通設定 record をまとめた。
 - `Aul2AudioView.dproj` と `Aul2AudioFilter.dproj` の Release Win64 ビルドが警告なしで成功した。
+- `Aul2AudioViewRenderEqualizer.pas` の肥大化を避けるため、ピクセル描画補助を `Aul2AudioViewRenderUtils.pas`、共有メモリのスペクトラム読み取り/スムージングを `Aul2AudioViewSpectrum.pas` へ分離した。
+- `Aul2AudioView.dproj` の Release Win64 ビルドが警告なしで成功し、更新済み `Aul2AudioView.auf2` へのコピーまで確認した。
 
 ## Initial verification note
 

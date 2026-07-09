@@ -51,6 +51,8 @@
 - `Source\Aul2AudioViewPlugin.pas`: `Aul2AudioView` のフィルターテーブル登録。表示名は `Aul2Audio View`、グループは `Video Effects`。現時点の映像処理は成功を返すだけ。
 - `Source\Aul2AudioViewRender.pas`: `Aul2AudioView` の映像描画と AviUtl2 への出力を担当する。初期確認用にチェック背景と枠線を描く。
 - `Source\Aul2AudioViewRenderEqualizer.pas`: `Equalizer Bars` 表示タイプの描画を担当する。固定パターンの縦バーで描画疎通を確認する。
+- `Source\Aul2AudioViewRenderUtils.pas`: ピクセルクリア、矩形塗り、単色/虹色変換など、表示タイプ間で共有する小さな描画補助。
+- `Source\Aul2AudioViewSpectrum.pas`: `Local\Aul2AudioMonitorSpectrum` の読み取りとスムージングを担当する。スペクトラム系表示タイプで共有する。
 - `Source\Lib\AviUtl2GpuTextureOut.pas`: Syncroh2 の PSDDraw と同じ考え方の任意 GPU texture 出力ヘルパー。初期状態では無効化し、通常は `SetImageData` で出力する。
 - `Source\Aul2AudioFilterPlugin.pas`: AviUtl2 へ公開するフィルター入口、各エフェクトユニットの接続。
 - `Source\Aul2AudioFilterMonitorBridge.pas`: フィルター側から共有メモリへ入力/出力ピークなどの軽量解析値を書き出す入口。
@@ -277,6 +279,7 @@ Base ページの現在レイアウト:
 - 設定値の先頭は必ず表示種類 `View: Type` にする。後続の共通パラメーターや種類別パラメーターを追加しても、種類選択が最上段に来る構成を維持する。
 - 描画入口の `Aul2AudioViewRender.pas` は肥大化させず、バッファ確保、出力、表示タイプごとの振り分けだけを担当する。
 - 表示タイプごとの描画は `Aul2AudioViewRenderXxx.pas` へ分ける。最初の実装は `Aul2AudioViewRenderEqualizer.pas` の `Equalizer Bars`。
+- スペクトラム読み取りや色変換など、複数タイプで再利用する処理は種類別ユニットへ直接書かず、`Aul2AudioViewSpectrum.pas` や `Aul2AudioViewRenderUtils.pas` へ逃がす。
 - `Syncroh2` の `PluginFilterTable.pas` と同じ考え方で、select 候補は `ClearSelectList` / `AddSelectList` で構築する。ライブラリ全体はコピーせず、必要な select list 補助だけ `Aul2AudioFilterGui.pas` へ取り込んだ。
 - 現時点の `View: Type` は `Equalizer Bars` / `Wave Line` / `Pixel Wave` / `Filled Spectrum` / `Pulse Wave` の 5 パターンを用意する。
 - 未実装の表示タイプを選んだ場合は、実装が入るまで `Equalizer Bars` へフォールバックする。
