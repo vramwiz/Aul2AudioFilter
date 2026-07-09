@@ -13,6 +13,15 @@
 - `Wave` は 256 点 min/max 包絡線の時間波形として残した。
 - `TPageControl` は避け、Syncroh2 由来の `ToolBarPanelManager` で `Wave` / `Spectrum` を切り替える。
 
+## 2026-07-09 Aul2AudioView initial note
+
+- `Aul2AudioBaseInput` の上に載せる表示用フィルタープラグインとして `Aul2AudioView` を追加した。
+- 現時点では中身を空にし、`FILTER_FLAG_VIDEO or FILTER_FLAG_FILTER` の映像フィルターとして登録だけ行う。
+- AviUtl2 上の表示名は `Aul2Audio View`、グループは `Video Effects`、出力ファイルは `Aul2AudioView.auf2` とした。
+- Release Win64 ビルドが警告なしで成功し、`C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2` へのコピーまで確認した。
+- `Aul2AudioBaseAlias.pas` のエイリアス生成に `[0.2] effect.name=Aul2Audio View` を追加し、`Aul2AudioBaseInput` 上に表示用フィルターを自動で載せる構成にした。
+- `Aul2AudioMonitor.dproj` の Release Win64 ビルドが警告なしで成功し、更新済み `Aul2AudioMonitor.aux2` へのコピーまで確認した。
+
 ## Initial verification note
 
 - プラグインテストは正常。
@@ -422,3 +431,11 @@
 - Stereo Balance は中央を 0、左寄りを L、右寄りを R とし、入力をグリーン、出力をアンバーのマーカーで描く。Chorus、Ping-Pong Delay、Reverb など空間系エフェクトの左右偏り確認に使う。
 - 右側メーター領域は固定高さで詰まりやすいため、Peak の下端と Stereo の描画開始位置を調整し、`Stereo` ラベルとマーカーが重ならないようにした。
 - `Aul2AudioMonitor.dproj` の Debug Win64 ビルドが警告なしで成功し、`Aul2AudioMonitor.aux2` へのコピーまで完了することを確認した。
+
+## Aul2AudioBaseInput initial note
+
+- 背景/Visual 系オブジェクトの土台として、入力プラグイン `Aul2AudioBaseInput` を追加した。
+- 参照元の Syncroh2 入力ベースと同じく、仮想ファイル名 `name:width_height_seconds_rate_scale.aul2base` から解像度、長さ、FPS 情報を取得する。
+- 現段階では描画や別プラグインへの通知は行わず、要求されたフレームバッファを 0 クリアして返すだけの最小構成にした。
+- 参照元は共有メモリで別プラグインへ情報を送っていたが、今回は後段の描画フィルターがオブジェクト側のサイズを参照できる想定のため、共有メモリ連携は入れない。
+- `Aul2AudioBaseInput.dproj` の Debug / Release Win64 ビルドが警告なしで成功し、`Aul2AudioBaseInput.aui2` へのコピーまで完了することを確認した。

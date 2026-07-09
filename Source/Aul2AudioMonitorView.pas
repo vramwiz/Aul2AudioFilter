@@ -30,12 +30,14 @@ uses
   Aul2AudioMonitorPaint,
   Aul2AudioMonitorShared,
   Aul2AudioMonitorSpectrumShared,
+  Aul2AudioBasePanel,
   ToolBarPanelManager;
 
 type
   TAudioMonitorPage = (
     ampWave,
-    ampSpectrum
+    ampSpectrum,
+    ampBase
   );
 
   TFormAudioMonitor = class(TForm)
@@ -57,8 +59,11 @@ var
   ToolBar     : TToolBar;
   ButtonWave  : TToolButton;
   ButtonSpectrum: TToolButton;
+  ButtonBase  : TToolButton;
   PanelWave   : TPanel;
   PanelSpectrum: TPanel;
+  PanelBase   : TPanel;
+  BasePanel   : TAul2AudioBasePanel;
   InfoLabel   : TLabel;
   WavePaintBox: TPaintBox;
   SpectrumPaintBox: TPaintBox;
@@ -278,6 +283,11 @@ begin
   ButtonSpectrum.Caption := 'Spectrum';
   ButtonSpectrum.Left := ButtonWave.Left + ButtonWave.Width + 1;
 
+  ButtonBase := TToolButton.Create(MonitorForm);
+  ButtonBase.Parent := ToolBar;
+  ButtonBase.Caption := 'Base';
+  ButtonBase.Left := ButtonSpectrum.Left + ButtonSpectrum.Width + 1;
+
   PanelWave := TPanel.Create(MonitorForm);
   PanelWave.Parent := RootPanel;
   PanelWave.Align := alClient;
@@ -293,6 +303,14 @@ begin
   PanelSpectrum.Caption := '';
   PanelSpectrum.Color := RGB(36, 36, 36);
   PanelSpectrum.ParentBackground := False;
+
+  PanelBase := TPanel.Create(MonitorForm);
+  PanelBase.Parent := RootPanel;
+  PanelBase.Align := alClient;
+  PanelBase.BevelOuter := bvNone;
+  PanelBase.Caption := '';
+  PanelBase.Color := RGB(36, 36, 36);
+  PanelBase.ParentBackground := False;
 
   InfoLabel := TLabel.Create(MonitorForm);
   InfoLabel.Parent := PanelWave;
@@ -322,6 +340,11 @@ begin
   SpectrumPaintBox.OnPaint := TimerTarget.SpectrumPaint;
   SpectrumPaintBox.BringToFront;
 
+  BasePanel := TAul2AudioBasePanel.Create(MonitorForm);
+  BasePanel.Parent := PanelBase;
+  BasePanel.Align := alClient;
+  BasePanel.Initialize;
+
   ToolBarManager := TToolBarPanelManager.Create;
   ToolBarManager.ToolBarBackgroundColor := RGB(48, 48, 48);
   ToolBarManager.ToolBarFontColor := RGB(230, 230, 230);
@@ -330,6 +353,7 @@ begin
   ToolBarManager.ToolBarHotColor := RGB(58, 58, 58);
   ToolBarManager.AddPanel(PanelWave);
   ToolBarManager.AddPanel(PanelSpectrum);
+  ToolBarManager.AddPanel(PanelBase);
   ToolBarManager.Attach(ToolBar);
   ToolBarManager.Activate(Ord(ampSpectrum));
 
@@ -376,8 +400,11 @@ begin
   FreeAndNil(SpectrumPaintBox);
   FreeAndNil(WavePaintBox);
   FreeAndNil(InfoLabel);
+  FreeAndNil(BasePanel);
+  FreeAndNil(PanelBase);
   FreeAndNil(PanelSpectrum);
   FreeAndNil(PanelWave);
+  FreeAndNil(ButtonBase);
   FreeAndNil(ButtonSpectrum);
   FreeAndNil(ButtonWave);
   FreeAndNil(ToolBar);

@@ -11,8 +11,12 @@ uses
   AviUtl2PluginCore in 'Source\Lib\AviUtl2Plugin\AviUtl2PluginCore.pas',
   SharedMemoryBase in 'Source\Lib\SharedMemory\SharedMemoryBase.pas',
   ToolBarPanelManager in 'Source\Lib\ToolBarPanelManager\ToolBarPanelManager.pas',
+  DragAgent in 'Source\Lib\DragAgent\DragAgent.pas',
   Aul2AudioMonitorShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas',
   Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
+  Aul2AudioBaseAlias in 'Source\Aul2AudioBaseAlias.pas',
+  Aul2AudioBaseCreate in 'Source\Aul2AudioBaseCreate.pas',
+  Aul2AudioBasePanel in 'Source\Aul2AudioBasePanel.pas',
   Aul2AudioMonitorPaint in 'Source\Aul2AudioMonitorPaint.pas',
   Aul2AudioMonitorView in 'Source\Aul2AudioMonitorView.pas',
   Aul2AudioMonitorPlugin in 'Source\Aul2AudioMonitorPlugin.pas';

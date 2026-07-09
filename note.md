@@ -39,7 +39,16 @@
 - `Aul2AudioFilter.dproj`: Delphi Win64 Debug / Release ビルド設定。
 - `Aul2AudioMonitor.dpr`: AviUtl2 へ `RegisterPlugin` などを export する拡張プラグイン入口。波形表示 UI 用の受け皿。
 - `Aul2AudioMonitor.dproj`: 拡張プラグインの Delphi Win64 Debug / Release ビルド設定。出力先は `Aul2AudioFilter` と同じ配布フォルダ。
+- `Aul2AudioBaseInput.dpr`: AviUtl2 入力プラグイン入口。`.aul2base` 仮想ファイルを空の動画素材として開く。
+- `Aul2AudioBaseInput.dproj`: 入力プラグインの Delphi Win64 Debug / Release ビルド設定。出力先は `Aul2AudioFilter` と同じ配布フォルダ。
+- `Aul2AudioView.dpr`: `Aul2AudioBaseInput` の上に載せる表示用フィルタープラグイン入口。現時点では空の映像フィルターとして登録だけ行う。
+- `Aul2AudioView.dproj`: 表示用フィルタープラグインの Delphi Win64 Debug / Release ビルド設定。出力先は `Aul2AudioFilter` と同じ配布フォルダ。
 - `Source\Aul2AudioMonitorPlugin.pas`: `Aul2AudioMonitor` の拡張メニュー登録、AviUtl2 クライアントウィンドウ登録、空フォーム表示の最小実装。
+- `Source\Aul2AudioBasePanel.pas`: `Aul2AudioMonitor` の `Base` ページ UI。解像度設定、レイヤーリスト、選択レイヤー生成ボタン、D&D エイリアス生成を担当する。
+- `Source\Aul2AudioBaseAlias.pas`: `.aul2base` 仮想ファイル名と AviUtl2 エイリアス文字列/一時 `.object` ファイル生成。
+- `Source\Aul2AudioBaseCreate.pas`: `CreateObjectFromAlias` による選択レイヤーへの直接配置。
+- `Source\Aul2AudioBaseInputPlugin.pas`: `.aul2base` 入力プラグイン本体。ファイル名内の `Width_Height_MaxSec_Rate_Scale` から動画情報を作る。
+- `Source\Aul2AudioViewPlugin.pas`: `Aul2AudioView` のフィルターテーブル登録。表示名は `Aul2Audio View`、グループは `Video Effects`。現時点の映像処理は成功を返すだけ。
 - `Source\Aul2AudioFilterPlugin.pas`: AviUtl2 へ公開するフィルター入口、各エフェクトユニットの接続。
 - `Source\Aul2AudioFilterMonitorBridge.pas`: フィルター側から共有メモリへ入力/出力ピークなどの軽量解析値を書き出す入口。
 - `Source\Aul2AudioFilterPluginPreset.pas`: `プリセット` GUI 項目、詳細エフェクト設定への反映処理。
@@ -48,6 +57,8 @@
 - `Source\Lib\Aul2AudioFilterTypes.pas`: AviUtl2 フィルター SDK の Delphi 型定義。
 - `Source\Lib\Aul2AudioFilterGui.pas`: `SetupPluginTable` / `AddGroup` / `AddTrack` などの GUI 項目登録ライブラリ。
 - `Source\Lib\AviUtl2Plugin`: Syncroh2 から UTF-8 でコピーした AviUtl2 汎用プラグイン SDK 型定義と共有状態。
+- `Source\Lib\AviUtl2Input`: AviUtl2 入力プラグイン SDK 型定義。
+- `Source\Lib\DragAgent`: Syncroh2 からコピーした D&D 送信用ライブラリ。Base ページのレイヤーリスト D&D に使う。Delphi 37.0 向けに uses の名前空間を調整済み。
 - `Source\Lib\SharedMemory`: Syncroh2 から UTF-8 でコピーした共有メモリ基礎ライブラリ。
 - `Source\Lib\AudioMonitor`: `Aul2AudioFilter` と `Aul2AudioMonitor` で共有するモニター用共有メモリ構造体。
 - `Source\Legacy`: 現在のビルドでは使わない旧コピーの退避場所。
@@ -201,6 +212,49 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioMonitor.aux2
 - 生の音声サンプル全体を共有メモリに載せない。Wave は 256 点程度、Spectrum は 64 または 128 バンド程度、Meter/Stereo は少数の集計値にする。
 - `.auf2` 側では 1024 サンプル上限、64 バンド、20Hz から Nyquist または 20kHz までのログ配置で簡易スペクトラムを作る。
 - `.aux2` 側では `Spectrum` ページがスペクトラム専用共有メモリを読み、input をグリーン、output をアンバーの棒グラフで描画する。
+
+## Aul2AudioBaseInput / Base ページ現状
+
+- `Aul2AudioBaseInput.aui2` は、今後追加する描画/表示系フィルタープラグインの土台になる空の動画入力プラグイン。
+- 実ファイルは不要で、仮想ファイル名 `Aul2AudioBase:1920_1080_30_30_1.aul2base` のような文字列から入力情報を復元する。
+- 仮想ファイル名の形式は `Caption:Width_Height_MaxSec_Rate_Scale.aul2base`。
+- 入力プラグインは動画のみを返し、32bit BI_RGB の空フレームを返す。音声は持たない。
+- 現時点では共有メモリを使わない。今後追加するフィルタープラグイン側が `FILTER_PROC_VIDEO` などから width/height を取得できるかを優先確認する。
+- `Aul2AudioMonitor` に `Base` ページを追加済み。`Wave` / `Spectrum` / `Base` のタブ構成。
+- `Base` ページは Width / Height / Sec / FPS の入力欄、レイヤーリスト、`選択レイヤーへ作成` ボタンを持つ。
+- ボタン経由の生成は成功済み。選択したレイヤーへ `.aul2base` 素材オブジェクトを配置できる。
+- レイヤーリストからの D&D 生成も成功済み。`Source\Lib\DragAgent\DragAgent.pas` を使い、一時 `.object` エイリアスを作ってドロップ先へ渡す。
+- D&D 用の一時ファイルは `%TEMP%\Aul2AudioFilter\Aul2AudioBase.object` に保存する。
+- エイリアス内容は Syncroh2 の `AliasManagerInputBase.pas` と同じ考え方で、`動画ファイル` + `映像再生` の 2 フィルター構成。
+- 現在のエイリアス内容は `動画ファイル` + `映像再生` + `Aul2Audio View` の 3 フィルター構成。
+- `CreateObjectFromAlias` に渡す alias は UTF-8 文字列へ変換している。
+- Base ページ UI は `Aul2AudioMonitorView.pas` に直接書かず、`Aul2AudioBasePanel.pas` に分離済み。
+
+Base ページのリサイズ/描画注意点:
+
+- AviUtl2 内の子ウィンドウ上では、VCL コントロールのリサイズ時に数字や枠が消えることがあった。
+- Syncroh2 側の対策に合わせ、同じサイズへの `SetBounds` は避ける。
+- レイアウト更新は `DisableAlign` / `EnableAlign` でまとめる。
+- `RDW_ERASE` や `RDW_UPDATENOW` を強く使うと悪化したため、背景消去を避ける `RDW_NOERASE` を使う。
+- 子コントロールごとの `Invalidate` 連打は避ける。
+- `TDragShellFile` は、親が確定してから初期化する。コンストラクタ中に子コントロールや D&D を作ると、親ウィンドウ未確定で例外になることがある。
+- `選択レイヤーへ作成` ボタンは `FSettingsPanel` の子ではなく `TAul2AudioBasePanel` 本体の子にする。設定パネルの外へ配置するため。
+
+Base ページの現在レイアウト:
+
+- 左側に 2 段入力: 1 段目 `Width` / `Height`、2 段目 `Second` / `FPS`。
+- 入力欄の右に小型レイヤーリスト。
+- レイヤーリストの右に `選択レイヤーへ作成` ボタン。
+- `Base alias` ラベルと `Layer` ラベルは不要として非表示。
+- 縦方向は小さく使う予定。横方向には余裕がある前提で配置する。
+
+次に再開する場合の確認候補:
+
+- AviUtl2 を閉じた状態で `Aul2AudioMonitor.dproj` Release を再ビルドし、最新 `.aux2` を確実に反映する。AviUtl2 起動中は `.aux2` がロックされ、PostBuild のコピーだけ失敗する。
+- `Base` ページで Width/Height/Sec/FPS を変更し、ボタン生成と D&D 生成の両方で `.aul2base` のファイル名に反映されるか確認する。
+- 作成された `.aul2base` オブジェクトが、今後追加する表示/描画フィルター側から期待通りの width/height として取得できるか検証する。
+- 表示/描画用フィルタープラグインプロジェクトとして `Aul2AudioView` を追加済み。次は `Aul2AudioBaseInput` 上でオブジェクトの width/height を取得できるか確認する。
+- Base ページのボタン生成と D&D 生成で、作成されたオブジェクトに `Aul2Audio View` フィルターが自動追加されるか確認する。
 
 ## 2026-07-09 Aul2AudioMonitor 本採用メモ
 
