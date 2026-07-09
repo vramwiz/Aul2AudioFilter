@@ -36,6 +36,12 @@
 - `View: Type` を設定値の先頭項目とし、`Equalizer Bars` / `Wave Line` / `Pixel Wave` / `Filled Spectrum` / `Pulse Wave` の 5 パターンをリストへ用意した。
 - 未実装の表示タイプは、実装が入るまで `Equalizer Bars` へフォールバックする。
 - `Aul2AudioView.dproj` の Release Win64 ビルドが警告なしで成功し、更新済み `Aul2AudioView.auf2` へのコピーまで確認した。
+- `View: Style` / `View: Density` / `View: Spacing` / `View: Color` / `View: Color Style` / `View: Smooth` を共通設定として追加した。
+- `View: Style` は `Solid` / `Blocks` とし、連結表示かブロック表示かを直接選べるようにした。
+- `View: Spacing` は縦横共通の隙間として扱い、`Blocks` のときだけ使う。ブロック形状は `Density` と素材サイズから自動計算し、専用の幅/高さ設定は増やさない方針にした。
+- `View: Color Style` は `Solid` / `Rainbow` を用意した。
+- `Aul2AudioViewParams.pas` を追加し、表示タイプ、スタイル、色バリエーション、共通設定 record をまとめた。
+- `Aul2AudioView.dproj` と `Aul2AudioFilter.dproj` の Release Win64 ビルドが警告なしで成功した。
 
 ## Initial verification note
 

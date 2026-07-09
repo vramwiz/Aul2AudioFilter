@@ -13,6 +13,8 @@ procedure SetupPluginTable(Flag: Integer; Name, Label_, Information: PWideChar;
 procedure AddGroup(var Item: TFILTER_ITEM_GROUP; Name: PWideChar;
   DefaultVisible: Integer);
 procedure AddCheck(var Item: TFILTER_ITEM_CHECK; Name: PWideChar; Value: Integer);
+procedure AddColor(var Item: TFILTER_ITEM_COLOR; Name: PWideChar; R, G, B: Byte;
+  Alpha: Byte = 255);
 procedure AddTrack(var Item: TFILTER_ITEM_TRACK; Name: PWideChar;
   Value, S, E, Step: Double; ZeroDisplay: PWideChar = nil;
   SliderRatio: Double = 1.0);
@@ -81,6 +83,19 @@ begin
   Item.ItemType := PWideChar('check');
   Item.Name := Name;
   Item.Value := Byte(Value <> 0);
+end;
+
+procedure AddColor(var Item: TFILTER_ITEM_COLOR; Name: PWideChar; R, G, B: Byte;
+  Alpha: Byte);
+begin
+  AddItem(@Item);
+
+  Item.ItemType := PWideChar('color');
+  Item.Name := Name;
+  Item.R := R;
+  Item.G := G;
+  Item.B := B;
+  Item.X := Alpha;
 end;
 
 procedure AddTrack(var Item: TFILTER_ITEM_TRACK; Name: PWideChar;

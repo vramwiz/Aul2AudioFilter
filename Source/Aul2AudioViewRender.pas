@@ -5,9 +5,10 @@ unit Aul2AudioViewRender;
 interface
 
 uses
-  Aul2AudioFilterTypes;
+  Aul2AudioFilterTypes,
+  Aul2AudioViewParams;
 
-procedure RenderView(Video: PFILTER_PROC_VIDEO; ViewType: Integer);
+procedure RenderView(Video: PFILTER_PROC_VIDEO; const Settings: TAul2AudioViewSettings);
 
 implementation
 
@@ -32,16 +33,17 @@ begin
     Video^.SetImageData(PPIXEL_RGBA(Buffer), Width, Height);
 end;
 
-procedure DrawViewType(Buffer: PPIXEL_RGBA; Width, Height, ViewType: Integer);
+procedure DrawViewType(Buffer: PPIXEL_RGBA; Width, Height: Integer;
+  const Settings: TAul2AudioViewSettings);
 begin
-  case ViewType of
-    0: DrawEqualizerBars(Buffer, Width, Height);
+  case Settings.ViewType of
+    VIEW_TYPE_EQUALIZER_BARS: DrawEqualizerBars(Buffer, Width, Height, Settings);
   else
-    DrawEqualizerBars(Buffer, Width, Height);
+    DrawEqualizerBars(Buffer, Width, Height, Settings);
   end;
 end;
 
-procedure RenderView(Video: PFILTER_PROC_VIDEO; ViewType: Integer);
+procedure RenderView(Video: PFILTER_PROC_VIDEO; const Settings: TAul2AudioViewSettings);
 var
   Width: Integer;
   Height: Integer;
@@ -59,7 +61,7 @@ begin
   BufferSize := NativeUInt(Width) * NativeUInt(Height) * SizeOf(TPIXEL_RGBA);
   GetMem(Buffer, BufferSize);
   try
-    DrawViewType(Buffer, Width, Height, ViewType);
+    DrawViewType(Buffer, Width, Height, Settings);
     OutputImageData(Video, Buffer, Width, Height);
   finally
     FreeMem(Buffer);

@@ -32,6 +32,14 @@ type
     Value: Byte;
   end;
 
+  // 色選択用の GUI 項目。
+  PFILTER_ITEM_COLOR = ^TFILTER_ITEM_COLOR;
+  TFILTER_ITEM_COLOR = record
+    ItemType: LPCWSTR;
+    Name: LPCWSTR;
+    B, G, R, X: Byte;
+  end;
+
   // 数値スライダー用の GUI 項目。
   PFILTER_ITEM_TRACK = ^TFILTER_ITEM_TRACK;
   TFILTER_ITEM_TRACK = record

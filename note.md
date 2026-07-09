@@ -280,9 +280,20 @@ Base ページの現在レイアウト:
 - `Syncroh2` の `PluginFilterTable.pas` と同じ考え方で、select 候補は `ClearSelectList` / `AddSelectList` で構築する。ライブラリ全体はコピーせず、必要な select list 補助だけ `Aul2AudioFilterGui.pas` へ取り込んだ。
 - 現時点の `View: Type` は `Equalizer Bars` / `Wave Line` / `Pixel Wave` / `Filled Spectrum` / `Pulse Wave` の 5 パターンを用意する。
 - 未実装の表示タイプを選んだ場合は、実装が入るまで `Equalizer Bars` へフォールバックする。
+- 共通設定として `View: Style` / `View: Density` / `View: Spacing` / `View: Color` / `View: Color Style` / `View: Smooth` を用意する。
+- `View: Style` は `Solid` と `Blocks`。`Solid` は隙間なしでつながった表示、`Blocks` は四角/長方形のブロック単位の表示にする。
+- `View: Density` は表示の分割数。`Equalizer Bars` ではバー本数として扱い、他のタイプでも表示密度として再利用する。
+- `View: Spacing` は縦横共通の隙間。設定数を増やさないため横/縦を分けない。`Solid` では無視し、`Blocks` でのみ使う。
+- ブロック形状は専用の width/height 設定を持たせず、`Density` と素材サイズから自動計算する。`Equalizer Bars` ではブロック高さをバー幅から算出し、やや横長の長方形になるようにする。
+- `View: Color` は基準色。`View: Color Style` は `Solid` / `Rainbow` を用意し、`Rainbow` ではバー位置に応じて色を変える。
+- `View: Smooth` は音への反応の滑らかさ。値が大きいほど変化がゆっくりになり、余韻が残る。
 - `Equalizer Bars` は `Local\Aul2AudioMonitorSpectrum` の `OutputBands` を読み、モニターと同じ攻撃速め/減衰ゆっくりのスムージングをかけて白い縦バーとして描く。
 - `Aul2AudioView` は MV 用素材なので、モニター側にある凡例、枠、グリッド、ピークメーター、文字表示は描かない。
 - 音声データがまだ共有メモリへ来ていない場合は透明背景のままにし、説明文字や `wait` 表示は出さない。
+- 参考元のイコライザー系 UI には `横解像度` / `縦解像度` / `横スペース` / `縦スペース` がある。
+- `横解像度` / `縦解像度` は表示を構成する四角グリッドの列数/段数に近い。`Aul2AudioView` では素材サイズ自体の解像度は `Aul2AudioBaseInput` で代替済みなので、必要なら「バー数」や「縦段数」のような表示密度パラメーターとして扱う。
+- `横スペース` / `縦スペース` は四角同士の隙間を制御する値と思われる。`0` にすると隙間がなくなり、四角がつながってバーや面のように表示される。
+- この四角グリッド方式を採用するかは未決定。採用する場合は、連続バー表示とブロック表示を同じパラメーターで切り替えられる可能性がある。
 
 次に再開する場合の確認候補:
 
