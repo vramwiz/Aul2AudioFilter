@@ -29,6 +29,8 @@ var
   DisplayPeakInputR : Single;
   DisplayPeakOutputL: Single;
   DisplayPeakOutputR: Single;
+  DisplayInputBalance : Single;
+  DisplayOutputBalance: Single;
   DisplayPeakValid  : Boolean;
   DisplayInputWaveMin : TAudioMonitorWaveData;
   DisplayInputWaveMax : TAudioMonitorWaveData;
@@ -56,28 +58,46 @@ function MonitorStateValid(State: PAul2AudioMonitorState): Boolean;
 begin
   Result := (State <> nil) and
     (State^.Magic = AUDIO_MONITOR_SHARED_MAGIC) and
-    (State^.Version = AUDIO_MONITOR_SHARED_VERSION) and
-    TickIsFresh(State^.UpdateTick);
+    (State^.Version = AUDIO_MONITOR_SHARED_VERSION);
 end;
 
 function SpectrumStateValid(State: PAul2AudioMonitorSpectrumState): Boolean;
 begin
   Result := (State <> nil) and
     (State^.Magic = AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) and
-    (State^.Version = AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) and
-    TickIsFresh(State^.UpdateTick);
+    (State^.Version = AUDIO_MONITOR_SPECTRUM_SHARED_VERSION);
+end;
+
+function MonitorStateFresh(State: PAul2AudioMonitorState): Boolean;
+begin
+  Result := MonitorStateValid(State) and TickIsFresh(State^.UpdateTick);
+end;
+
+function SpectrumStateFresh(State: PAul2AudioMonitorSpectrumState): Boolean;
+begin
+  Result := SpectrumStateValid(State) and TickIsFresh(State^.UpdateTick);
+end;
+
+function CalcStereoBalance(RmsL, RmsR: Single): Single;
+var
+  Total: Single;
+begin
+  Total := Max(0.000001, RmsL + RmsR);
+  Result := Max(-1.0, Min(1.0, (RmsR - RmsL) / Total));
 end;
 
 procedure UpdateDisplayPeaks(State: PAul2AudioMonitorState);
 const
   PEAK_DECAY = 0.84;
 begin
-  if MonitorStateValid(State) then
+  if MonitorStateFresh(State) then
   begin
     DisplayPeakInputL := Max(State^.InputPeakL, DisplayPeakInputL * PEAK_DECAY);
     DisplayPeakInputR := Max(State^.InputPeakR, DisplayPeakInputR * PEAK_DECAY);
     DisplayPeakOutputL := Max(State^.OutputPeakL, DisplayPeakOutputL * PEAK_DECAY);
     DisplayPeakOutputR := Max(State^.OutputPeakR, DisplayPeakOutputR * PEAK_DECAY);
+    DisplayInputBalance := CalcStereoBalance(State^.InputRmsL, State^.InputRmsR);
+    DisplayOutputBalance := CalcStereoBalance(State^.OutputRmsL, State^.OutputRmsR);
     DisplayPeakValid := True;
     Exit;
   end;
@@ -103,7 +123,7 @@ procedure UpdateDisplayWave(State: PAul2AudioMonitorState);
 var
   Point: Integer;
 begin
-  if not MonitorStateValid(State) then
+  if not MonitorStateFresh(State) then
     Exit;
 
   if not DisplayWaveValid then
@@ -145,7 +165,7 @@ procedure UpdateDisplaySpectrum(SpectrumState: PAul2AudioMonitorSpectrumState);
 var
   Band: Integer;
 begin
-  if not SpectrumStateValid(SpectrumState) then
+  if not SpectrumStateFresh(SpectrumState) then
     Exit;
 
   if not DisplaySpectrumValid then
@@ -355,14 +375,6 @@ begin
   Canvas.LineTo(TrackRect.Right, ClipY);
 end;
 
-function CalcStereoBalance(RmsL, RmsR: Single): Single;
-var
-  Total: Single;
-begin
-  Total := Max(0.000001, RmsL + RmsR);
-  Result := Max(-1.0, Min(1.0, (RmsR - RmsL) / Total));
-end;
-
 procedure DrawStereoBalance(Canvas: TCanvas; const BalanceRect: TRect;
   InputBalance, OutputBalance: Single);
 var
@@ -415,7 +427,6 @@ procedure DrawPeakMeters(Canvas: TCanvas; const MeterRect: TRect;
 var
   BarRect: TRect;
   BalanceRect: TRect;
-  StateValid: Boolean;
   BarTop: Integer;
   BarBottom: Integer;
   BarWidth: Integer;
@@ -425,7 +436,6 @@ begin
   if (MeterRect.Right <= MeterRect.Left) or (MeterRect.Bottom <= MeterRect.Top) then
     Exit;
 
-  StateValid := MonitorStateValid(State);
   UpdateDisplayPeaks(State);
 
   Canvas.Pen.Color := RGB(56, 56, 56);
@@ -435,7 +445,7 @@ begin
   Canvas.Font.Color := RGB(220, 220, 220);
   Canvas.TextOut(MeterRect.Left + 2, MeterRect.Top, 'Peak');
 
-  if (not DisplayPeakValid) or (not StateValid) then
+  if not DisplayPeakValid then
   begin
     Canvas.Font.Color := RGB(150, 150, 150);
     Canvas.TextOut(MeterRect.Left + 2, MeterRect.Top + 18, 'wait');
@@ -484,9 +494,7 @@ begin
 
   BalanceRect := Rect(MeterRect.Left + 2, BarBottom + 22, MeterRect.Right - 2,
     MeterRect.Bottom - 2);
-  DrawStereoBalance(Canvas, BalanceRect,
-    CalcStereoBalance(State^.InputRmsL, State^.InputRmsR),
-    CalcStereoBalance(State^.OutputRmsL, State^.OutputRmsR));
+  DrawStereoBalance(Canvas, BalanceRect, DisplayInputBalance, DisplayOutputBalance);
   Canvas.Brush.Style := bsSolid;
 end;
 
