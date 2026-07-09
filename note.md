@@ -293,6 +293,27 @@ Base ページの現在レイアウト:
 - `Equalizer Bars` は `Local\Aul2AudioMonitorSpectrum` の `OutputBands` を読み、モニターと同じ攻撃速め/減衰ゆっくりのスムージングをかけて白い縦バーとして描く。
 - `Aul2AudioView` は MV 用素材なので、モニター側にある凡例、枠、グリッド、ピークメーター、文字表示は描かない。
 - 音声データがまだ共有メモリへ来ていない場合は透明背景のままにし、説明文字や `wait` 表示は出さない。
+
+## 2026-07-09 作業終了時点メモ
+
+- `Aul2AudioView` は `Aul2AudioBaseInput` の上に載る MV 用表示フィルターとして基本構成ができた。
+- Base ページのエイリアス生成では `動画ファイル` + `映像再生` + `Aul2Audio View` の 3 フィルター構成になっている。
+- `Aul2AudioView` は `Local\Aul2AudioMonitorSpectrum` の `OutputBands` を読み、音に反応する表示を行う。
+- 設定値の先頭は `View: Type`。現在の選択肢は `Equalizer Bars` / `Wave Line` / `Pixel Wave` / `Filled Spectrum` / `Pulse Wave`。
+- 現時点で実装済みの表示タイプは `Equalizer Bars` のみ。未実装タイプは `Equalizer Bars` へフォールバックする。
+- 共通設定として `View: Style` / `View: Density` / `View: Spacing` / `View: Color` / `View: Color Style` / `View: Smooth` を持つ。
+- `View: Style` は `Solid` / `Blocks`。連結バー表示とブロック表示を切り替える。
+- `View: Color Style` は `Solid` / `Rainbow`。Rainbow は左の低域を赤、右の高域を紫/ピンク方向にする。左が低音であることは確認済み。
+- `Equalizer Bars` は実スペクトラムに反応し、背景透明、文字なし、枠なし、MV 素材向けの基本形としておよそ完成扱いにする。
+- ユニット分割は、`Aul2AudioViewRender.pas` を描画入口、`Aul2AudioViewRenderEqualizer.pas` を Equalizer Bars、`Aul2AudioViewSpectrum.pas` をスペクトラム読み取り/スムージング、`Aul2AudioViewRenderUtils.pas` をピクセル描画補助としている。
+
+次に再開する場合の候補:
+
+- まず `Equalizer Bars` を AviUtl2 上で軽く再確認し、初期値のままで実用上問題ないかを見る。
+- 次の表示タイプを追加するなら、`OutputBands` をそのまま使える `Filled Spectrum` が最有力。
+- `Filled Spectrum` も `Aul2AudioViewRenderFilledSpectrum.pas` のように別ユニットで追加し、`Aul2AudioViewRender.pas` は振り分けだけに留める。
+- `Wave Line` / `Pixel Wave` / `Pulse Wave` は時間波形系なので、必要になった時点で `Local\Aul2AudioMonitorState` の `OutputWaveMin/Max` などを読む共通ユニットを検討する。
+- 新しい設定を増やす前に、既存の `Style` / `Density` / `Spacing` / `Color` / `Color Style` / `Smooth` で表現できるかを優先して考える。
 - 参考元のイコライザー系 UI には `横解像度` / `縦解像度` / `横スペース` / `縦スペース` がある。
 - `横解像度` / `縦解像度` は表示を構成する四角グリッドの列数/段数に近い。`Aul2AudioView` では素材サイズ自体の解像度は `Aul2AudioBaseInput` で代替済みなので、必要なら「バー数」や「縦段数」のような表示密度パラメーターとして扱う。
 - `横スペース` / `縦スペース` は四角同士の隙間を制御する値と思われる。`0` にすると隙間がなくなり、四角がつながってバーや面のように表示される。
