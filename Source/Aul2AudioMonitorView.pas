@@ -271,10 +271,12 @@ begin
   ButtonWave := TToolButton.Create(MonitorForm);
   ButtonWave.Parent := ToolBar;
   ButtonWave.Caption := 'Wave';
+  ButtonWave.Left := 0;
 
   ButtonSpectrum := TToolButton.Create(MonitorForm);
   ButtonSpectrum.Parent := ToolBar;
   ButtonSpectrum.Caption := 'Spectrum';
+  ButtonSpectrum.Left := ButtonWave.Left + ButtonWave.Width + 1;
 
   PanelWave := TPanel.Create(MonitorForm);
   PanelWave.Parent := RootPanel;

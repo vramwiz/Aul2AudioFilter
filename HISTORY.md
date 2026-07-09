@@ -414,4 +414,8 @@
 - 右側縦表示へ変更後、50ms 更新時の点滅を抑えるため、`TPaintBox` へ直接描かず一度 `TBitmap` に描画してから転送する方式に変更した。併せて非表示パネルは Invalidate しないようにした。
 - `TCustomControl` 化は AviUtl2 内表示でかえって点滅が悪化したため採用しない。Spectrum 表示と同じ `TPaintBox` 構成に戻し、Peak Meter 側は `Stage` による `wait` 表示切り替えを避け、直近ピークを減衰表示する方式にした。
 - サイズが変わらない 50ms 更新では `SetBounds` / `Realign` しないようにした。
+- Spectrum の棒も瞬間値の上下で少し点滅したため、共有メモリ値を直接消すのではなく、表示用の 64 バンド配列を持ち、上昇は即時、下降は軽い減衰で描画する方式にした。
+- `Wave` / `Spectrum` のボタンとパネル対応を確認し、コード上は入れ替わっていないことを確認した。ユーザー確認により、点滅している対象は棒グラフではなく折れ線表示の `Wave` 側と分かったため、256 点の min/max 包絡線にも表示用バッファを持たせ、軽く平滑化して描画する方式にした。併せて `Wave` 画面の見出しを `Wave` と明示した。
+- `Wave` 側は共有メモリ状態が一瞬有効判定から外れた時に `waiting` 表示へ戻ると画面全体が点滅するため、直近の表示用 Wave がある場合は消さずに描き続けるようにした。
+- ツールバーは `Wave` / `Spectrum` の順に表示されるよう、`TToolButton.Left` を明示して順序を固定した。表示パネルの対応は `Wave` -> `PanelWave`, `Spectrum` -> `PanelSpectrum` の順に保ち、初期表示だけ `Spectrum` にする。
 - `Aul2AudioMonitor.dproj` の Debug Win64 ビルドが警告なしで成功し、`Aul2AudioMonitor.aux2` へのコピーまで完了することを確認した。

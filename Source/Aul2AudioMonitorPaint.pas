@@ -30,6 +30,14 @@ var
   DisplayPeakOutputL: Single;
   DisplayPeakOutputR: Single;
   DisplayPeakValid  : Boolean;
+  DisplayInputWaveMin : TAudioMonitorWaveData;
+  DisplayInputWaveMax : TAudioMonitorWaveData;
+  DisplayOutputWaveMin: TAudioMonitorWaveData;
+  DisplayOutputWaveMax: TAudioMonitorWaveData;
+  DisplayWaveValid    : Boolean;
+  DisplayInputBands : TAudioMonitorSpectrumData;
+  DisplayOutputBands: TAudioMonitorSpectrumData;
+  DisplaySpectrumValid: Boolean;
 
 procedure UpdateDisplayPeaks(State: PAul2AudioMonitorState);
 const
@@ -52,6 +60,81 @@ begin
     DisplayPeakInputR := DisplayPeakInputR * PEAK_DECAY;
     DisplayPeakOutputL := DisplayPeakOutputL * PEAK_DECAY;
     DisplayPeakOutputR := DisplayPeakOutputR * PEAK_DECAY;
+  end;
+end;
+
+procedure SmoothWavePoint(var DisplayMin, DisplayMax: Single; NewMin, NewMax: Single);
+const
+  WAVE_SMOOTH = 0.30;
+begin
+  DisplayMin := DisplayMin + ((NewMin - DisplayMin) * WAVE_SMOOTH);
+  DisplayMax := DisplayMax + ((NewMax - DisplayMax) * WAVE_SMOOTH);
+end;
+
+procedure UpdateDisplayWave(State: PAul2AudioMonitorState);
+var
+  Point: Integer;
+begin
+  if (State = nil) or (State^.Magic <> AUDIO_MONITOR_SHARED_MAGIC) or
+     (State^.Version <> AUDIO_MONITOR_SHARED_VERSION) then
+    Exit;
+
+  if not DisplayWaveValid then
+  begin
+    DisplayInputWaveMin := State^.InputWaveMin;
+    DisplayInputWaveMax := State^.InputWaveMax;
+    DisplayOutputWaveMin := State^.OutputWaveMin;
+    DisplayOutputWaveMax := State^.OutputWaveMax;
+    DisplayWaveValid := True;
+    Exit;
+  end;
+
+  for Point := 0 to AUDIO_MONITOR_WAVE_POINT_LAST do
+  begin
+    SmoothWavePoint(DisplayInputWaveMin[Point], DisplayInputWaveMax[Point],
+      State^.InputWaveMin[Point], State^.InputWaveMax[Point]);
+    SmoothWavePoint(DisplayOutputWaveMin[Point], DisplayOutputWaveMax[Point],
+      State^.OutputWaveMin[Point], State^.OutputWaveMax[Point]);
+  end;
+end;
+
+procedure SmoothSpectrumBand(var DisplayValue: Single; NewValue: Single);
+const
+  SPECTRUM_ATTACK = 0.55;
+  SPECTRUM_RELEASE = 0.16;
+var
+  Alpha: Single;
+begin
+  NewValue := Max(0.0, Min(1.0, NewValue));
+  if NewValue > DisplayValue then
+    Alpha := SPECTRUM_ATTACK
+  else
+    Alpha := SPECTRUM_RELEASE;
+
+  DisplayValue := DisplayValue + ((NewValue - DisplayValue) * Alpha);
+end;
+
+procedure UpdateDisplaySpectrum(SpectrumState: PAul2AudioMonitorSpectrumState);
+var
+  Band: Integer;
+begin
+  if (SpectrumState = nil) or
+     (SpectrumState^.Magic <> AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) or
+     (SpectrumState^.Version <> AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) then
+    Exit;
+
+  if not DisplaySpectrumValid then
+  begin
+    DisplayInputBands := SpectrumState^.InputBands;
+    DisplayOutputBands := SpectrumState^.OutputBands;
+    DisplaySpectrumValid := True;
+    Exit;
+  end;
+
+  for Band := 0 to AUDIO_MONITOR_SPECTRUM_BAND_LAST do
+  begin
+    SmoothSpectrumBand(DisplayInputBands[Band], SpectrumState^.InputBands[Band]);
+    SmoothSpectrumBand(DisplayOutputBands[Band], SpectrumState^.OutputBands[Band]);
   end;
 end;
 
@@ -96,6 +179,7 @@ var
   PlotRect: TRect;
   CenterY: Integer;
   CaptionText: string;
+  StateValid: Boolean;
 begin
   Canvas.Brush.Color := RGB(36, 36, 36);
   Canvas.FillRect(ClientRect);
@@ -110,17 +194,23 @@ begin
   Canvas.Brush.Style := bsClear;
 
   try
-    if (State = nil) or (State^.Magic <> AUDIO_MONITOR_SHARED_MAGIC) or
-       (State^.Version <> AUDIO_MONITOR_SHARED_VERSION) or (State^.Stage <> 3) then
+    StateValid := (State <> nil) and (State^.Magic = AUDIO_MONITOR_SHARED_MAGIC) and
+      (State^.Version = AUDIO_MONITOR_SHARED_VERSION);
+    if (not StateValid) and (not DisplayWaveValid) then
     begin
       Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8,
-        'Aul2AudioMonitor - waiting audio data');
+        'Wave - waiting audio data');
       Exit;
     end;
 
-    CaptionText := Format('Aul2AudioMonitor  %d Hz  %d ch',
-      [State^.SampleRate, State^.ChannelNum]);
+    if StateValid then
+      CaptionText := Format('Wave  %d Hz  %d ch', [State^.SampleRate, State^.ChannelNum])
+    else
+      CaptionText := 'Wave';
     Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8, CaptionText);
+
+    if StateValid then
+      UpdateDisplayWave(State);
 
     CenterY := (PlotRect.Top + PlotRect.Bottom) div 2;
     Canvas.Pen.Color := RGB(84, 84, 84);
@@ -135,9 +225,9 @@ begin
     Canvas.LineTo(PlotRect.Left, PlotRect.Bottom);
     Canvas.LineTo(PlotRect.Left, PlotRect.Top);
 
-    DrawWaveEnvelope(Canvas, PlotRect, State^.InputWaveMin, State^.InputWaveMax,
+    DrawWaveEnvelope(Canvas, PlotRect, DisplayInputWaveMin, DisplayInputWaveMax,
       RGB(92, 190, 122));
-    DrawWaveEnvelope(Canvas, PlotRect, State^.OutputWaveMin, State^.OutputWaveMax,
+    DrawWaveEnvelope(Canvas, PlotRect, DisplayOutputWaveMin, DisplayOutputWaveMax,
       RGB(224, 176, 72));
 
     Canvas.Font.Color := RGB(92, 190, 122);
@@ -345,6 +435,8 @@ begin
       Exit;
     end;
 
+    UpdateDisplaySpectrum(SpectrumState);
+
     CaptionText := Format('Spectrum  %d Hz  %d bands',
       [SpectrumState^.SampleRate, SpectrumState^.BandCount]);
     Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8, CaptionText);
@@ -366,9 +458,9 @@ begin
 
     BarWidth := Max(1, (PlotRect.Right - PlotRect.Left) div
       (AUDIO_MONITOR_SPECTRUM_BAND_COUNT * 3));
-    DrawSpectrumBars(Canvas, PlotRect, SpectrumState^.InputBands, RGB(92, 190, 122),
+    DrawSpectrumBars(Canvas, PlotRect, DisplayInputBands, RGB(92, 190, 122),
       -BarWidth, BarWidth);
-    DrawSpectrumBars(Canvas, PlotRect, SpectrumState^.OutputBands, RGB(224, 176, 72),
+    DrawSpectrumBars(Canvas, PlotRect, DisplayOutputBands, RGB(224, 176, 72),
       1, BarWidth);
 
     DrawLegend(Canvas, ClientRect.Left + 12, ClientRect.Top + 26);
