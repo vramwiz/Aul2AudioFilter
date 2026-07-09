@@ -418,4 +418,7 @@
 - `Wave` / `Spectrum` のボタンとパネル対応を確認し、コード上は入れ替わっていないことを確認した。ユーザー確認により、点滅している対象は棒グラフではなく折れ線表示の `Wave` 側と分かったため、256 点の min/max 包絡線にも表示用バッファを持たせ、軽く平滑化して描画する方式にした。併せて `Wave` 画面の見出しを `Wave` と明示した。
 - `Wave` 側は共有メモリ状態が一瞬有効判定から外れた時に `waiting` 表示へ戻ると画面全体が点滅するため、直近の表示用 Wave がある場合は消さずに描き続けるようにした。
 - ツールバーは `Wave` / `Spectrum` の順に表示されるよう、`TToolButton.Left` を明示して順序を固定した。表示パネルの対応は `Wave` -> `PanelWave`, `Spectrum` -> `PanelSpectrum` の順に保ち、初期表示だけ `Spectrum` にする。
+- `Pan / Stereo Balance` として、共有メモリ状態を version 3 に上げ、`InputRmsL/R` と `OutputRmsL/R` を追加した。`.auf2` 側で L/R RMS を軽量集計し、`.aux2` 側で左右バランスを `Spectrum` 右側下部に小さく表示する。
+- Stereo Balance は中央を 0、左寄りを L、右寄りを R とし、入力をグリーン、出力をアンバーのマーカーで描く。Chorus、Ping-Pong Delay、Reverb など空間系エフェクトの左右偏り確認に使う。
+- 右側メーター領域は固定高さで詰まりやすいため、Peak の下端と Stereo の描画開始位置を調整し、`Stereo` ラベルとマーカーが重ならないようにした。
 - `Aul2AudioMonitor.dproj` の Debug Win64 ビルドが警告なしで成功し、`Aul2AudioMonitor.aux2` へのコピーまで完了することを確認した。

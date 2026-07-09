@@ -11,7 +11,7 @@ uses
 const
   AUDIO_MONITOR_SHARED_NAME    = 'Local\Aul2AudioMonitorState';
   AUDIO_MONITOR_SHARED_MAGIC   = $414D4F4E; // AMON
-  AUDIO_MONITOR_SHARED_VERSION = 2;
+  AUDIO_MONITOR_SHARED_VERSION = 3;
   AUDIO_MONITOR_WAVE_POINT_COUNT = 256;
   AUDIO_MONITOR_WAVE_POINT_LAST  = AUDIO_MONITOR_WAVE_POINT_COUNT - 1;
 
@@ -32,6 +32,10 @@ type
     InputPeakR  : Single;
     OutputPeakL : Single;
     OutputPeakR : Single;
+    InputRmsL   : Single;
+    InputRmsR   : Single;
+    OutputRmsL  : Single;
+    OutputRmsR  : Single;
     InputWave   : TAudioMonitorWaveData;
     OutputWave  : TAudioMonitorWaveData;
     InputWaveMin: TAudioMonitorWaveData;

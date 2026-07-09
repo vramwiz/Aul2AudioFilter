@@ -26,6 +26,8 @@ var
   SpectrumMemory: TAul2AudioMonitorSpectrumSharedMemory;
   LastInputPeakL: Single;
   LastInputPeakR: Single;
+  LastInputRmsL: Single;
+  LastInputRmsR: Single;
   LastInputWave: TAudioMonitorWaveData;
   LastInputWaveMin: TAudioMonitorWaveData;
   LastInputWaveMax: TAudioMonitorWaveData;
@@ -72,6 +74,10 @@ begin
     State^.InputPeakR := 0;
     State^.OutputPeakL := 0;
     State^.OutputPeakR := 0;
+    State^.InputRmsL := 0;
+    State^.InputRmsR := 0;
+    State^.OutputRmsL := 0;
+    State^.OutputRmsR := 0;
     FillChar(State^.InputWave, SizeOf(State^.InputWave), 0);
     FillChar(State^.OutputWave, SizeOf(State^.OutputWave), 0);
     FillChar(State^.InputWaveMin, SizeOf(State^.InputWaveMin), 0);
@@ -130,7 +136,8 @@ begin
   end;
 end;
 
-function ReadChannel(Audio: PFILTER_PROC_AUDIO; SampleNum, Channel: Integer; out Buffer: TArray<Single>): Boolean;
+function ReadChannel(Audio: PFILTER_PROC_AUDIO; SampleNum, Channel: Integer;
+  out Buffer: TArray<Single>): Boolean;
 begin
   Result := False;
   SetLength(Buffer, 0);
@@ -144,7 +151,7 @@ begin
 end;
 
 procedure CaptureWave(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer;
-  var Wave, WaveMin, WaveMax: TAudioMonitorWaveData; out PeakL, PeakR: Single);
+  var Wave, WaveMin, WaveMax: TAudioMonitorWaveData; out PeakL, PeakR, RmsL, RmsR: Single);
 var
   LeftBuffer: TArray<Single>;
   RightBuffer: TArray<Single>;
@@ -159,12 +166,18 @@ var
   BestAbs: Single;
   MinValue: Single;
   MaxValue: Single;
+  SumSqL: Double;
+  SumSqR: Double;
 begin
   PeakL := 0;
   PeakR := 0;
+  RmsL := 0;
+  RmsR := 0;
   FillChar(Wave, SizeOf(Wave), 0);
   FillChar(WaveMin, SizeOf(WaveMin), 0);
   FillChar(WaveMax, SizeOf(WaveMax), 0);
+  SumSqL := 0;
+  SumSqR := 0;
 
   if not ReadChannel(Audio, SampleNum, 0, LeftBuffer) then
     Exit;
@@ -177,17 +190,25 @@ begin
     Value := Abs(LeftBuffer[I]);
     if Value > PeakL then
       PeakL := Value;
+    SumSqL := SumSqL + (LeftBuffer[I] * LeftBuffer[I]);
 
     if Length(RightBuffer) > I then
     begin
       Value := Abs(RightBuffer[I]);
       if Value > PeakR then
         PeakR := Value;
+      SumSqR := SumSqR + (RightBuffer[I] * RightBuffer[I]);
     end;
   end;
 
   if ChannelNum <= 1 then
+  begin
     PeakR := PeakL;
+    SumSqR := SumSqL;
+  end;
+
+  RmsL := Sqrt(SumSqL / Max(1, SampleNum));
+  RmsR := Sqrt(SumSqR / Max(1, SampleNum));
 
   for Point := 0 to AUDIO_MONITOR_WAVE_POINT_LAST do
   begin
@@ -347,11 +368,13 @@ begin
       State^.Stage := 2;
 
     CaptureWave(Audio, SampleNum, ChannelNum, LastInputWave, LastInputWaveMin,
-      LastInputWaveMax, LastInputPeakL, LastInputPeakR);
+      LastInputWaveMax, LastInputPeakL, LastInputPeakR, LastInputRmsL, LastInputRmsR);
     CaptureSpectrum(Audio, SampleNum, ChannelNum, LastInputSpectrum);
   except
     LastInputPeakL := 0;
     LastInputPeakR := 0;
+    LastInputRmsL := 0;
+    LastInputRmsR := 0;
     FillChar(LastInputWave, SizeOf(LastInputWave), 0);
     FillChar(LastInputWaveMin, SizeOf(LastInputWaveMin), 0);
     FillChar(LastInputWaveMax, SizeOf(LastInputWaveMax), 0);
@@ -365,6 +388,8 @@ var
   State: PAul2AudioMonitorState;
   OutputPeakL: Single;
   OutputPeakR: Single;
+  OutputRmsL: Single;
+  OutputRmsR: Single;
   OutputWave: TAudioMonitorWaveData;
   OutputWaveMin: TAudioMonitorWaveData;
   OutputWaveMax: TAudioMonitorWaveData;
@@ -373,7 +398,7 @@ var
 begin
   try
     CaptureWave(Audio, SampleNum, ChannelNum, OutputWave, OutputWaveMin, OutputWaveMax,
-      OutputPeakL, OutputPeakR);
+      OutputPeakL, OutputPeakR, OutputRmsL, OutputRmsR);
     CaptureSpectrum(Audio, SampleNum, ChannelNum, OutputSpectrum);
 
     Shared := GetSharedMemory;
@@ -392,6 +417,10 @@ begin
     State^.InputPeakR := LastInputPeakR;
     State^.OutputPeakL := OutputPeakL;
     State^.OutputPeakR := OutputPeakR;
+    State^.InputRmsL := LastInputRmsL;
+    State^.InputRmsR := LastInputRmsR;
+    State^.OutputRmsL := OutputRmsL;
+    State^.OutputRmsR := OutputRmsR;
     State^.InputWave := LastInputWave;
     State^.OutputWave := OutputWave;
     State^.InputWaveMin := LastInputWaveMin;

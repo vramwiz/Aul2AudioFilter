@@ -331,10 +331,66 @@ begin
   Canvas.LineTo(TrackRect.Right, ClipY);
 end;
 
+function CalcStereoBalance(RmsL, RmsR: Single): Single;
+var
+  Total: Single;
+begin
+  Total := Max(0.000001, RmsL + RmsR);
+  Result := Max(-1.0, Min(1.0, (RmsR - RmsL) / Total));
+end;
+
+procedure DrawStereoBalance(Canvas: TCanvas; const BalanceRect: TRect;
+  InputBalance, OutputBalance: Single);
+var
+  CenterX: Integer;
+  InputX: Integer;
+  OutputX: Integer;
+  TrackTop: Integer;
+  TrackBottom: Integer;
+begin
+  if (BalanceRect.Right <= BalanceRect.Left) or (BalanceRect.Bottom <= BalanceRect.Top) then
+    Exit;
+
+  if (BalanceRect.Bottom - BalanceRect.Top) < 34 then
+    Exit;
+
+  Canvas.Brush.Style := bsClear;
+  Canvas.Font.Color := RGB(220, 220, 220);
+  Canvas.TextOut(BalanceRect.Left, BalanceRect.Top, 'Stereo');
+
+  TrackTop := BalanceRect.Top + 22;
+  TrackBottom := BalanceRect.Bottom - 8;
+  CenterX := (BalanceRect.Left + BalanceRect.Right) div 2;
+
+  Canvas.Pen.Color := RGB(68, 68, 68);
+  Canvas.MoveTo(BalanceRect.Left + 4, TrackTop);
+  Canvas.LineTo(BalanceRect.Right - 4, TrackTop);
+  Canvas.MoveTo(CenterX, TrackTop - 5);
+  Canvas.LineTo(CenterX, TrackBottom + 2);
+
+  InputX := CenterX + Round(InputBalance * ((BalanceRect.Right - BalanceRect.Left - 12) * 0.5));
+  OutputX := CenterX + Round(OutputBalance * ((BalanceRect.Right - BalanceRect.Left - 12) * 0.5));
+
+  Canvas.Pen.Color := RGB(92, 190, 122);
+  Canvas.Brush.Color := RGB(92, 190, 122);
+  Canvas.Ellipse(InputX - 3, TrackTop - 4, InputX + 4, TrackTop + 3);
+
+  Canvas.Pen.Color := RGB(224, 176, 72);
+  Canvas.Brush.Color := RGB(224, 176, 72);
+  Canvas.Ellipse(OutputX - 3, TrackTop + 5, OutputX + 4, TrackTop + 12);
+
+  Canvas.Brush.Style := bsClear;
+  Canvas.Font.Color := RGB(150, 150, 150);
+  Canvas.TextOut(BalanceRect.Left + 2, BalanceRect.Bottom - 10, 'L');
+  Canvas.TextOut(BalanceRect.Right - 10, BalanceRect.Bottom - 10, 'R');
+  Canvas.Brush.Style := bsSolid;
+end;
+
 procedure DrawPeakMeters(Canvas: TCanvas; const MeterRect: TRect;
   State: PAul2AudioMonitorState);
 var
   BarRect: TRect;
+  BalanceRect: TRect;
   BarTop: Integer;
   BarBottom: Integer;
   BarWidth: Integer;
@@ -361,7 +417,9 @@ begin
   end;
 
   BarTop := MeterRect.Top + 38;
-  BarBottom := MeterRect.Bottom - 18;
+  BarBottom := MeterRect.Bottom - 64;
+  if BarBottom < BarTop + 24 then
+    BarBottom := BarTop + 24;
   BarWidth := Max(6, (MeterRect.Right - MeterRect.Left - 18) div 4);
   Gap := Max(2, (MeterRect.Right - MeterRect.Left - (BarWidth * 4)) div 5);
   X := MeterRect.Left + Gap;
@@ -397,6 +455,12 @@ begin
   Canvas.Brush.Style := bsClear;
   Canvas.Font.Color := RGB(150, 150, 150);
   Canvas.TextOut(BarRect.Left + 1, BarBottom + 2, 'R');
+
+  BalanceRect := Rect(MeterRect.Left + 2, BarBottom + 22, MeterRect.Right - 2,
+    MeterRect.Bottom - 2);
+  DrawStereoBalance(Canvas, BalanceRect,
+    CalcStereoBalance(State^.InputRmsL, State^.InputRmsR),
+    CalcStereoBalance(State^.OutputRmsL, State^.OutputRmsR));
   Canvas.Brush.Style := bsSolid;
 end;
 
