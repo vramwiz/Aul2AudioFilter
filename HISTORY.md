@@ -4,6 +4,15 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-09 Aul2AudioMonitor waveform/spectrum monitor adoption
+
+- `Aul2AudioMonitor.aux2` を `Aul2AudioFilter.auf2` と同時配布する表示用拡張プラグインとして本採用した。
+- `.auf2` 側の共有メモリ出力を常時有効化し、検証用 `ENABLE_AUDIO_MONITOR_SHARED_MEMORY` const と分岐を削除した。
+- `Local\Aul2AudioMonitorState` で時間波形/ピーク、`Local\Aul2AudioMonitorSpectrum` でスペクトラムを渡す構成にした。
+- `Spectrum` を初期表示にし、64 バンド、入力グリーン/出力アンバー、50ms 描画更新とした。自動減衰や `.aux2` 側の未更新推測クリアは行わず、共有メモリ上の現在値をそのまま描画する方針に戻した。
+- `Wave` は 256 点 min/max 包絡線の時間波形として残した。
+- `TPageControl` は避け、Syncroh2 由来の `ToolBarPanelManager` で `Wave` / `Spectrum` を切り替える。
+
 ## Initial verification note
 
 - プラグインテストは正常。

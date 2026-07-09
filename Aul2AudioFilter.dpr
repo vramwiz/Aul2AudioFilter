@@ -29,16 +29,21 @@ uses
   Aul2AudioFilterPluginLimiter in 'Source\Aul2AudioFilterPluginLimiter.pas',
   Aul2AudioFilterPluginChorus in 'Source\Aul2AudioFilterPluginChorus.pas',
   Aul2AudioFilterPluginReverb in 'Source\Aul2AudioFilterPluginReverb.pas',
+  SharedMemoryBase in 'Source\Lib\SharedMemory\SharedMemoryBase.pas',
+  Aul2AudioMonitorShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas',
+  Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
+  Aul2AudioFilterMonitorBridge in 'Source\Aul2AudioFilterMonitorBridge.pas',
   Aul2AudioFilterPlugin in 'Source\Aul2AudioFilterPlugin.pas';
 
 function InitializePlugin(Version: DWORD): Byte; cdecl;
 begin
-  // 現時点では初期化時に確保する共有リソースはない。
+  InitializeFilterPlugin;
   Result := 1;
 end;
 
 procedure UninitializePlugin; cdecl;
 begin
+  FinalizeFilterPlugin;
   // エフェクト状態は各ユニット側で Use OFF や不連続検出時に破棄する。
 end;
 

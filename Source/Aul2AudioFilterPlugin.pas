@@ -28,11 +28,19 @@ uses
   Aul2AudioFilterPluginOutput,
   Aul2AudioFilterPluginLimiter,
   Aul2AudioFilterPluginChorus,
-  Aul2AudioFilterPluginReverb;
+  Aul2AudioFilterPluginReverb,
+  Aul2AudioFilterMonitorBridge;
 
 function GetFilterTable: PFILTER_PLUGIN_TABLE;
+procedure InitializeFilterPlugin;
+procedure FinalizeFilterPlugin;
 
 implementation
+
+procedure InitializeFilterPlugin;
+begin
+  AudioMonitorInitialize;
+end;
 
 function FilterProcAudio(Audio: PFILTER_PROC_AUDIO): Byte; cdecl;
 var
@@ -42,14 +50,24 @@ begin
   Result := 1;
 
   try
+    AudioMonitorSetStage(10, Audio);
+
     // AviUtl2 から無効な処理対象が渡された場合は成功扱いで何もしない。
     if (Audio = nil) or (Audio^.Scene = nil) or (Audio^.Object_ = nil) then
+    begin
+      AudioMonitorSetStage(11, Audio);
       Exit;
+    end;
 
     SampleNum := Audio^.Object_^.SampleNum;
     ChannelNum := Audio^.Object_^.ChannelNum;
     if (SampleNum <= 0) or (ChannelNum <= 0) then
+    begin
+      AudioMonitorSetStage(12, Audio);
       Exit;
+    end;
+
+    AudioMonitorCaptureInput(Audio, SampleNum, ChannelNum);
 
     ProcessDelay(Audio, SampleNum, ChannelNum);
     ProcessEq(Audio, SampleNum, ChannelNum);
@@ -71,7 +89,10 @@ begin
     ProcessReverb(Audio, SampleNum, ChannelNum);
     ProcessOutput(Audio, SampleNum, ChannelNum);
     ProcessLimiter(Audio, SampleNum, ChannelNum);
+
+    AudioMonitorCaptureOutput(Audio, SampleNum, ChannelNum);
   except
+    AudioMonitorSetStage(90, Audio);
     Result := 0;
   end;
 end;
@@ -113,6 +134,11 @@ begin
   end;
 
   Result := @GTable;
+end;
+
+procedure FinalizeFilterPlugin;
+begin
+  AudioMonitorFinalize;
 end;
 
 end.

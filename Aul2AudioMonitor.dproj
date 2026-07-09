@@ -1,15 +1,15 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{1DED55DE-F469-4F64-833B-90B60B765846}</ProjectGuid>
+        <ProjectGuid>{A9D41D42-0CB5-4F3C-B904-36B3F2B5509F}</ProjectGuid>
         <ProjectVersion>20.4</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
-        <ProjectName Condition="'$(ProjectName)'==''">Aul2AudioFilter</ProjectName>
+        <ProjectName Condition="'$(ProjectName)'==''">Aul2AudioMonitor</ProjectName>
         <TargetedPlatforms>2</TargetedPlatforms>
         <AppType>Library</AppType>
-        <MainSource>Aul2AudioFilter.dpr</MainSource>
+        <MainSource>Aul2AudioMonitor.dpr</MainSource>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
         <Base>true</Base>
@@ -56,7 +56,7 @@
         <DCC_F>false</DCC_F>
         <DCC_K>false</DCC_K>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
-        <SanitizedProjectName>Aul2AudioFilter</SanitizedProjectName>
+        <SanitizedProjectName>Aul2AudioMonitor</SanitizedProjectName>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
@@ -69,7 +69,7 @@
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
         <BT_BuildType>Debug</BT_BuildType>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
-        <VerInfo_Keys>CompanyName=;FileDescription=Aul2AudioFilter;FileVersion=0.1.0.0;InternalName=Aul2AudioFilter;LegalCopyright=;LegalTrademarks=;OriginalFilename=Aul2AudioFilter.auf2;ProgramID=com.aul2.audiofilter;ProductName=Aul2AudioFilter;ProductVersion=0.1.0.0;Comments=AviUtl2 audio filter plugin</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=;FileDescription=Aul2AudioMonitor;FileVersion=0.1.0.0;InternalName=Aul2AudioMonitor;LegalCopyright=;LegalTrademarks=;OriginalFilename=Aul2AudioMonitor.aux2;ProgramID=com.aul2.audiomonitor;ProductName=Aul2AudioMonitor;ProductVersion=0.1.0.0;Comments=AviUtl2 audio monitor extension plugin</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
@@ -89,7 +89,7 @@
         <DCC_ExeOutput>C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\</DCC_ExeOutput>
         <PreBuildEvent><![CDATA[if not exist "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter" mkdir "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter"]]></PreBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-        <PostBuildEvent><![CDATA[copy /Y "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll" "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).auf2"]]></PostBuildEvent>
+        <PostBuildEvent><![CDATA[copy /Y "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll" "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).aux2"]]></PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
         <Debugger_HostApplication>D:\aviutl2beta50\aviutl2.exe</Debugger_HostApplication>
     </PropertyGroup>
@@ -106,7 +106,7 @@
         <DCC_ExeOutput>C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\</DCC_ExeOutput>
         <PreBuildEvent><![CDATA[if not exist "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter" mkdir "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter"]]></PreBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-        <PostBuildEvent><![CDATA[copy /Y "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll" "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).auf2"&&if exist "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll" del /Q "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll"&&if exist "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).rsm" del /Q "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).rsm"]]></PostBuildEvent>
+        <PostBuildEvent><![CDATA[copy /Y "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll" "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).aux2"&&if exist "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll" del /Q "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll"&&if exist "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).rsm" del /Q "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).rsm"]]></PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
         <Debugger_HostApplication>D:\aviutl2beta50\aviutl2.exe</Debugger_HostApplication>
     </PropertyGroup>
@@ -114,34 +114,15 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="Source\Lib\Aul2AudioFilterTypes.pas"/>
-        <DCCReference Include="Source\Lib\Aul2AudioFilterGui.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginPreset.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginDelay.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginEq.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginCompressor.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginVoiceDrive.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginDistortion.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginNoise.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginBitCrusher.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginTremble.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginWobble.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginPitch.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginRingMod.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginMuffle.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginWhisper.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginAutoGain.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginNoiseGate.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginGhost.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginOutput.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginLimiter.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginChorus.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPluginReverb.pas"/>
+        <DCCReference Include="Source\Lib\AviUtl2Plugin\AviUtl2PluginTypes.pas"/>
+        <DCCReference Include="Source\Lib\AviUtl2Plugin\AviUtl2PluginCore.pas"/>
         <DCCReference Include="Source\Lib\SharedMemory\SharedMemoryBase.pas"/>
+        <DCCReference Include="Source\Lib\ToolBarPanelManager\ToolBarPanelManager.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterMonitorBridge.pas"/>
-        <DCCReference Include="Source\Aul2AudioFilterPlugin.pas"/>
+        <DCCReference Include="Source\Aul2AudioMonitorPaint.pas"/>
+        <DCCReference Include="Source\Aul2AudioMonitorView.pas"/>
+        <DCCReference Include="Source\Aul2AudioMonitorPlugin.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -160,7 +141,7 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">Aul2AudioFilter.dpr</Source>
+                    <Source Name="MainSource">Aul2AudioMonitor.dpr</Source>
                 </Source>
             </Delphi.Personality>
             <Platforms>
@@ -178,7 +159,7 @@
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>copy /Y &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll&quot; &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).auf2&quot;</PostBuildEvent>
+        <PostBuildEvent>copy /Y &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll&quot; &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).aux2&quot;</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win64'">
@@ -186,7 +167,7 @@
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>copy /Y &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll&quot; &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).auf2&quot;&amp;&amp;if exist &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll&quot; del /Q &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll&quot;&amp;&amp;if exist &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).rsm&quot; del /Q &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).rsm&quot;</PostBuildEvent>
+        <PostBuildEvent>copy /Y &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll&quot; &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).aux2&quot;&amp;&amp;if exist &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll&quot; del /Q &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll&quot;&amp;&amp;if exist &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).rsm&quot; del /Q &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).rsm&quot;</PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
 </Project>
