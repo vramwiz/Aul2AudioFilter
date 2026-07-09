@@ -24,6 +24,7 @@ uses
   Vcl.Controls,
   Vcl.ExtCtrls,
   Vcl.Forms,
+  Vcl.Graphics,
   Vcl.StdCtrls,
   Vcl.ToolWin,
   Aul2AudioMonitorPaint,
@@ -66,6 +67,8 @@ var
   ToolBarManager: TToolBarPanelManager;
   SharedMemory: TAul2AudioMonitorSharedMemory;
   SpectrumMemory: TAul2AudioMonitorSpectrumSharedMemory;
+  LastViewWidth: Integer;
+  LastViewHeight: Integer;
 
 function GetMonitorSharedMemory: TAul2AudioMonitorSharedMemory;
 begin
@@ -97,6 +100,12 @@ procedure ResizeMonitorView(Width, Height: Integer);
 begin
   if (Width <= 0) or (Height <= 0) then
     Exit;
+
+  if (Width = LastViewWidth) and (Height = LastViewHeight) then
+    Exit;
+
+  LastViewWidth := Width;
+  LastViewHeight := Height;
 
   if Assigned(MonitorForm) then
   begin
@@ -134,11 +143,29 @@ end;
 
 procedure InvalidateMonitorView;
 begin
-  if Assigned(WavePaintBox) then
+  if Assigned(WavePaintBox) and WavePaintBox.Visible and PanelWave.Visible then
     WavePaintBox.Invalidate;
 
-  if Assigned(SpectrumPaintBox) then
+  if Assigned(SpectrumPaintBox) and SpectrumPaintBox.Visible and PanelSpectrum.Visible then
     SpectrumPaintBox.Invalidate;
+end;
+
+procedure DrawBuffered(PaintBox: TPaintBox; DrawProc: TProc<TCanvas, TRect>);
+var
+  Buffer: TBitmap;
+begin
+  if (PaintBox.ClientWidth <= 0) or (PaintBox.ClientHeight <= 0) then
+    Exit;
+
+  Buffer := TBitmap.Create;
+  try
+    Buffer.SetSize(PaintBox.ClientWidth, PaintBox.ClientHeight);
+    Buffer.Canvas.Font.Assign(PaintBox.Canvas.Font);
+    DrawProc(Buffer.Canvas, Rect(0, 0, Buffer.Width, Buffer.Height));
+    PaintBox.Canvas.Draw(0, 0, Buffer);
+  finally
+    Buffer.Free;
+  end;
 end;
 
 procedure TMonitorTimerTarget.ReadTimerTick(Sender: TObject);
@@ -163,13 +190,18 @@ begin
     State := nil;
   end;
 
-  DrawAudioMonitorCanvas(PaintBox.Canvas, PaintBox.ClientRect, State);
+  DrawBuffered(PaintBox,
+    procedure(Canvas: TCanvas; Rect: TRect)
+    begin
+      DrawAudioMonitorCanvas(Canvas, Rect, State);
+    end);
 end;
 
 procedure TMonitorTimerTarget.SpectrumPaint(Sender: TObject);
 var
   PaintBox: TPaintBox;
-  State: PAul2AudioMonitorSpectrumState;
+  MonitorState: PAul2AudioMonitorState;
+  SpectrumState: PAul2AudioMonitorSpectrumState;
 begin
   if not (Sender is TPaintBox) then
     Exit;
@@ -177,12 +209,22 @@ begin
   PaintBox := TPaintBox(Sender);
 
   try
-    State := GetSpectrumSharedMemory.State;
+    SpectrumState := GetSpectrumSharedMemory.State;
   except
-    State := nil;
+    SpectrumState := nil;
   end;
 
-  DrawAudioSpectrumCanvas(PaintBox.Canvas, PaintBox.ClientRect, State);
+  try
+    MonitorState := GetMonitorSharedMemory.State;
+  except
+    MonitorState := nil;
+  end;
+
+  DrawBuffered(PaintBox,
+    procedure(Canvas: TCanvas; Rect: TRect)
+    begin
+      DrawAudioSpectrumCanvas(Canvas, Rect, SpectrumState, MonitorState);
+    end);
 end;
 
 procedure CreateMonitorView(ParentWindow: HWND);
@@ -340,6 +382,8 @@ begin
   FreeAndNil(RootPanel);
   FreeAndNil(MonitorForm);
   ClientWindow := 0;
+  LastViewWidth := 0;
+  LastViewHeight := 0;
 end;
 
 end.

@@ -119,7 +119,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioMonitor.aux2
 
 `Aul2AudioMonitor` は AviUtl2 の編集メニューに `Aul2AudioMonitor` を追加し、Wave / Spectrum を切り替えて表示する拡張プラグインとして本採用する。
 フィルター側は `Local\Aul2AudioMonitorState` と `Local\Aul2AudioMonitorSpectrum` へ常時表示用データを書き出す。検証用の `ENABLE_AUDIO_MONITOR_SHARED_MEMORY` const と分岐は削除済み。
-`Aul2AudioMonitor` 側は 50ms タイマーで共有メモリを読み、初期表示は `Spectrum`。数値中心の疎通確認表示はちらつきが大きいため通常表示から外し、描画表示を主にする。
+`Aul2AudioMonitor` 側は 50ms タイマーで共有メモリを読み、初期表示は `Spectrum`。数値中心の疎通確認表示はちらつきが大きいため通常表示から外し、描画表示を主にする。`Spectrum` 右側には小型の縦 Peak Meter を常時表示する。
 
 ## コメントルール
 
@@ -166,7 +166,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioMonitor.aux2
 - 数値ラベルの逐次更新はちらつきやすいため、通常表示では止める方針。
 - 現在は共有メモリに `InputWave` / `OutputWave` を 256 点の `Single` 固定配列として持たせる。
 - フィルター側では音声処理ブロックごとに L/R を読み、ステレオは平均して、各区間の絶対値最大サンプルを符号付きで 256 点へ間引く。
-- モニター側は `TPaintBox` で描画し、入力を落ち着いたグリーン、出力をアンバーで重ねる。高速更新されるため、赤と青/シアンの強い組み合わせは使わない。
+- モニター側は `TPaintBox` で描画し、入力を落ち着いたグリーン、出力をアンバーで重ねる。高速更新されるため、赤と青/シアンの強い組み合わせは使わない。AviUtl2 内表示では `TCustomControl` 化で点滅が悪化したため、現状は `TPaintBox` 構成を維持する。
 - 周波数表示は未実装。まず時間波形の安定表示を確認してから、RMS、簡易 FFT、ピークホールドなどを追加検討する。
 - 現在の時間波形表示は横軸が時間、縦軸が振幅のオシロスコープ的な表示。これは表示モードの 1 つとして残す価値がある。
 - 本命として欲しい表示は、横軸が周波数、縦軸が強さのスペクトラム/FFT 表示と思われる。EQ、Muffle、VoiceDrive、Noise などの効果確認には周波数表示の方が適している。
@@ -180,6 +180,8 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioMonitor.aux2
 - Syncroh2 の `Lib\ToolBarPanelManager\ToolBarPanelManager.pas` を `Source\Lib\ToolBarPanelManager` へコピーして利用する。`TToolBar` のボタンと複数 `TPanel` の表示/非表示で、Wave / Spectrum などの表示モードを切り替える。
 - 現在の `Aul2AudioMonitorView.pas` は `ToolBarPanelManager` で `Wave` と `Spectrum` パネルを切り替える構成。`Spectrum` は 64 バンドの周波数表示として実装済み。
 - スペクトラム検証中は初期表示を `Spectrum` にする。描画更新タイマーは 50ms。
+- `Spectrum` 右側には `Local\Aul2AudioMonitorState` の `InputPeakL/R` と `OutputPeakL/R` を使う小型の縦 Peak Meter を表示する。面積を取りすぎないよう右端に寄せ、Input L/R と Output L/R の細い縦バー、1.0 位置のクリップ目安線を描く。
+- Peak Meter は `Stage` による `wait` 表示切り替えで点滅しやすかったため、直近ピークを保持して減衰表示する。`TBitmap` へ描いてから `TPaintBox` へ転送し、非表示パネルは Invalidate しない。サイズが変わらない 50ms 更新では `SetBounds` / `Realign` しない。
 - 音声処理が止まると `.auf2` は最後のスペクトラム値を書いたまま更新機会を失うため、`.aux2` 側で `Generation` 更新を監視する。
 - `Spectrum` は自動減衰も描画側の stale 判定による 0 クリアも行わない。`.aux2` は共有メモリ上の現在値をそのまま描画する。`Generation` が止まっただけでは、音声処理更新周期や停止中のプレビュー状態を正しく判定できず、データがあるのに消えるため。
 - 高速更新されるメーター/スペクトラムで赤と青/シアンの強い組み合わせは禁止。一般的な DTM アプリ寄りに、入力は落ち着いたグリーン、出力はアンバー/イエロー系を使う。
@@ -190,7 +192,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioMonitor.aux2
 - 表示モード候補:
   - `Waveform / Oscilloscope`: 横軸が時間、縦軸が振幅。現在実装済み。歪み、クリップ、ディレイ、トレモロなどの確認向け。
   - `Spectrum Analyzer`: 横軸が周波数、縦軸が強さ。EQ、こもり、ノイズ、低域/高域の量を見る本命。
-  - `Level / Peak Meter`: L/R のピーク、ピークホールド、クリップ確認向け。
+  - `Level / Peak Meter`: L/R のピーク、ピークホールド、クリップ確認向け。現在は `Spectrum` 右側の小型縦メーターとして実装済み。
   - `RMS / Loudness Meter`: 瞬間ピークではなく体感音量寄りの確認向け。LUFS は実装が重めなので後回し。
   - `Pan / Stereo Balance`: L/R バランス、パン位置、中央定位の確認向け。
   - `Correlation Meter`: ステレオ位相相関。モノラル化で消えやすい音や逆相気味の音の確認向け。
@@ -198,11 +200,10 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioMonitor.aux2
   - `Spectrogram`: 横軸が時間、縦軸が周波数、色が強さ。声やノイズの時間変化に強いが、データ量と描画負荷が大きい。
 - 優先度:
   1. `Spectrum Analyzer`
-  2. `Level / Peak Meter`
-  3. `Pan / Stereo Balance`
-  4. `Correlation Meter`
-  5. `Vectorscope / Goniometer`
-  6. `Spectrogram` / `LUFS`
+  2. `Pan / Stereo Balance`
+  3. `Correlation Meter`
+  4. `Vectorscope / Goniometer`
+  5. `Spectrogram` / `LUFS`
 - 共有メモリは基本状態/時間波形用の `Local\Aul2AudioMonitorState` と、スペクトラム専用の `Local\Aul2AudioMonitorSpectrum` に分ける。
 - スペクトラムがメイン表示になり、追加表示や履歴データが増える可能性が高いため、最初からスペクトラムだけ別共有メモリにする。
 - `Local\Aul2AudioMonitorState` は `Header`, `Wave`, `Meter`, `Stereo` などの軽量状態を持つ。
@@ -225,37 +226,32 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioMonitor.aux2
 - `.aux2` 側は共有メモリを読むだけにし、音声処理や解析ロジックは持たない。描画/UI と AviUtl2 メニュー登録を担当する。
 - 共有メモリ出力は常時有効。以前の検証用 `ENABLE_AUDIO_MONITOR_SHARED_MEMORY` const と `if` 分岐は削除し、通常機能として扱う。
 - 初期表示は `Spectrum`。横軸は周波数、縦軸は強さ、64 バンド。`.aux2` は共有メモリ値を忠実に表示する。データなしを 0 にする必要がある場合は、描画側ではなく `.auf2` 側が 0 の表示データを書き込む方針にする。
+- `Spectrum` 右側には入力/出力の L/R Peak Meter を縦バーで小さく表示する。表示は直近ピークの減衰方式で、頻繁な `wait` 切り替えによる点滅を避ける。
 - `Wave` は時間軸波形として残す。横軸が時間、縦軸が振幅で、256 点の min/max 包絡線を描画する。
 - 配色は DTM アプリ寄りの落ち着いた見た目を優先し、入力をグリーン、出力をアンバーとする。
 
 ## Aul2AudioMonitor 次段階の課題優先順位
 
-1. `Level / Peak Meter`
-   - Spectrum は音質変化を見る表示、Peak Meter は音量変化を見る表示として役割が分かれる。
-   - 入力/出力のピーク、L/R ピーク、クリップ寸前、Limiter の効き具合を確認できるようにする。
-   - 既に `Local\Aul2AudioMonitorState` に入力/出力ピークがあるため、追加実装の負荷が低い。
-   - まずは Spectrum の下または右端に小さく置き、数値ラベル中心ではなくバー表示中心にする。
-
-2. `Spectrum` の視認性改善
+1. `Spectrum` の視認性改善
    - 周波数目盛り、低域/中域/高域の薄い区切り、主要帯域の補助線を追加する。
    - エフェクト確認が目的なので、ピークホールドや残像表示は慎重に扱う。必要になってから任意表示として検討する。
    - 現状の入力グリーン/出力アンバーは採用継続。
 
-3. `Pan / Stereo Balance`
+2. `Pan / Stereo Balance`
    - L/R バランス、中央定位、片寄りを確認できるようにする。
    - ボイス系、Chorus、Ping-Pong Delay、Reverb など空間系エフェクトの確認に向く。
    - `Local\Aul2AudioMonitorState` 側へ L/R RMS または L/R Peak の集計値を追加して描画する方針。
 
-4. `Correlation Meter`
+3. `Correlation Meter`
    - ステレオ位相相関を表示し、逆相気味の音やモノラル化で消えやすい音を確認する。
    - 実用性は高いが、Peak/Pan より後でよい。
    - L/R サンプルの相関を `.auf2` 側で軽量集計し、`.aux2` 側はメーターとして描画する。
 
-5. `Vectorscope / Goniometer`
+4. `Vectorscope / Goniometer`
    - L/R を XY 表示し、ステレオ幅や中央定位を直感的に見る表示。
    - 見た目は有用だが描画負荷と UI 面積を使うため、Correlation Meter の後に検討する。
 
-6. `.auf2` 側の明示的 0 クリア設計
+5. `.auf2` 側の明示的 0 クリア設計
    - `.aux2` は共有メモリ値を忠実に表示し、データなしを推測しない。
    - 停止時や対象音声がない時に 0 表示が必要なら、`.auf2` 側が安全なタイミングで 0 の表示データを書き込む。
    - AviUtl2 の音声処理コールバックが止まる場面では `.auf2` 側も発火しない可能性があるため、必要性が見えてから検討する。

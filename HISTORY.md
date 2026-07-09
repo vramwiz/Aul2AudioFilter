@@ -404,3 +404,14 @@
 - `水中`: `Muffle: Cutoff = 850`, `Muffle: Amount = 0.95`, `Wob: Mix = 0.55`, `Cho: Mix = 0.35`, `Rev: Wet = 0.25`, `Out: Gain(dB) = 14`
 - `壁越し`: `Muffle: Cutoff = 650`, `EQ: 120-1800Hz`, `Rev: Wet = 0.12`, `Out: Gain(dB) = 6`
 - `夢/回想`: `Wob: Depth = 24`, `Wob: Mix = 0.62`, `Cho: Mix = 0.58`, `Ghost: Wet = 0.42`, `Rev: RoomSize = 0.72`, `Rev: Wet = 0.48`, `Out: Gain(dB) = 6`
+
+## Aul2AudioMonitor Peak Meter note
+
+- 優先順位 1 の `Level / Peak Meter` として、`Spectrum` 画面右側に小型の縦 Peak Meter を追加した。
+- 既存の `Local\Aul2AudioMonitorState` にある `InputPeakL/R` と `OutputPeakL/R` を利用し、`.auf2` 側の共有メモリ構造は変更しない。
+- 表示は入力をグリーン、出力をアンバーにし、Input L/R と Output L/R の細い縦バーと 1.0 位置のクリップ目安線を出す。
+- 実装直後は横方向バーで場所を取りすぎたため、右側の小型縦バー表示へ変更した。
+- 右側縦表示へ変更後、50ms 更新時の点滅を抑えるため、`TPaintBox` へ直接描かず一度 `TBitmap` に描画してから転送する方式に変更した。併せて非表示パネルは Invalidate しないようにした。
+- `TCustomControl` 化は AviUtl2 内表示でかえって点滅が悪化したため採用しない。Spectrum 表示と同じ `TPaintBox` 構成に戻し、Peak Meter 側は `Stage` による `wait` 表示切り替えを避け、直近ピークを減衰表示する方式にした。
+- サイズが変わらない 50ms 更新では `SetBounds` / `Realign` しないようにした。
+- `Aul2AudioMonitor.dproj` の Debug Win64 ビルドが警告なしで成功し、`Aul2AudioMonitor.aux2` へのコピーまで完了することを確認した。

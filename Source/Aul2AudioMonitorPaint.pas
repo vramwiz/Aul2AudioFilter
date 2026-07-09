@@ -15,7 +15,7 @@ procedure DrawAudioMonitorCanvas(Canvas: TCanvas; const ClientRect: TRect;
 procedure DrawAudioMonitorPlaceholder(Canvas: TCanvas; const ClientRect: TRect;
   const Text: string);
 procedure DrawAudioSpectrumCanvas(Canvas: TCanvas; const ClientRect: TRect;
-  State: PAul2AudioMonitorSpectrumState);
+  SpectrumState: PAul2AudioMonitorSpectrumState; MonitorState: PAul2AudioMonitorState);
 
 implementation
 
@@ -23,6 +23,37 @@ uses
   System.Math,
   System.SysUtils,
   System.Types;
+
+var
+  DisplayPeakInputL : Single;
+  DisplayPeakInputR : Single;
+  DisplayPeakOutputL: Single;
+  DisplayPeakOutputR: Single;
+  DisplayPeakValid  : Boolean;
+
+procedure UpdateDisplayPeaks(State: PAul2AudioMonitorState);
+const
+  PEAK_DECAY = 0.84;
+begin
+  if (State <> nil) and (State^.Magic = AUDIO_MONITOR_SHARED_MAGIC) and
+     (State^.Version = AUDIO_MONITOR_SHARED_VERSION) then
+  begin
+    DisplayPeakInputL := Max(State^.InputPeakL, DisplayPeakInputL * PEAK_DECAY);
+    DisplayPeakInputR := Max(State^.InputPeakR, DisplayPeakInputR * PEAK_DECAY);
+    DisplayPeakOutputL := Max(State^.OutputPeakL, DisplayPeakOutputL * PEAK_DECAY);
+    DisplayPeakOutputR := Max(State^.OutputPeakR, DisplayPeakOutputR * PEAK_DECAY);
+    DisplayPeakValid := True;
+    Exit;
+  end;
+
+  if DisplayPeakValid then
+  begin
+    DisplayPeakInputL := DisplayPeakInputL * PEAK_DECAY;
+    DisplayPeakInputR := DisplayPeakInputR * PEAK_DECAY;
+    DisplayPeakOutputL := DisplayPeakOutputL * PEAK_DECAY;
+    DisplayPeakOutputR := DisplayPeakOutputR * PEAK_DECAY;
+  end;
+end;
 
 procedure DrawWaveEnvelope(Canvas: TCanvas; const PlotRect: TRect;
   const WaveMin, WaveMax: TAudioMonitorWaveData; Color: TColor);
@@ -184,10 +215,106 @@ begin
   Canvas.TextOut(X + 112, Y, 'Output');
 end;
 
+procedure DrawVerticalPeakBar(Canvas: TCanvas; const TrackRect: TRect; Peak: Single;
+  Color: TColor);
+var
+  FillRect: TRect;
+  ClipY: Integer;
+begin
+  Peak := Min(1.25, Max(0.0, Peak));
+
+  Canvas.Pen.Color := RGB(68, 68, 68);
+  Canvas.Brush.Color := RGB(44, 44, 44);
+  Canvas.Rectangle(TrackRect);
+
+  FillRect := TrackRect;
+  InflateRect(FillRect, -1, -1);
+  FillRect.Top := FillRect.Bottom - Round((FillRect.Bottom - FillRect.Top) *
+    Min(1.0, Peak));
+  Canvas.Brush.Color := Color;
+  Canvas.Pen.Color := Color;
+  Canvas.FillRect(FillRect);
+
+  ClipY := TrackRect.Bottom - MulDiv(100, TrackRect.Bottom - TrackRect.Top, 125);
+  Canvas.Pen.Color := RGB(210, 92, 76);
+  Canvas.MoveTo(TrackRect.Left, ClipY);
+  Canvas.LineTo(TrackRect.Right, ClipY);
+end;
+
+procedure DrawPeakMeters(Canvas: TCanvas; const MeterRect: TRect;
+  State: PAul2AudioMonitorState);
+var
+  BarRect: TRect;
+  BarTop: Integer;
+  BarBottom: Integer;
+  BarWidth: Integer;
+  Gap: Integer;
+  X: Integer;
+begin
+  if (MeterRect.Right <= MeterRect.Left) or (MeterRect.Bottom <= MeterRect.Top) then
+    Exit;
+
+  UpdateDisplayPeaks(State);
+
+  Canvas.Pen.Color := RGB(56, 56, 56);
+  Canvas.Brush.Style := bsClear;
+  Canvas.Rectangle(MeterRect);
+
+  Canvas.Font.Color := RGB(220, 220, 220);
+  Canvas.TextOut(MeterRect.Left + 2, MeterRect.Top, 'Peak');
+
+  if not DisplayPeakValid then
+  begin
+    Canvas.Font.Color := RGB(150, 150, 150);
+    Canvas.TextOut(MeterRect.Left + 2, MeterRect.Top + 18, 'wait');
+    Exit;
+  end;
+
+  BarTop := MeterRect.Top + 38;
+  BarBottom := MeterRect.Bottom - 18;
+  BarWidth := Max(6, (MeterRect.Right - MeterRect.Left - 18) div 4);
+  Gap := Max(2, (MeterRect.Right - MeterRect.Left - (BarWidth * 4)) div 5);
+  X := MeterRect.Left + Gap;
+
+  Canvas.Font.Color := RGB(92, 190, 122);
+  Canvas.TextOut(MeterRect.Left + 2, MeterRect.Top + 18, 'In');
+  Canvas.Font.Color := RGB(224, 176, 72);
+  Canvas.TextOut(MeterRect.Left + 32, MeterRect.Top + 18, 'Out');
+
+  BarRect := Rect(X, BarTop, X + BarWidth, BarBottom);
+  DrawVerticalPeakBar(Canvas, BarRect, DisplayPeakInputL, RGB(92, 190, 122));
+  Canvas.Brush.Style := bsClear;
+  Canvas.Font.Color := RGB(150, 150, 150);
+  Canvas.TextOut(BarRect.Left + 1, BarBottom + 2, 'L');
+  Inc(X, BarWidth + Gap);
+
+  BarRect := Rect(X, BarTop, X + BarWidth, BarBottom);
+  DrawVerticalPeakBar(Canvas, BarRect, DisplayPeakInputR, RGB(92, 190, 122));
+  Canvas.Brush.Style := bsClear;
+  Canvas.Font.Color := RGB(150, 150, 150);
+  Canvas.TextOut(BarRect.Left + 1, BarBottom + 2, 'R');
+  Inc(X, BarWidth + Gap);
+
+  BarRect := Rect(X, BarTop, X + BarWidth, BarBottom);
+  DrawVerticalPeakBar(Canvas, BarRect, DisplayPeakOutputL, RGB(224, 176, 72));
+  Canvas.Brush.Style := bsClear;
+  Canvas.Font.Color := RGB(150, 150, 150);
+  Canvas.TextOut(BarRect.Left + 1, BarBottom + 2, 'L');
+  Inc(X, BarWidth + Gap);
+
+  BarRect := Rect(X, BarTop, X + BarWidth, BarBottom);
+  DrawVerticalPeakBar(Canvas, BarRect, DisplayPeakOutputR, RGB(224, 176, 72));
+  Canvas.Brush.Style := bsClear;
+  Canvas.Font.Color := RGB(150, 150, 150);
+  Canvas.TextOut(BarRect.Left + 1, BarBottom + 2, 'R');
+  Canvas.Brush.Style := bsSolid;
+end;
+
 procedure DrawAudioSpectrumCanvas(Canvas: TCanvas; const ClientRect: TRect;
-  State: PAul2AudioMonitorSpectrumState);
+  SpectrumState: PAul2AudioMonitorSpectrumState; MonitorState: PAul2AudioMonitorState);
 var
   PlotRect: TRect;
+  MeterRect: TRect;
   CaptionText: string;
   Grid: Integer;
   Y: Integer;
@@ -199,6 +326,9 @@ begin
   PlotRect := ClientRect;
   InflateRect(PlotRect, -12, -12);
   PlotRect.Top := PlotRect.Top + 22;
+  MeterRect := PlotRect;
+  MeterRect.Left := Max(PlotRect.Left + 60, PlotRect.Right - 72);
+  PlotRect.Right := MeterRect.Left - 12;
 
   Canvas.Font.Name := 'Segoe UI';
   Canvas.Font.Size := 9;
@@ -206,16 +336,17 @@ begin
   Canvas.Brush.Style := bsClear;
 
   try
-    if (State = nil) or (State^.Magic <> AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) or
-       (State^.Version <> AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) then
+    if (SpectrumState = nil) or (SpectrumState^.Magic <> AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) or
+       (SpectrumState^.Version <> AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) then
     begin
       Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8,
         'Spectrum - waiting audio data');
+      DrawPeakMeters(Canvas, MeterRect, MonitorState);
       Exit;
     end;
 
     CaptionText := Format('Spectrum  %d Hz  %d bands',
-      [State^.SampleRate, State^.BandCount]);
+      [SpectrumState^.SampleRate, SpectrumState^.BandCount]);
     Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8, CaptionText);
 
     Canvas.Pen.Color := RGB(56, 56, 56);
@@ -235,12 +366,13 @@ begin
 
     BarWidth := Max(1, (PlotRect.Right - PlotRect.Left) div
       (AUDIO_MONITOR_SPECTRUM_BAND_COUNT * 3));
-    DrawSpectrumBars(Canvas, PlotRect, State^.InputBands, RGB(92, 190, 122),
+    DrawSpectrumBars(Canvas, PlotRect, SpectrumState^.InputBands, RGB(92, 190, 122),
       -BarWidth, BarWidth);
-    DrawSpectrumBars(Canvas, PlotRect, State^.OutputBands, RGB(224, 176, 72),
+    DrawSpectrumBars(Canvas, PlotRect, SpectrumState^.OutputBands, RGB(224, 176, 72),
       1, BarWidth);
 
     DrawLegend(Canvas, ClientRect.Left + 12, ClientRect.Top + 26);
+    DrawPeakMeters(Canvas, MeterRect, MonitorState);
   except
     Canvas.Font.Color := RGB(220, 220, 220);
     Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8,
