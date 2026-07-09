@@ -177,6 +177,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioMonitor.aux2
 
 ## Aul2AudioMonitor 波形表示メモ
 
+- 緊急課題: Monitor / View の表示データ対応がまだ正しくない。現象として、エフェクターをかけていない場所で Monitor に波形/スペクトラムが表示され、実際にエフェクターがかかっている場所では表示されないことがある。`UpdateTick` と `FrameS` / `FrameE` による古いデータ抑制・範囲判定を入れたが、2026-07-10 時点で改善していない。次回は AviUtl2 から渡る `Object_.Frame` / `FrameS` / `FrameE` / `SampleIndex` が絶対値か相対値か、音声フィルターと View フィルターで同じ基準かを実測ログで確認する。共有メモリ側には、デバッグ用に `SourceFrame` / `SourceFrameS` / `SourceFrameE` / `SampleIndex` / `Layer` / `Index` を画面表示または一時ログ出力する必要がある。
 - `.auf2` から `.aux2` への基本連携は共有メモリ `Local\Aul2AudioMonitorState` で成立済み。
 - `Stage: 3`、`Generation` 増加、`SampleRate` / `SampleNum` / `ChannelNum` / `SampleIndex`、入力/出力ピークの更新まで確認済み。
 - 数値ラベルの逐次更新はちらつきやすいため、通常表示では止める方針。
