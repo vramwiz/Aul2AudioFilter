@@ -21,6 +21,21 @@
 - Release Win64 ビルドが警告なしで成功し、`C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2` へのコピーまで確認した。
 - `Aul2AudioBaseAlias.pas` のエイリアス生成に `[0.2] effect.name=Aul2Audio View` を追加し、`Aul2AudioBaseInput` 上に表示用フィルターを自動で載せる構成にした。
 - `Aul2AudioMonitor.dproj` の Release Win64 ビルドが警告なしで成功し、更新済み `Aul2AudioMonitor.aux2` へのコピーまで確認した。
+- `Syncroh2_Filter_PSDDraw.dpr` / `PluginFilterPSDDrawOut.pas` を参考に、`Aul2AudioViewRender.pas` と `AviUtl2GpuTextureOut.pas` を追加した。
+- PSDDraw 側の GPU texture 出力は実験フラグ `GPU_TEXTURE_OUT_STAGE1 = False` で無効化されていたため、`Aul2AudioView` も同じく GPU 経路を持つが初期状態は `SetImageData` 出力にした。
+- `Aul2AudioView` の初期描画として、`Video^.Object_^.Width` / `Height` のサイズでチェック背景と枠線を描画するようにした。
+- `Aul2AudioView.dproj` と `Aul2AudioFilter.dproj` の Release Win64 ビルドが警告なしで成功した。
+- `Aul2AudioViewRender.pas` は入口と出力に寄せ、表示タイプごとの描画を別ユニットへ分ける方針にした。
+- 最初の表示タイプとして `Aul2AudioViewRenderEqualizer.pas` を追加し、固定パターンの `Equalizer Bars` を描画するようにした。
+- AviUtl2 上の GUI 項目として `View: Type` select を追加した。現時点では未実装タイプを出さず、選択肢は `Equalizer Bars` のみ。
+- `Aul2AudioView.dproj` の Release Win64 ビルドが警告なしで成功し、更新済み `Aul2AudioView.auf2` へのコピーまで確認した。
+- `Equalizer Bars` を固定サンプル表示から、`Local\Aul2AudioMonitorSpectrum` の `OutputBands` を読む実データ表示へ変更した。
+- MV 用途に寄せるため、モニター側の凡例、枠、グリッド、ピークメーター、文字表示は持ち込まず、透明背景に白いバーだけを描画する。
+- `Aul2AudioView.dproj` の Release Win64 ビルドが警告なしで成功し、更新済み `Aul2AudioView.auf2` へのコピーまで確認した。
+- `Syncroh2` の `PluginFilterTable.pas` にある select list 構築方式を参考に、`Aul2AudioFilterGui.pas` へ `ClearSelectList` / `AddSelectList` を追加した。
+- `View: Type` を設定値の先頭項目とし、`Equalizer Bars` / `Wave Line` / `Pixel Wave` / `Filled Spectrum` / `Pulse Wave` の 5 パターンをリストへ用意した。
+- 未実装の表示タイプは、実装が入るまで `Equalizer Bars` へフォールバックする。
+- `Aul2AudioView.dproj` の Release Win64 ビルドが警告なしで成功し、更新済み `Aul2AudioView.auf2` へのコピーまで確認した。
 
 ## Initial verification note
 

@@ -20,6 +20,9 @@ procedure AddSelect(var Item: TFILTER_ITEM_SELECT; Name: PWideChar; Value: Integ
   List: Pointer);
 procedure AddButton(var Item: TFILTER_ITEM_BUTTON; Name: PWideChar;
   Callback: TFilterItemButtonCallback);
+procedure ClearSelectList;
+procedure AddSelectList(var List: array of TFILTER_ITEM_SELECT_ITEM; Name: PWideChar;
+  Value: Integer);
 
 var
   GTable: TFILTER_PLUGIN_TABLE; // AviUtl2 へ返すフィルターテーブル
@@ -32,6 +35,7 @@ const
 var
   FItemIndex: Integer;                              // 次に登録する Items の位置
   Items     : array[0..MAX_GUI_ITEMS - 1] of Pointer; // nil 終端の GUI 項目配列
+  FSelectIndex: Integer;                            // 次に登録する select list の位置
 
 procedure AddItem(Item: Pointer);
 begin
@@ -103,6 +107,26 @@ begin
   Item.Name := Name;
   Item.Value := Value;
   Item.List := List;
+end;
+
+procedure ClearSelectList;
+begin
+  FSelectIndex := 0;
+end;
+
+procedure AddSelectList(var List: array of TFILTER_ITEM_SELECT_ITEM; Name: PWideChar;
+  Value: Integer);
+begin
+  // 最後の 1 要素は nil 終端用に空けておく。
+  if FSelectIndex >= High(List) then
+    raise ERangeError.Create('Too many select list items');
+
+  List[FSelectIndex].Name := Name;
+  List[FSelectIndex].Value := Value;
+  Inc(FSelectIndex);
+
+  List[FSelectIndex].Name := nil;
+  List[FSelectIndex].Value := 0;
 end;
 
 procedure AddButton(var Item: TFILTER_ITEM_BUTTON; Name: PWideChar;

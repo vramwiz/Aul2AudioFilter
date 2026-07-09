@@ -8,6 +8,11 @@ uses
   Winapi.Windows,
   Aul2AudioFilterTypes in 'Source\Lib\Aul2AudioFilterTypes.pas',
   Aul2AudioFilterGui in 'Source\Lib\Aul2AudioFilterGui.pas',
+  SharedMemoryBase in 'Source\Lib\SharedMemory\SharedMemoryBase.pas',
+  Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
+  AviUtl2GpuTextureOut in 'Source\Lib\AviUtl2GpuTextureOut.pas',
+  Aul2AudioViewRenderEqualizer in 'Source\Aul2AudioViewRenderEqualizer.pas',
+  Aul2AudioViewRender in 'Source\Aul2AudioViewRender.pas',
   Aul2AudioViewPlugin in 'Source\Aul2AudioViewPlugin.pas';
 
 function InitializePlugin(Version: DWORD): Byte; cdecl;

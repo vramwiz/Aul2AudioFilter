@@ -49,6 +49,9 @@
 - `Source\Aul2AudioBaseCreate.pas`: `CreateObjectFromAlias` による選択レイヤーへの直接配置。
 - `Source\Aul2AudioBaseInputPlugin.pas`: `.aul2base` 入力プラグイン本体。ファイル名内の `Width_Height_MaxSec_Rate_Scale` から動画情報を作る。
 - `Source\Aul2AudioViewPlugin.pas`: `Aul2AudioView` のフィルターテーブル登録。表示名は `Aul2Audio View`、グループは `Video Effects`。現時点の映像処理は成功を返すだけ。
+- `Source\Aul2AudioViewRender.pas`: `Aul2AudioView` の映像描画と AviUtl2 への出力を担当する。初期確認用にチェック背景と枠線を描く。
+- `Source\Aul2AudioViewRenderEqualizer.pas`: `Equalizer Bars` 表示タイプの描画を担当する。固定パターンの縦バーで描画疎通を確認する。
+- `Source\Lib\AviUtl2GpuTextureOut.pas`: Syncroh2 の PSDDraw と同じ考え方の任意 GPU texture 出力ヘルパー。初期状態では無効化し、通常は `SetImageData` で出力する。
 - `Source\Aul2AudioFilterPlugin.pas`: AviUtl2 へ公開するフィルター入口、各エフェクトユニットの接続。
 - `Source\Aul2AudioFilterMonitorBridge.pas`: フィルター側から共有メモリへ入力/出力ピークなどの軽量解析値を書き出す入口。
 - `Source\Aul2AudioFilterPluginPreset.pas`: `プリセット` GUI 項目、詳細エフェクト設定への反映処理。
@@ -248,6 +251,39 @@ Base ページの現在レイアウト:
 - `Base alias` ラベルと `Layer` ラベルは不要として非表示。
 - 縦方向は小さく使う予定。横方向には余裕がある前提で配置する。
 
+## Aul2AudioView 描画方針
+
+- `Syncroh2_Filter_PSDDraw.dpr` / `PluginFilterPSDDrawOut.pas` を参考にする。
+- AviUtl2 への出力は、まず安定している `Video^.SetImageData(Buffer, Width, Height)` を使う。
+- PSDDraw と同じく GPU texture 出力ヘルパーは持たせるが、初期状態では `GPU_TEXTURE_OUT_STAGE1 = False` として無効化する。
+- GPU 出力を試す場合は `Aul2AudioViewRender.pas` の `GPU_TEXTURE_OUT_STAGE1` を `True` にし、`GetFramebufferTexture2D` の有無、サイズ一致、フォーマット、AviUtl2 上の安定性を確認してから採用判断する。
+- 描画サイズは `Video^.Object_^.Width` / `Height` を使う。まずは `Aul2AudioBaseInput` 由来のサイズがここへ入るかを検証する。
+- 現時点の描画は、疎通確認用のチェック背景と緑の枠線。実際の表示内容が決まったら専用レンダーへ差し替える。
+- `Aul2AudioView` は `Aul2AudioMonitor` と異なり、編集補助のモニターではなく MV 用の表示素材を生成するフィルターとして設計する。
+- 主用途はイコライザー風、スペクトラム風、波形風などの音に反応する見た目の生成。画面上に数値や説明文字を出す用途は基本にしない。
+- 表示種類は GUI の `select` 項目で選び、選択した種類に応じて描画する波形/バー/リングなどを切り替える構成を基本にする。
+- 文字ラベルや細かい UI 説明は原則描かない。必要になった場合も MV 素材として邪魔にならない控えめな装飾に留める。
+- 描画が細かくなり、CPU バッファ生成と `SetImageData` 出力では負荷や転送量が問題になる場合は GPU texture 出力を本格検討する。
+- 初期実装では CPU 出力で正しさと AviUtl2 上の安定性を優先し、GPU 化は表現量や負荷の問題が見えた段階で切り替え候補にする。
+- 基本表示パターンは次の 5 種類を土台にする。
+  - `Wave Line`: なめらかな連続線の時間波形。オシロスコープ風の表示。
+  - `Pixel Wave`: 階段状またはピクセル状の時間波形。レトロ/デジタル寄りの表示。
+  - `Equalizer Bars`: 周波数帯ごとの縦棒スペクトラム。MV 用途の定番イコライザー表示。
+  - `Filled Spectrum`: 周波数分布を塗りつぶし面で描くスペクトラム表示。
+  - `Pulse Wave`: 中心線を基準に上下対称の縦線で振幅を出すパルス/ボイス波形表示。
+- 1/2/5 は時間波形系、3/4 は周波数スペクトラム系として扱う。
+- この 5 パターンを単に再現するだけではなく、色、反応の滑らかさ、残像、左右対称、丸形配置、粒子化、発光、分割数、線幅などの `+α` を持たせることで `Aul2AudioView` の存在価値を作る。
+- 初期 UI は基本パターンを `select` で選び、追加表現は必要に応じて少数の共通パラメーターと種類別パラメーターへ分ける方針にする。
+- 設定値の先頭は必ず表示種類 `View: Type` にする。後続の共通パラメーターや種類別パラメーターを追加しても、種類選択が最上段に来る構成を維持する。
+- 描画入口の `Aul2AudioViewRender.pas` は肥大化させず、バッファ確保、出力、表示タイプごとの振り分けだけを担当する。
+- 表示タイプごとの描画は `Aul2AudioViewRenderXxx.pas` へ分ける。最初の実装は `Aul2AudioViewRenderEqualizer.pas` の `Equalizer Bars`。
+- `Syncroh2` の `PluginFilterTable.pas` と同じ考え方で、select 候補は `ClearSelectList` / `AddSelectList` で構築する。ライブラリ全体はコピーせず、必要な select list 補助だけ `Aul2AudioFilterGui.pas` へ取り込んだ。
+- 現時点の `View: Type` は `Equalizer Bars` / `Wave Line` / `Pixel Wave` / `Filled Spectrum` / `Pulse Wave` の 5 パターンを用意する。
+- 未実装の表示タイプを選んだ場合は、実装が入るまで `Equalizer Bars` へフォールバックする。
+- `Equalizer Bars` は `Local\Aul2AudioMonitorSpectrum` の `OutputBands` を読み、モニターと同じ攻撃速め/減衰ゆっくりのスムージングをかけて白い縦バーとして描く。
+- `Aul2AudioView` は MV 用素材なので、モニター側にある凡例、枠、グリッド、ピークメーター、文字表示は描かない。
+- 音声データがまだ共有メモリへ来ていない場合は透明背景のままにし、説明文字や `wait` 表示は出さない。
+
 次に再開する場合の確認候補:
 
 - AviUtl2 を閉じた状態で `Aul2AudioMonitor.dproj` Release を再ビルドし、最新 `.aux2` を確実に反映する。AviUtl2 起動中は `.aux2` がロックされ、PostBuild のコピーだけ失敗する。
@@ -255,6 +291,7 @@ Base ページの現在レイアウト:
 - 作成された `.aul2base` オブジェクトが、今後追加する表示/描画フィルター側から期待通りの width/height として取得できるか検証する。
 - 表示/描画用フィルタープラグインプロジェクトとして `Aul2AudioView` を追加済み。次は `Aul2AudioBaseInput` 上でオブジェクトの width/height を取得できるか確認する。
 - Base ページのボタン生成と D&D 生成で、作成されたオブジェクトに `Aul2Audio View` フィルターが自動追加されるか確認する。
+- `Aul2AudioView` が `Aul2AudioBaseInput` の width/height でチェック背景と枠線を描けるか確認する。
 
 ## 2026-07-09 Aul2AudioMonitor 本採用メモ
 

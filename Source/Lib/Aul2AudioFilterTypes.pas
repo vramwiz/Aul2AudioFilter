@@ -121,7 +121,23 @@ type
     VolL, VolR: Single;
   end;
 
-  PFILTER_PROC_VIDEO = Pointer;
+  TPIXEL_RGBA = packed record
+    R, G, B, A: Byte;
+  end;
+  PPIXEL_RGBA = ^TPIXEL_RGBA;
+
+  PID3D11Texture2D = Pointer;
+  TFilterProcVideoGetTex2D = function: PID3D11Texture2D; cdecl;
+
+  PFILTER_PROC_VIDEO = ^TFILTER_PROC_VIDEO;
+  TFILTER_PROC_VIDEO = record
+    Scene: PSCENE_INFO;
+    Object_: POBJECT_INFO;
+    GetImageData: procedure(Buffer: PPIXEL_RGBA); cdecl;
+    SetImageData: procedure(Buffer: PPIXEL_RGBA; Width, Height: Integer); cdecl;
+    GetImageTexture2D: TFilterProcVideoGetTex2D;
+    GetFramebufferTexture2D: TFilterProcVideoGetTex2D;
+  end;
 
   // 音声フィルター処理時に AviUtl2 から渡される入出力 API。
   PFILTER_PROC_AUDIO = ^TFILTER_PROC_AUDIO;
