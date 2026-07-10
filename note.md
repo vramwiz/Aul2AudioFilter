@@ -348,3 +348,14 @@ Base ページの現在レイアウト:
 - 現象として、Aul2AudioView はフィルター範囲内だけ正しく描画される。一方、Aul2AudioMonitor は共有メモリの最新音声データを表示する独立ウィンドウなので、タイムライン上の現在表示フレームと直接同期せず、音声先読みバッファ分だけ遅延または先行した表示に見える。
 - Aul2AudioMonitor 側には Aul2AudioView のような「現在描画中の全体フレーム」が渡っていないため、同じ `SourceFrameS + SourceFrame` 照合をそのまま適用できない。Monitor を正確に同期させるには、現在の編集/再生フレームを別経路で取得するか、Monitor は「最新処理音声の観測窓」として扱う方針に分ける必要がある。
 - Debug ビルドで Aul2AudioView を確認した際、表示処理中に範囲チェックエラーが出た。最後のコミットへ戻したため未修正。再調査する場合は、まず Debug range check と描画バッファアクセスの相性を確認する。
+
+## 2026-07-10 Aul2AudioMonitor 再生時先読み対策メモ
+
+- AviUtl2 SDK 54 の `EDIT_HANDLE` では `get_edit_state` が `restart_host_app` / `enum_effect_name` / `enum_module_info` / `get_host_app_window` の後ろにある。旧 Delphi 定義では `get_edit_info` の直後に `GetEditState` を置いていたため、`GetEditState` のつもりで `restart_host_app` を呼ぶ危険があった。`Source\Lib\AviUtl2Plugin\AviUtl2PluginTypes.pas` の `TEditHandle` は SDK 54 の順番に合わせて修正済み。
+- `Aul2AudioMonitorView.pas` のツールバー右側に `State: Edit` / `State: Play` / `State: Save` 表示を追加した。再生状態の取得は描画処理中ではなく、`ReadTimer` 側で 500ms 間隔に抑えて行う。
+- 再生時は `.auf2` 側の音声処理がプレビュー音声を大きく先読みし、共有メモリへ未来側のスペクトラムを書き込む。そのため `.aux2` の Monitor はそのまま最新値を描くと画面上の再生位置より先行して見える。
+- 対策として、Monitor 側で共有メモリから読んだ `TAul2AudioMonitorState` / `TAul2AudioMonitorSpectrumState` を履歴配列へ保存し、`State: Play` の時だけ `PLAYBACK_DISPLAY_DELAY_MS` ms 前に近いスナップショットを描く。現在値は `Aul2AudioMonitorView.pas` の `PLAYBACK_DISPLAY_DELAY_MS = 3000`。実測では約 3 秒程度の遅延補正が必要だった。
+- 履歴配列は 128 個。50ms タイマー基準では約 6.4 秒分を保持できる。遅延表示用に取り出したスナップショットは描画時点で stale 判定に落ちないよう `UpdateTick` を現在 tick に補正してから描画へ渡す。
+- `Aul2AudioMonitorPaint.pas` に `ClearAudioMonitorDisplay` を追加し、描画側の保持値、ピーク、波形、スペクトラム、ステレオバランスを明示クリアできるようにした。
+- クリアタイミングは「編集状態になった時」ではなく、「前回状態が `Edit` で今回状態が `Play` になった時」。この `Edit -> Play` 遷移時に再生遅延用履歴と描画保持バッファを両方クリアする。再生開始直後に遅延時間分の履歴がまだ無い場合は、古い保持値や最古履歴で代替表示せず `nil` を返し、画面が空になるようにしている。
+- 編集中は最後の表示値を保持する方針を継続する。これは停止時やカーソル移動後に Monitor がすぐ空になりすぎるのを避けるため。再生時の先読み補正とは `State: Play` 判定で分けて扱う。
