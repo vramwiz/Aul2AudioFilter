@@ -15,7 +15,11 @@ implementation
 uses
   System.SysUtils,
   AviUtl2GpuTextureOut,
-  Aul2AudioViewRenderEqualizer;
+  Aul2AudioViewRenderEqualizer,
+  Aul2AudioViewRenderFilledSpectrum,
+  Aul2AudioViewRenderPixelWave,
+  Aul2AudioViewRenderPulseWave,
+  Aul2AudioViewRenderWaveLine;
 
 const
   GPU_TEXTURE_OUT_STAGE1 = False;
@@ -53,6 +57,10 @@ procedure DrawViewType(Buffer: PPIXEL_RGBA; Width, Height: Integer;
 begin
   case Settings.ViewType of
     VIEW_TYPE_EQUALIZER_BARS: DrawEqualizerBars(Buffer, Width, Height, Settings, CurrentFrame);
+    VIEW_TYPE_WAVE_LINE: DrawWaveLine(Buffer, Width, Height, Settings, CurrentFrame);
+    VIEW_TYPE_PIXEL_WAVE: DrawPixelWave(Buffer, Width, Height, Settings, CurrentFrame);
+    VIEW_TYPE_FILLED_SPECTRUM: DrawFilledSpectrum(Buffer, Width, Height, Settings, CurrentFrame);
+    VIEW_TYPE_PULSE_WAVE: DrawPulseWave(Buffer, Width, Height, Settings, CurrentFrame);
   else
     DrawEqualizerBars(Buffer, Width, Height, Settings, CurrentFrame);
   end;

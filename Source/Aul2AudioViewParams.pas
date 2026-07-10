@@ -23,6 +23,7 @@ type
     Style: Integer;
     Density: Integer;
     Spacing: Integer;
+    Thickness: Integer;
     Smooth: Integer;
     ColorStyle: Integer;
     ColorR: Byte;

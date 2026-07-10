@@ -48,11 +48,16 @@
 - `Source\Aul2AudioBaseAlias.pas`: `.aul2base` 仮想ファイル名と AviUtl2 エイリアス文字列/一時 `.object` ファイル生成。
 - `Source\Aul2AudioBaseCreate.pas`: `CreateObjectFromAlias` による選択レイヤーへの直接配置。
 - `Source\Aul2AudioBaseInputPlugin.pas`: `.aul2base` 入力プラグイン本体。ファイル名内の `Width_Height_MaxSec_Rate_Scale` から動画情報を作る。
-- `Source\Aul2AudioViewPlugin.pas`: `Aul2AudioView` のフィルターテーブル登録。表示名は `Aul2Audio View`、グループは `Video Effects`。現時点の映像処理は成功を返すだけ。
-- `Source\Aul2AudioViewRender.pas`: `Aul2AudioView` の映像描画と AviUtl2 への出力を担当する。初期確認用にチェック背景と枠線を描く。
-- `Source\Aul2AudioViewRenderEqualizer.pas`: `Equalizer Bars` 表示タイプの描画を担当する。固定パターンの縦バーで描画疎通を確認する。
+- `Source\Aul2AudioViewPlugin.pas`: `Aul2AudioView` のフィルターテーブル登録。表示名は `Aul2Audio View`、グループは `Video Effects`。View 用の各 GUI パラメーターを登録する。
+- `Source\Aul2AudioViewRender.pas`: `Aul2AudioView` の映像描画と AviUtl2 への出力を担当する。表示タイプごとの描画ユニットへ振り分ける。
+- `Source\Aul2AudioViewRenderEqualizer.pas`: `Equalizer Bars` 表示タイプの描画を担当する。
+- `Source\Aul2AudioViewRenderFilledSpectrum.pas`: `Filled Spectrum` 表示タイプの描画を担当する。
+- `Source\Aul2AudioViewRenderWaveLine.pas`: `Wave Line` 表示タイプの描画を担当する。
+- `Source\Aul2AudioViewRenderPixelWave.pas`: `Pixel Wave` 表示タイプの描画を担当する。
+- `Source\Aul2AudioViewRenderPulseWave.pas`: `Pulse Wave` 表示タイプの描画を担当する。
 - `Source\Aul2AudioViewRenderUtils.pas`: ピクセルクリア、矩形塗り、単色/虹色変換など、表示タイプ間で共有する小さな描画補助。
 - `Source\Aul2AudioViewSpectrum.pas`: `Local\Aul2AudioMonitorSpectrum` の読み取りとスムージングを担当する。スペクトラム系表示タイプで共有する。
+- `Source\Aul2AudioViewWave.pas`: `Local\Aul2AudioMonitorState` の時間波形読み取りを担当する。時間波形系表示タイプで共有する。
 - `Source\Lib\AviUtl2GpuTextureOut.pas`: Syncroh2 の PSDDraw と同じ考え方の任意 GPU texture 出力ヘルパー。初期状態では無効化し、通常は `SetImageData` で出力する。
 - `Source\Aul2AudioFilterPlugin.pas`: AviUtl2 へ公開するフィルター入口、各エフェクトユニットの接続。
 - `Source\Aul2AudioFilterMonitorBridge.pas`: フィルター側から共有メモリへ入力/出力ピークなどの軽量解析値を書き出す入口。
@@ -184,10 +189,10 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioMonitor.aux2
 - 現在は共有メモリに `InputWave` / `OutputWave` を 256 点の `Single` 固定配列として持たせる。
 - フィルター側では音声処理ブロックごとに L/R を読み、ステレオは平均して、各区間の絶対値最大サンプルを符号付きで 256 点へ間引く。
 - モニター側は `TPaintBox` で描画し、入力を落ち着いたグリーン、出力をアンバーで重ねる。高速更新されるため、赤と青/シアンの強い組み合わせは使わない。AviUtl2 内表示では `TCustomControl` 化で点滅が悪化したため、現状は `TPaintBox` 構成を維持する。
-- 周波数表示は未実装。まず時間波形の安定表示を確認してから、RMS、簡易 FFT、ピークホールドなどを追加検討する。
+- 周波数表示は `Spectrum` として実装済み。64 バンドの簡易スペクトラム、Peak Meter、Stereo Balance まで現在の Monitor 表示に入っている。
 - 現在の時間波形表示は横軸が時間、縦軸が振幅のオシロスコープ的な表示。これは表示モードの 1 つとして残す価値がある。
 - 本命として欲しい表示は、横軸が周波数、縦軸が強さのスペクトラム/FFT 表示と思われる。EQ、Muffle、VoiceDrive、Noise などの効果確認には周波数表示の方が適している。
-- 周波数表示を追加する場合、`.auf2` 側で全サンプルを渡さず、64 または 128 バンド程度の軽量な input/output レベルへ集約して共有メモリへ載せる方針が良い。
+- 周波数表示を拡張する場合も、`.auf2` 側で全サンプルを渡さず、64 または 128 バンド程度の軽量な input/output レベルへ集約して共有メモリへ載せる方針を維持する。
 - `Aul2AudioMonitor` 側は肥大化防止のため役割別ユニットへ分割済み。
   - `Aul2AudioMonitorPlugin.pas`: AviUtl2 への登録、メニュー、クライアント HWND 管理。
   - `Aul2AudioMonitorView.pas`: VCL フォーム、タイマー、共有メモリ読み取り、描画更新。
@@ -261,8 +266,8 @@ Base ページの現在レイアウト:
 - AviUtl2 への出力は、まず安定している `Video^.SetImageData(Buffer, Width, Height)` を使う。
 - PSDDraw と同じく GPU texture 出力ヘルパーは持たせるが、初期状態では `GPU_TEXTURE_OUT_STAGE1 = False` として無効化する。
 - GPU 出力を試す場合は `Aul2AudioViewRender.pas` の `GPU_TEXTURE_OUT_STAGE1` を `True` にし、`GetFramebufferTexture2D` の有無、サイズ一致、フォーマット、AviUtl2 上の安定性を確認してから採用判断する。
-- 描画サイズは `Video^.Object_^.Width` / `Height` を使う。まずは `Aul2AudioBaseInput` 由来のサイズがここへ入るかを検証する。
-- 現時点の描画は、疎通確認用のチェック背景と緑の枠線。実際の表示内容が決まったら専用レンダーへ差し替える。
+- 描画サイズは `Video^.Object_^.Width` / `Height` を使う。`Aul2AudioBaseInput` 由来の素材サイズで描けることは確認済み。
+- 現時点の描画は、表示タイプごとの専用レンダーへ差し替え済み。疎通確認用のチェック背景と枠線は使わない。
 - `Aul2AudioView` は `Aul2AudioMonitor` と異なり、編集補助のモニターではなく MV 用の表示素材を生成するフィルターとして設計する。
 - 主用途はイコライザー風、スペクトラム風、波形風などの音に反応する見た目の生成。画面上に数値や説明文字を出す用途は基本にしない。
 - 表示種類は GUI の `select` 項目で選び、選択した種類に応じて描画する波形/バー/リングなどを切り替える構成を基本にする。
@@ -284,11 +289,12 @@ Base ページの現在レイアウト:
 - スペクトラム読み取りや色変換など、複数タイプで再利用する処理は種類別ユニットへ直接書かず、`Aul2AudioViewSpectrum.pas` や `Aul2AudioViewRenderUtils.pas` へ逃がす。
 - `Syncroh2` の `PluginFilterTable.pas` と同じ考え方で、select 候補は `ClearSelectList` / `AddSelectList` で構築する。ライブラリ全体はコピーせず、必要な select list 補助だけ `Aul2AudioFilterGui.pas` へ取り込んだ。
 - 現時点の `View: Type` は `Equalizer Bars` / `Wave Line` / `Pixel Wave` / `Filled Spectrum` / `Pulse Wave` の 5 パターンを用意する。
-- 未実装の表示タイプを選んだ場合は、実装が入るまで `Equalizer Bars` へフォールバックする。
-- 共通設定として `View: Style` / `View: Density` / `View: Spacing` / `View: Color` / `View: Color Style` / `View: Smooth` を用意する。
+- 5 パターンはいずれも実装済み。未知の値が入った場合だけ安全側として `Equalizer Bars` へフォールバックする。
+- 共通設定として `View: Style` / `View: Density` / `View: Spacing` / `View: Thickness` / `View: Color` / `View: Color Style` / `View: Smooth` を用意する。
 - `View: Style` は `Solid` と `Blocks`。`Solid` は隙間なしでつながった表示、`Blocks` は四角/長方形のブロック単位の表示にする。
 - `View: Density` は表示の分割数。`Equalizer Bars` ではバー本数として扱い、他のタイプでも表示密度として再利用する。
 - `View: Spacing` は縦横共通の隙間。設定数を増やさないため横/縦を分けない。`Solid` では無視し、`Blocks` でのみ使う。
+- `View: Thickness` は線幅、点サイズ、パルス幅などの太さ系共通パラメーター。範囲は `1..32`。
 - ブロック形状は専用の width/height 設定を持たせず、`Density` と素材サイズから自動計算する。`Equalizer Bars` ではブロック高さをバー幅から算出し、やや横長の長方形になるようにする。
 - `View: Color` は基準色。`View: Color Style` は `Solid` / `Rainbow` を用意し、`Rainbow` ではバー位置に応じて色を変える。
 - `View: Smooth` は音への反応の滑らかさ。値が大きいほど変化がゆっくりになり、余韻が残る。
@@ -302,30 +308,28 @@ Base ページの現在レイアウト:
 - Base ページのエイリアス生成では `動画ファイル` + `映像再生` + `Aul2Audio View` の 3 フィルター構成になっている。
 - `Aul2AudioView` は `Local\Aul2AudioMonitorSpectrum` の `OutputBands` を読み、音に反応する表示を行う。
 - 設定値の先頭は `View: Type`。現在の選択肢は `Equalizer Bars` / `Wave Line` / `Pixel Wave` / `Filled Spectrum` / `Pulse Wave`。
-- 現時点で実装済みの表示タイプは `Equalizer Bars` のみ。未実装タイプは `Equalizer Bars` へフォールバックする。
-- 共通設定として `View: Style` / `View: Density` / `View: Spacing` / `View: Color` / `View: Color Style` / `View: Smooth` を持つ。
+- 5 パターンはいずれも実装済み。未知の値が入った場合だけ安全側として `Equalizer Bars` へフォールバックする。
+- 共通設定として `View: Style` / `View: Density` / `View: Spacing` / `View: Thickness` / `View: Color` / `View: Color Style` / `View: Smooth` を持つ。
 - `View: Style` は `Solid` / `Blocks`。連結バー表示とブロック表示を切り替える。
 - `View: Color Style` は `Solid` / `Rainbow`。Rainbow は左の低域を赤、右の高域を紫/ピンク方向にする。左が低音であることは確認済み。
-- `Equalizer Bars` は実スペクトラムに反応し、背景透明、文字なし、枠なし、MV 素材向けの基本形としておよそ完成扱いにする。
-- ユニット分割は、`Aul2AudioViewRender.pas` を描画入口、`Aul2AudioViewRenderEqualizer.pas` を Equalizer Bars、`Aul2AudioViewSpectrum.pas` をスペクトラム読み取り/スムージング、`Aul2AudioViewRenderUtils.pas` をピクセル描画補助としている。
+- `Equalizer Bars` / `Filled Spectrum` は実スペクトラムに反応し、`Wave Line` / `Pixel Wave` / `Pulse Wave` は時間波形に反応する。いずれも背景透明、文字なし、枠なしの MV 素材向け基本形としておよそ完成扱いにする。
+- ユニット分割は、`Aul2AudioViewRender.pas` を描画入口、`Aul2AudioViewRenderEqualizer.pas` / `Aul2AudioViewRenderFilledSpectrum.pas` / `Aul2AudioViewRenderWaveLine.pas` / `Aul2AudioViewRenderPixelWave.pas` / `Aul2AudioViewRenderPulseWave.pas` を表示タイプ別描画、`Aul2AudioViewSpectrum.pas` をスペクトラム読み取り/スムージング、`Aul2AudioViewWave.pas` を時間波形読み取り、`Aul2AudioViewRenderUtils.pas` をピクセル描画補助としている。
 
-次に再開する場合の候補:
+次に再開する場合の確認候補:
 
-- まず `Equalizer Bars` を AviUtl2 上で軽く再確認し、初期値のままで実用上問題ないかを見る。
-- 次の表示タイプを追加するなら、`OutputBands` をそのまま使える `Filled Spectrum` が最有力。
-- `Filled Spectrum` も `Aul2AudioViewRenderFilledSpectrum.pas` のように別ユニットで追加し、`Aul2AudioViewRender.pas` は振り分けだけに留める。
-- `Wave Line` / `Pixel Wave` / `Pulse Wave` は時間波形系なので、必要になった時点で `Local\Aul2AudioMonitorState` の `OutputWaveMin/Max` などを読む共通ユニットを検討する。
-- 新しい設定を増やす前に、既存の `Style` / `Density` / `Spacing` / `Color` / `Color Style` / `Smooth` で表現できるかを優先して考える。
+- 5 タイプを AviUtl2 上で軽く再確認し、初期値のままで実用上問題ないかを見る。
+- `View: Thickness` は `1..32` まで使えるようにした。Pixel Wave も内部 clamp を `32` に合わせたため、16 を超える値の見た目を確認する。
+- 新しい設定を増やす前に、既存の `Style` / `Density` / `Spacing` / `Thickness` / `Color` / `Color Style` / `Smooth` で表現できるかを優先して考える。
 - 参考元のイコライザー系 UI には `横解像度` / `縦解像度` / `横スペース` / `縦スペース` がある。
 - `横解像度` / `縦解像度` は表示を構成する四角グリッドの列数/段数に近い。`Aul2AudioView` では素材サイズ自体の解像度は `Aul2AudioBaseInput` で代替済みなので、必要なら「バー数」や「縦段数」のような表示密度パラメーターとして扱う。
 - `横スペース` / `縦スペース` は四角同士の隙間を制御する値と思われる。`0` にすると隙間がなくなり、四角がつながってバーや面のように表示される。
-- この四角グリッド方式を採用するかは未決定。採用する場合は、連続バー表示とブロック表示を同じパラメーターで切り替えられる可能性がある。
+- 四角グリッド方式は `Style = Blocks` として採用済み。連続表示とブロック表示を同じ `Style` / `Density` / `Spacing` / `Thickness` 系パラメーターで切り替える。
 
 次に再開する場合の確認候補:
 
 - AviUtl2 を閉じた状態で `Aul2AudioMonitor.dproj` Release を再ビルドし、最新 `.aux2` を確実に反映する。AviUtl2 起動中は `.aux2` がロックされ、PostBuild のコピーだけ失敗する。
 - `Base` ページで Width/Height/Sec/FPS を変更し、ボタン生成と D&D 生成の両方で `.aul2base` のファイル名に反映されるか確認する。
-- 作成された `.aul2base` オブジェクトが、今後追加する表示/描画フィルター側から期待通りの width/height として取得できるか検証する。
+- 作成された `.aul2base` オブジェクトの width/height は `Aul2AudioView` 側で取得して描画に使う。今後は特殊解像度での見え方を必要に応じて確認する。
 - 表示/描画用フィルタープラグインプロジェクトとして `Aul2AudioView` を追加済み。次は `Aul2AudioBaseInput` 上でオブジェクトの width/height を取得できるか確認する。
 - Base ページのボタン生成と D&D 生成で、作成されたオブジェクトに `Aul2Audio View` フィルターが自動追加されるか確認する。
 - `Aul2AudioView` が `Aul2AudioBaseInput` の width/height でチェック背景と枠線を描けるか確認する。
@@ -360,3 +364,20 @@ Base ページの現在レイアウト:
 - `Aul2AudioMonitorView.pas` の `RefreshMonitorFrame` は ViewFrame 優先、取れない場合だけ `AviUtl2GetEditFrame` fallback。`SelectMonitorSnapshot` / `SelectSpectrumSnapshot` は現在、範囲一致した履歴の最新 tick を選ぶ。
 - 次に触る場合は、いきなり補正値を増やさず、まず再生中の `ViewFrame`, `SourceFrame`, `SourceFrameS/E`, `SampleIndex`, `SampleNum`, `SampleRate` を一時表示またはログに出し、同じ基準軸か確認する。
 - Debug Win64 の `Aul2AudioMonitor.dproj` は直近ビルド成功し、`Aul2AudioMonitor.aux2` へのコピーも成功。AviUtl2 が読み込み済みの場合は再起動して反映する。
+
+## 2026-07-10 Aul2AudioView 表示マージン方針
+
+- `Equalizer Bars` / `Filled Spectrum` の描画マージンは現時点では `0` とする。
+- 表示位置や端の余白は AviUtl2 側の素材配置・拡大縮小で調整できる前提とし、View 描画側では実解像度いっぱいを使う。
+- 将来的に必要になった場合は、現在コード内で名前付き定数にしている `VIEW_MARGIN_X` / `VIEW_MARGIN_Y` を `View: Margin X` / `View: Margin Y` のような設定項目へ昇格する。
+
+## 2026-07-10 Aul2AudioView Wave Line 実装メモ
+
+- `Wave Line` を実装済み。`Local\Aul2AudioMonitorState` の `OutputWave` / `OutputWaveMin` / `OutputWaveMax` を読む `Aul2AudioViewWave.pas` を追加した。
+- `Aul2AudioViewRenderWaveLine.pas` は `OutputWave` を中央基準の連続ラインとして描画する。`Style = Blocks` の場合は `OutputWaveMin/Max` の縦エンベロープも重ねる。
+- `View: Thickness` を追加済み。範囲は `1..32`。`Wave Line` では線幅、`Pixel Wave` では点サイズ、`Pulse Wave` ではパルス線の太さとして再利用する。
+- `Pixel Wave` を実装済み。`Aul2AudioViewWave.pas` を再利用し、`Density` を点数、`Thickness` を点サイズとして扱う。
+- `Pixel Wave` の `Style = Solid` は波形上の点列、`Style = Blocks` は `OutputWaveMin/Max` の範囲に点を積む表示。
+- `Pulse Wave` を実装済み。`Aul2AudioViewWave.pas` を再利用し、中央線基準の上下対称パルスとして描画する。
+- `Pulse Wave` の `Style = Solid` は `OutputWave` の絶対値、`Style = Blocks` は `OutputWaveMin/Max` の絶対値最大をパルス高さに使う。
+- `Pulse Wave` では `Density` をパルス本数、`Thickness` をパルス幅、`Spacing` を間引き間隔として扱う。

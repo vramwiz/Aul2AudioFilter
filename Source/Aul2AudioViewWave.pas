@@ -1,0 +1,145 @@
+unit Aul2AudioViewWave;
+
+// Reads and smooths waveform values for Aul2AudioView render units.
+
+interface
+
+uses
+  Aul2AudioMonitorShared;
+
+procedure InitializeViewWave;
+procedure FinalizeViewWave;
+procedure UpdateViewWave(Smooth: Integer; out Wave, WaveMin, WaveMax: TAudioMonitorWaveData;
+  out Valid: Boolean; CurrentFrame: Integer);
+
+implementation
+
+uses
+  System.Math,
+  System.SysUtils,
+  Winapi.Windows,
+  Aul2AudioViewFrameShared;
+
+var
+  WaveMemory: TAul2AudioMonitorSharedMemory;
+  ViewFrameMemory: TAul2AudioViewFrameSharedMemory;
+  DisplayWave: TAudioMonitorWaveData;
+  DisplayWaveMin: TAudioMonitorWaveData;
+  DisplayWaveMax: TAudioMonitorWaveData;
+  DisplayWaveValid: Boolean;
+
+procedure InitializeViewWave;
+begin
+  try
+    if WaveMemory = nil then
+      WaveMemory := TAul2AudioMonitorSharedMemory.Create;
+  except
+    FreeAndNil(WaveMemory);
+    FreeAndNil(ViewFrameMemory);
+    DisplayWaveValid := False;
+  end;
+end;
+
+procedure FinalizeViewWave;
+begin
+  FreeAndNil(WaveMemory);
+  FreeAndNil(ViewFrameMemory);
+  DisplayWaveValid := False;
+end;
+
+procedure UpdateViewFrame(CurrentFrame: Integer);
+var
+  State: PAul2AudioViewFrameState;
+begin
+  try
+    if ViewFrameMemory = nil then
+      ViewFrameMemory := TAul2AudioViewFrameSharedMemory.Create;
+
+    State := ViewFrameMemory.State;
+    if State = nil then
+      Exit;
+
+    State^.Magic := AUDIO_VIEW_FRAME_SHARED_MAGIC;
+    State^.Version := AUDIO_VIEW_FRAME_SHARED_VERSION;
+    State^.UpdateTick := GetTickCount64;
+    State^.Frame := CurrentFrame;
+  except
+    FreeAndNil(ViewFrameMemory);
+  end;
+end;
+
+function StateMatchesFrame(State: PAul2AudioMonitorState; CurrentFrame: Integer): Boolean;
+begin
+  if CurrentFrame < 0 then
+    Exit(True);
+
+  if (State^.SourceFrameS <= 0) and (State^.SourceFrameE <= 0) then
+    Exit(True);
+
+  Result := (CurrentFrame >= State^.SourceFrameS) and (CurrentFrame <= State^.SourceFrameE);
+end;
+
+procedure SmoothPoint(var DisplayValue: Single; NewValue: Single; Smooth: Integer);
+var
+  Alpha: Single;
+  SmoothRate: Single;
+begin
+  NewValue := Max(-1.0, Min(1.0, NewValue));
+  SmoothRate := Max(0, Min(100, Smooth)) / 100.0;
+  Alpha := 0.82 - (SmoothRate * 0.64);
+  DisplayValue := DisplayValue + ((NewValue - DisplayValue) * Alpha);
+end;
+
+procedure UpdateViewWave(Smooth: Integer; out Wave, WaveMin, WaveMax: TAudioMonitorWaveData;
+  out Valid: Boolean; CurrentFrame: Integer);
+var
+  State: PAul2AudioMonitorState;
+  Point: Integer;
+begin
+  FillChar(Wave, SizeOf(Wave), 0);
+  FillChar(WaveMin, SizeOf(WaveMin), 0);
+  FillChar(WaveMax, SizeOf(WaveMax), 0);
+  Valid := False;
+
+  if WaveMemory = nil then
+    InitializeViewWave;
+
+  if WaveMemory = nil then
+    Exit;
+
+  State := WaveMemory.State;
+  if (State = nil) or
+     (State^.Magic <> AUDIO_MONITOR_SHARED_MAGIC) or
+     (State^.Version <> AUDIO_MONITOR_SHARED_VERSION) then
+    Exit;
+
+  UpdateViewFrame(CurrentFrame);
+
+  if not StateMatchesFrame(State, CurrentFrame) then
+  begin
+    DisplayWaveValid := False;
+    Exit;
+  end;
+
+  if not DisplayWaveValid then
+  begin
+    DisplayWave := State^.OutputWave;
+    DisplayWaveMin := State^.OutputWaveMin;
+    DisplayWaveMax := State^.OutputWaveMax;
+    DisplayWaveValid := True;
+  end
+  else
+    for Point := 0 to AUDIO_MONITOR_WAVE_POINT_LAST do
+    begin
+      SmoothPoint(DisplayWave[Point], State^.OutputWave[Point], Smooth);
+      SmoothPoint(DisplayWaveMin[Point], State^.OutputWaveMin[Point], Smooth);
+      SmoothPoint(DisplayWaveMax[Point], State^.OutputWaveMax[Point], Smooth);
+    end;
+
+  Wave := DisplayWave;
+  WaveMin := DisplayWaveMin;
+  WaveMax := DisplayWaveMax;
+  Valid := True;
+end;
+
+end.

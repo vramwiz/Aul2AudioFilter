@@ -17,7 +17,8 @@ uses
   Aul2AudioFilterGui,
   Aul2AudioViewParams,
   Aul2AudioViewRender,
-  Aul2AudioViewRenderEqualizer;
+  Aul2AudioViewRenderEqualizer,
+  Aul2AudioViewWave;
 
 var
   GViewTypeSelect  : TFILTER_ITEM_SELECT;
@@ -26,6 +27,7 @@ var
   GViewStyleList   : array[0..2] of TFILTER_ITEM_SELECT_ITEM;
   GViewDensityTrack: TFILTER_ITEM_TRACK;
   GViewSpacingTrack: TFILTER_ITEM_TRACK;
+  GViewThicknessTrack: TFILTER_ITEM_TRACK;
   GViewColorItem   : TFILTER_ITEM_COLOR;
   GViewColorSelect : TFILTER_ITEM_SELECT;
   GViewColorList   : array[0..2] of TFILTER_ITEM_SELECT_ITEM;
@@ -34,6 +36,7 @@ var
 procedure InitializeViewPlugin;
 begin
   InitializeEqualizerBars;
+  InitializeViewWave;
 end;
 
 function ViewProcVideo(Video: PFILTER_PROC_VIDEO): Byte; cdecl;
@@ -45,6 +48,7 @@ begin
     Settings.Style := GViewStyleSelect.Value;
     Settings.Density := Round(GViewDensityTrack.Value);
     Settings.Spacing := Round(GViewSpacingTrack.Value);
+    Settings.Thickness := Round(GViewThicknessTrack.Value);
     Settings.Smooth := Round(GViewSmoothTrack.Value);
     Settings.ColorStyle := GViewColorSelect.Value;
     Settings.ColorR := GViewColorItem.R;
@@ -87,6 +91,7 @@ begin
 
     AddTrack(GViewDensityTrack, 'View: Density', 32, 4, 128, 1);
     AddTrack(GViewSpacingTrack, 'View: Spacing', 2, 0, 32, 1);
+    AddTrack(GViewThicknessTrack, 'View: Thickness', 2, 1, 32, 1);
     AddColor(GViewColorItem, 'View: Color', 245, 245, 240);
 
     ClearSelectList;
@@ -102,6 +107,7 @@ end;
 
 procedure FinalizeViewPlugin;
 begin
+  FinalizeViewWave;
   FinalizeEqualizerBars;
 end;
 

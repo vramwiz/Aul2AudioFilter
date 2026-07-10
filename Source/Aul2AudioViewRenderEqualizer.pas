@@ -25,6 +25,10 @@ var
   CurrentBands: TAudioMonitorSpectrumData;
   CurrentBandsValid: Boolean;
 
+const
+  VIEW_MARGIN_X = 0; // Keep as a named value so this can become a setting later.
+  VIEW_MARGIN_Y = 0;
+
 procedure InitializeEqualizerBars;
 begin
   InitializeViewSpectrum;
@@ -133,8 +137,8 @@ begin
   ClearPixels(Buffer, Width, Height);
   UpdateViewSpectrum(Settings.Smooth, CurrentBands, CurrentBandsValid, CurrentFrame);
 
-  MarginX := Max(8, Width div 28);
-  MarginY := Max(6, Height div 16);
+  MarginX := VIEW_MARGIN_X;
+  MarginY := VIEW_MARGIN_Y;
   AreaW := Width - (MarginX * 2);
   AreaH := Height - (MarginY * 2);
   if (AreaW <= 0) or (AreaH <= 0) then
