@@ -387,9 +387,11 @@ AviUtl2 では完全無音区間で音声フィルターが呼ばれないこと
 | `Density` | 表示の分割数です。バー本数、点数、パルス本数などとして使います。 |
 | `Spacing` | ブロックやパルスの隙間です。主に `Blocks` 系の表示で効きます。 |
 | `Thickness` | 太さです。線幅、点サイズ、パルス幅として使います。範囲は `1..32` です。 |
-| `Color` | 基準色です。 |
-| `Color Variation` | `1 Color`、`2 Color`、`3 Color`、`Rainbow`、`Fire`、`Ice`、`Aurora` などの色バリエーションを選びます。`1 Color` は `Color` の単色です。 |
-| `Color Blend` | `Auto`、`RGB`、`HSV Short`、`HSV Long` から中間色の補間方式を選びます。通常は `Auto` で、パレットごとに合う方式を使います。 |
 | `Smooth` | 音への反応の滑らかさです。大きいほど変化がゆっくりになり、余韻が残ります。 |
+| `Color 1` | 基準色です。`1 Color` ではこの色だけを使います。 |
+| `Color 2` | `2 Color` / `3 Color` で使う 2 つ目の色です。 |
+| `Color 3` | `3 Color` で使う 3 つ目の色です。 |
+| `Color Variation` | `1 Color`、`2 Color`、`3 Color`、`Rainbow`、`Fire`、`Ice`、`Aurora` などの色バリエーションを選びます。`2 Color` は `Color 1` から `Color 2`、`3 Color` は `Color 1` から `Color 2` を経由して `Color 3` へ変化します。 |
+| `Color Blend` | `Auto`、`RGB`、`HSV Short`、`HSV Long` から中間色の補間方式を選びます。通常は `Auto` で、パレットごとに合う方式を使います。 |
 
 描画マージンは現時点では `0` です。表示位置や端の余白は AviUtl2 側の素材配置、拡大縮小、クリッピングで調整する前提です。将来的に必要になった場合は、`View: Margin X` / `View: Margin Y` のような設定として追加する方針です。

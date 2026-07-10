@@ -52,9 +52,15 @@ type
     Smooth: Integer;
     ColorVariation: Integer;
     ColorBlend: Integer;
-    ColorR: Byte;
-    ColorG: Byte;
-    ColorB: Byte;
+    Color1R: Byte;
+    Color1G: Byte;
+    Color1B: Byte;
+    Color2R: Byte;
+    Color2G: Byte;
+    Color2B: Byte;
+    Color3R: Byte;
+    Color3G: Byte;
+    Color3B: Byte;
   end;
 
 implementation

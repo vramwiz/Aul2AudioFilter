@@ -108,17 +108,48 @@ begin
     Result := cpRainbow;
 end;
 
+function GetCustomViewColor(const Settings: TAul2AudioViewSettings; T: Double): TAul2RGBColor;
+var
+  Color1: TAul2RGBColor;
+  Color2: TAul2RGBColor;
+  Color3: TAul2RGBColor;
+  BlendMode: TAul2ColorBlendMode;
+begin
+  Color1 := Aul2RGB(Settings.Color1R, Settings.Color1G, Settings.Color1B);
+  Color2 := Aul2RGB(Settings.Color2R, Settings.Color2G, Settings.Color2B);
+  Color3 := Aul2RGB(Settings.Color3R, Settings.Color3G, Settings.Color3B);
+  BlendMode := ToColorBlendMode(Settings.ColorBlend);
+  if BlendMode = cbAuto then
+    BlendMode := cbHSVShort;
+
+  case Settings.ColorVariation of
+    VIEW_COLOR_VARIATION_TWO_COLOR:
+      Result := LerpColor(Color1, Color2, T, BlendMode);
+    VIEW_COLOR_VARIATION_THREE_COLOR:
+      begin
+        if T <= 0.5 then
+          Result := LerpColor(Color1, Color2, T * 2.0, BlendMode)
+        else
+          Result := LerpColor(Color2, Color3, (T - 0.5) * 2.0, BlendMode);
+      end;
+  else
+    Result := Color1;
+  end;
+end;
+
 procedure GetViewColor(const Settings: TAul2AudioViewSettings; Index, Count: Integer;
   out R, G, B: Byte);
 var
   T: Double;
   Color: TAul2RGBColor;
 begin
-  if Settings.ColorVariation = VIEW_COLOR_VARIATION_ONE_COLOR then
+  if Settings.ColorVariation <= VIEW_COLOR_VARIATION_THREE_COLOR then
   begin
-    R := Settings.ColorR;
-    G := Settings.ColorG;
-    B := Settings.ColorB;
+    T := Index / Max(1, Count - 1);
+    Color := GetCustomViewColor(Settings, T);
+    R := Color.R;
+    G := Color.G;
+    B := Color.B;
     Exit;
   end;
 

@@ -28,7 +28,9 @@ var
   GViewDensityTrack: TFILTER_ITEM_TRACK;
   GViewSpacingTrack: TFILTER_ITEM_TRACK;
   GViewThicknessTrack: TFILTER_ITEM_TRACK;
-  GViewColorItem   : TFILTER_ITEM_COLOR;
+  GViewColor1Item  : TFILTER_ITEM_COLOR;
+  GViewColor2Item  : TFILTER_ITEM_COLOR;
+  GViewColor3Item  : TFILTER_ITEM_COLOR;
   GViewColorVariationSelect: TFILTER_ITEM_SELECT;
   GViewColorVariationList  : array[0..22] of TFILTER_ITEM_SELECT_ITEM;
   GViewColorBlendSelect: TFILTER_ITEM_SELECT;
@@ -54,9 +56,15 @@ begin
     Settings.Smooth := Round(GViewSmoothTrack.Value);
     Settings.ColorVariation := GViewColorVariationSelect.Value;
     Settings.ColorBlend := GViewColorBlendSelect.Value;
-    Settings.ColorR := GViewColorItem.R;
-    Settings.ColorG := GViewColorItem.G;
-    Settings.ColorB := GViewColorItem.B;
+    Settings.Color1R := GViewColor1Item.R;
+    Settings.Color1G := GViewColor1Item.G;
+    Settings.Color1B := GViewColor1Item.B;
+    Settings.Color2R := GViewColor2Item.R;
+    Settings.Color2G := GViewColor2Item.G;
+    Settings.Color2B := GViewColor2Item.B;
+    Settings.Color3R := GViewColor3Item.R;
+    Settings.Color3G := GViewColor3Item.G;
+    Settings.Color3B := GViewColor3Item.B;
     RenderView(Video, Settings);
   except
     Result := 0;
@@ -95,7 +103,10 @@ begin
     AddTrack(GViewDensityTrack, 'Density', 32, 4, 128, 1);
     AddTrack(GViewSpacingTrack, 'Spacing', 2, 0, 32, 1);
     AddTrack(GViewThicknessTrack, 'Thickness', 2, 1, 32, 1);
-    AddColor(GViewColorItem, 'Color', 245, 245, 240);
+    AddTrack(GViewSmoothTrack, 'Smooth', 50, 0, 100, 1);
+    AddColor(GViewColor1Item, 'Color 1', 245, 245, 240);
+    AddColor(GViewColor2Item, 'Color 2', 60, 180, 220);
+    AddColor(GViewColor3Item, 'Color 3', 250, 245, 180);
 
     ClearSelectList;
     AddSelectList(GViewColorVariationList, '1 Color', VIEW_COLOR_VARIATION_ONE_COLOR);
@@ -130,7 +141,6 @@ begin
     AddSelectList(GViewColorBlendList, 'HSV Long', VIEW_COLOR_BLEND_HSV_LONG);
     AddSelect(GViewColorBlendSelect, 'Color Blend', VIEW_COLOR_BLEND_AUTO, @GViewColorBlendList[0]);
 
-    AddTrack(GViewSmoothTrack, 'Smooth', 50, 0, 100, 1);
   end;
 
   Result := @GTable;
