@@ -118,6 +118,93 @@ begin
             (State^.UpdateTick <> 0);
 end;
 
+function StateDisplayFrame(State: PAul2AudioMonitorSpectrumState): Integer;
+begin
+  Result := State^.SourceFrame;
+  if (State^.SourceFrameS <= State^.SourceFrameE) and
+     ((Result < State^.SourceFrameS) or (Result > State^.SourceFrameE)) then
+    Result := State^.SourceFrameS + State^.SourceFrame;
+end;
+
+function StateFrameDistance(State: PAul2AudioMonitorSpectrumState; CurrentFrame: Integer): Integer;
+begin
+  if CurrentFrame < 0 then
+    Exit(0);
+
+  Result := Abs(StateDisplayFrame(State) - CurrentFrame);
+end;
+
+function PreferSpectrumState(Candidate, Current: PAul2AudioMonitorSpectrumState;
+  CurrentFrame: Integer): Boolean;
+var
+  CandidateDistance: Integer;
+  CurrentDistance: Integer;
+begin
+  if Current = nil then
+    Exit(True);
+
+  CandidateDistance := StateFrameDistance(Candidate, CurrentFrame);
+  CurrentDistance := StateFrameDistance(Current, CurrentFrame);
+  if CandidateDistance <> CurrentDistance then
+    Exit(CandidateDistance < CurrentDistance);
+
+  Result := Candidate^.UpdateTick > Current^.UpdateTick;
+end;
+
+function FindSpectrumHistoryForLayer(Layer, CurrentFrame: Integer): PAul2AudioMonitorSpectrumState;
+var
+  Index: Integer;
+  State: PAul2AudioMonitorSpectrumState;
+begin
+  Result := nil;
+
+  if (SpectrumMemory = nil) or (SpectrumMemory.Root = nil) or
+     (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+
+  for Index := 0 to AUDIO_MONITOR_SPECTRUM_HISTORY_LAST do
+  begin
+    State := SpectrumMemory.GetHistoryStateForLayer(Layer, Index);
+    if SpectrumStateUsable(State) and StateMatchesFrame(State, CurrentFrame) and
+       PreferSpectrumState(State, Result, CurrentFrame) then
+      Result := State;
+  end;
+end;
+
+function FindBestSpectrumHistory(CurrentFrame: Integer): PAul2AudioMonitorSpectrumState;
+var
+  Layer: Integer;
+  State: PAul2AudioMonitorSpectrumState;
+begin
+  Result := nil;
+
+  for Layer := 0 to AUDIO_MONITOR_LAYER_SLOT_LAST do
+  begin
+    State := FindSpectrumHistoryForLayer(Layer, CurrentFrame);
+    if (State <> nil) and PreferSpectrumState(State, Result, CurrentFrame) then
+      Result := State;
+  end;
+end;
+
+function SelectSpectrumState(CurrentFrame, InternalLayer: Integer): PAul2AudioMonitorSpectrumState;
+begin
+  if InternalLayer = AUDIO_MONITOR_LAYER_AUTO then
+  begin
+    Result := FindBestSpectrumHistory(CurrentFrame);
+    if Result = nil then
+      Result := SpectrumMemory.State;
+  end
+  else
+  begin
+    Result := FindSpectrumHistoryForLayer(InternalLayer, CurrentFrame);
+    if Result = nil then
+      Result := SpectrumMemory.GetStateForLayer(InternalLayer);
+  end;
+
+  if not (SpectrumStateUsable(Result) and StateMatchesFrame(Result, CurrentFrame)) then
+    Result := nil;
+end;
+
 procedure UpdateViewSpectrum(Smooth: Integer; out Bands: TAudioMonitorSpectrumData;
   out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single;
   CurrentFrame, SourceLayer: Integer);
@@ -137,19 +224,12 @@ begin
   if SpectrumMemory = nil then
     Exit;
 
-  InternalLayer := ResolveSourceLayer(SourceLayer);
-  if InternalLayer = AUDIO_MONITOR_LAYER_AUTO then
-    State := SpectrumMemory.State
-  else
-    State := SpectrumMemory.GetStateForLayer(InternalLayer);
-
-  if not SpectrumStateUsable(State) then
-    State := SpectrumMemory.State;
-
-  if not SpectrumStateUsable(State) then
-    Exit;
-
   UpdateViewFrame(CurrentFrame);
+
+  InternalLayer := ResolveSourceLayer(SourceLayer);
+  State := SelectSpectrumState(CurrentFrame, InternalLayer);
+  if State = nil then
+    Exit;
 
   SourceMinHz := Max(1.0, State^.MinHz);
   SourceMaxHz := Max(SourceMinHz + 1.0, State^.MaxHz);

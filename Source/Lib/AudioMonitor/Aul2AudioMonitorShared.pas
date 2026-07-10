@@ -1,4 +1,4 @@
-unit Aul2AudioMonitorShared;
+﻿unit Aul2AudioMonitorShared;
 
 // Aul2AudioFilter と Aul2AudioMonitor の共有メモリ疎通データを扱う。
 
@@ -11,10 +11,12 @@ uses
 const
   AUDIO_MONITOR_SHARED_NAME    = 'Local\Aul2AudioMonitorState';
   AUDIO_MONITOR_SHARED_MAGIC   = $414D4F4E; // AMON
-  AUDIO_MONITOR_SHARED_VERSION = 6;
+  AUDIO_MONITOR_SHARED_VERSION = 8;
   AUDIO_MONITOR_LAYER_SLOT_COUNT = 64;
   AUDIO_MONITOR_LAYER_SLOT_LAST  = AUDIO_MONITOR_LAYER_SLOT_COUNT - 1;
   AUDIO_MONITOR_LAYER_AUTO       = -1;
+  AUDIO_MONITOR_HISTORY_COUNT    = 128;
+  AUDIO_MONITOR_HISTORY_LAST     = AUDIO_MONITOR_HISTORY_COUNT - 1;
   AUDIO_MONITOR_WAVE_POINT_COUNT = 256;
   AUDIO_MONITOR_WAVE_POINT_LAST  = AUDIO_MONITOR_WAVE_POINT_COUNT - 1;
 
@@ -59,7 +61,9 @@ type
     Version   : Cardinal;
     Generation: Int64;
     LastLayer : Integer;
+    HistoryIndex: array[0..AUDIO_MONITOR_LAYER_SLOT_LAST] of Integer;
     Slots     : array[0..AUDIO_MONITOR_LAYER_SLOT_LAST] of TAul2AudioMonitorState;
+    History   : array[0..AUDIO_MONITOR_LAYER_SLOT_LAST, 0..AUDIO_MONITOR_HISTORY_LAST] of TAul2AudioMonitorState;
   end;
 
   TAul2AudioMonitorSharedMemory = class(TSharedMemoryBase)
@@ -69,6 +73,7 @@ type
   public
     constructor Create; reintroduce;
     function GetStateForLayer(Layer: Integer): PAul2AudioMonitorState;
+    function GetHistoryStateForLayer(Layer, Index: Integer): PAul2AudioMonitorState;
     property Root: PAul2AudioMonitorLayeredState read GetRoot;
     property State: PAul2AudioMonitorState read GetState;
   end;
@@ -78,6 +83,7 @@ implementation
 constructor TAul2AudioMonitorSharedMemory.Create;
 var
   Layer: Integer;
+  Index: Integer;
 begin
   inherited Create(AUDIO_MONITOR_SHARED_NAME, SizeOf(TAul2AudioMonitorLayeredState));
 
@@ -93,6 +99,15 @@ begin
       Root^.Slots[Layer].Magic := AUDIO_MONITOR_SHARED_MAGIC;
       Root^.Slots[Layer].Version := AUDIO_MONITOR_SHARED_VERSION;
       Root^.Slots[Layer].SourceLayer := Layer;
+      if (Root^.HistoryIndex[Layer] < 0) or
+         (Root^.HistoryIndex[Layer] > AUDIO_MONITOR_HISTORY_LAST) then
+        Root^.HistoryIndex[Layer] := 0;
+      for Index := 0 to AUDIO_MONITOR_HISTORY_LAST do
+      begin
+        Root^.History[Layer, Index].Magic := AUDIO_MONITOR_SHARED_MAGIC;
+        Root^.History[Layer, Index].Version := AUDIO_MONITOR_SHARED_VERSION;
+        Root^.History[Layer, Index].SourceLayer := Layer;
+      end;
     end;
   end;
 end;
@@ -118,6 +133,17 @@ begin
     Exit(nil);
 
   Result := @Root^.Slots[Layer];
+end;
+
+function TAul2AudioMonitorSharedMemory.GetHistoryStateForLayer(
+  Layer, Index: Integer): PAul2AudioMonitorState;
+begin
+  if (Root = nil) or
+     (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) or
+     (Index < 0) or (Index > AUDIO_MONITOR_HISTORY_LAST) then
+    Exit(nil);
+
+  Result := @Root^.History[Layer, Index];
 end;
 
 end.

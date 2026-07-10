@@ -43,6 +43,36 @@ var
   SpectrumTableSampleRate: Integer;
   SpectrumTableSize: Integer;
 
+procedure PushMonitorHistory(Root: PAul2AudioMonitorLayeredState; Layer: Integer;
+  const State: TAul2AudioMonitorState);
+var
+  Index: Integer;
+begin
+  if (Root = nil) or (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+
+  Index := Root^.HistoryIndex[Layer] + 1;
+  if (Index < 0) or (Index > AUDIO_MONITOR_HISTORY_LAST) then
+    Index := 0;
+  Root^.HistoryIndex[Layer] := Index;
+  Root^.History[Layer, Index] := State;
+end;
+
+procedure PushSpectrumHistory(Root: PAul2AudioMonitorLayeredSpectrumState; Layer: Integer;
+  const State: TAul2AudioMonitorSpectrumState);
+var
+  Index: Integer;
+begin
+  if (Root = nil) or (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+
+  Index := Root^.HistoryIndex[Layer] + 1;
+  if (Index < 0) or (Index > AUDIO_MONITOR_SPECTRUM_HISTORY_LAST) then
+    Index := 0;
+  Root^.HistoryIndex[Layer] := Index;
+  Root^.History[Layer, Index] := State;
+end;
+
 function GetSharedMemory: TAul2AudioMonitorSharedMemory;
 begin
   if SharedMemory = nil then
@@ -101,6 +131,7 @@ var
   SharedRoot: PAul2AudioMonitorLayeredState;
   SpectrumRoot: PAul2AudioMonitorLayeredSpectrumState;
   Layer: Integer;
+  Index: Integer;
 begin
   try
     SharedRoot := GetSharedMemory.Root;
@@ -112,7 +143,12 @@ begin
     SharedRoot^.LastLayer := AUDIO_MONITOR_LAYER_AUTO;
     FillChar(LastInputSnapshots, SizeOf(LastInputSnapshots), 0);
     for Layer := 0 to AUDIO_MONITOR_LAYER_SLOT_LAST do
+    begin
+      SharedRoot^.HistoryIndex[Layer] := 0;
       InitializeMonitorSlot(SharedRoot^.Slots[Layer], Layer);
+      for Index := 0 to AUDIO_MONITOR_HISTORY_LAST do
+        InitializeMonitorSlot(SharedRoot^.History[Layer, Index], Layer);
+    end;
     Inc(SharedRoot^.Generation);
 
     SpectrumRoot := GetSpectrumMemory.Root;
@@ -122,7 +158,12 @@ begin
       SpectrumRoot^.Version := AUDIO_MONITOR_SPECTRUM_SHARED_VERSION;
       SpectrumRoot^.LastLayer := AUDIO_MONITOR_LAYER_AUTO;
       for Layer := 0 to AUDIO_MONITOR_LAYER_SLOT_LAST do
+      begin
+        SpectrumRoot^.HistoryIndex[Layer] := 0;
         InitializeSpectrumSlot(SpectrumRoot^.Slots[Layer], Layer);
+        for Index := 0 to AUDIO_MONITOR_SPECTRUM_HISTORY_LAST do
+          InitializeSpectrumSlot(SpectrumRoot^.History[Layer, Index], Layer);
+      end;
       Inc(SpectrumRoot^.Generation);
     end;
   except
@@ -489,6 +530,7 @@ begin
 
     Inc(State^.Generation);
     Shared.Root^.LastLayer := Layer;
+    PushMonitorHistory(Shared.Root, Layer, State^);
     Inc(Shared.Root^.Generation);
 
     SpectrumState := GetSpectrumMemory.GetStateForLayer(Layer);
@@ -516,6 +558,7 @@ begin
       if SpectrumRoot <> nil then
       begin
         SpectrumRoot^.LastLayer := Layer;
+        PushSpectrumHistory(SpectrumRoot, Layer, SpectrumState^);
         Inc(SpectrumRoot^.Generation);
       end;
     end;

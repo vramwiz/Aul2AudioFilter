@@ -219,3 +219,16 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - `Circular Spectrum` はスペクトラム系の値を中心から外へ伸びる放射状表示に変換する。現時点では `Density` / `Spacing` / `Thickness` / `Base Radius` / `Smooth` / 色 / 周波数範囲設定を流用する。
 - `Mirror Bars` はスペクトラム系の値を中心線から上下対称に伸びるバーへ変換する。`Density` / `Spacing` / `Thickness` / `Smooth` / 色 / 周波数範囲設定を流用する。
 - 完了済みの実装経緯や試行錯誤は `HISTORY.md` の `Aul2AudioView completion note` を参照する。
+
+## 2026-07-10 Aul2AudioView 再生同期の現状
+
+- View は再生中の先行読み込みに対して、現在は同期が取れて継続表示できている。
+- 原因は、View が共有メモリの最新状態だけを見ると、AviUtl2 の音声先読みで未来フレームの解析結果に引っ張られることだった。
+- 対応として `Local\Aul2AudioMonitorState` と `Local\Aul2AudioMonitorSpectrum` にレイヤー別の履歴リングを追加した。
+- 履歴数は 128 件。共有メモリ構造変更のため、Wave 側 version は 8、Spectrum 側 version は 6。
+- Filter 側は `AudioMonitorCaptureOutput` で最新スロットに加えて履歴リングへも状態を書き込む。
+- View 側は `CurrentFrame` に対して、`SourceFrame` を描画フレーム基準へ正規化し、現在フレームに最も近い履歴を選択する。
+- 初期実装では `UpdateTick` が最新の履歴を選んでいたため、同じ `FrameS/FrameE` 範囲内の未来側・無音側が勝ち、最初の 1～2 回同期後に 0 へ収束するように見えた。
+- 現在は `UpdateTick` 優先ではなくフレーム距離優先に変更済み。距離が同じ場合のみ `UpdateTick` をタイブレークに使う。
+- `Aul2AudioFilter.auf2` / `Aul2AudioView.auf2` へ反映済み。Release Win64 ビルドも成功済み。
+- Monitor はまだ再生同期が不十分。View とは別問題として残す。

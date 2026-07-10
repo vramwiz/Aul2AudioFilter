@@ -97,6 +97,93 @@ begin
             (State^.UpdateTick <> 0);
 end;
 
+function StateDisplayFrame(State: PAul2AudioMonitorState): Integer;
+begin
+  Result := State^.SourceFrame;
+  if (State^.SourceFrameS <= State^.SourceFrameE) and
+     ((Result < State^.SourceFrameS) or (Result > State^.SourceFrameE)) then
+    Result := State^.SourceFrameS + State^.SourceFrame;
+end;
+
+function StateFrameDistance(State: PAul2AudioMonitorState; CurrentFrame: Integer): Integer;
+begin
+  if CurrentFrame < 0 then
+    Exit(0);
+
+  Result := Abs(StateDisplayFrame(State) - CurrentFrame);
+end;
+
+function PreferWaveState(Candidate, Current: PAul2AudioMonitorState;
+  CurrentFrame: Integer): Boolean;
+var
+  CandidateDistance: Integer;
+  CurrentDistance: Integer;
+begin
+  if Current = nil then
+    Exit(True);
+
+  CandidateDistance := StateFrameDistance(Candidate, CurrentFrame);
+  CurrentDistance := StateFrameDistance(Current, CurrentFrame);
+  if CandidateDistance <> CurrentDistance then
+    Exit(CandidateDistance < CurrentDistance);
+
+  Result := Candidate^.UpdateTick > Current^.UpdateTick;
+end;
+
+function FindWaveHistoryForLayer(Layer, CurrentFrame: Integer): PAul2AudioMonitorState;
+var
+  Index: Integer;
+  State: PAul2AudioMonitorState;
+begin
+  Result := nil;
+
+  if (WaveMemory = nil) or (WaveMemory.Root = nil) or
+     (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+
+  for Index := 0 to AUDIO_MONITOR_HISTORY_LAST do
+  begin
+    State := WaveMemory.GetHistoryStateForLayer(Layer, Index);
+    if WaveStateUsable(State) and StateMatchesFrame(State, CurrentFrame) and
+       PreferWaveState(State, Result, CurrentFrame) then
+      Result := State;
+  end;
+end;
+
+function FindBestWaveHistory(CurrentFrame: Integer): PAul2AudioMonitorState;
+var
+  Layer: Integer;
+  State: PAul2AudioMonitorState;
+begin
+  Result := nil;
+
+  for Layer := 0 to AUDIO_MONITOR_LAYER_SLOT_LAST do
+  begin
+    State := FindWaveHistoryForLayer(Layer, CurrentFrame);
+    if (State <> nil) and PreferWaveState(State, Result, CurrentFrame) then
+      Result := State;
+  end;
+end;
+
+function SelectWaveState(CurrentFrame, InternalLayer: Integer): PAul2AudioMonitorState;
+begin
+  if InternalLayer = AUDIO_MONITOR_LAYER_AUTO then
+  begin
+    Result := FindBestWaveHistory(CurrentFrame);
+    if Result = nil then
+      Result := WaveMemory.State;
+  end
+  else
+  begin
+    Result := FindWaveHistoryForLayer(InternalLayer, CurrentFrame);
+    if Result = nil then
+      Result := WaveMemory.GetStateForLayer(InternalLayer);
+  end;
+
+  if not (WaveStateUsable(Result) and StateMatchesFrame(Result, CurrentFrame)) then
+    Result := nil;
+end;
+
 procedure SmoothPoint(var DisplayValue: Single; NewValue: Single; Smooth: Integer);
 var
   Alpha: Single;
@@ -127,18 +214,11 @@ begin
     Exit;
 
   InternalLayer := ResolveSourceLayer(SourceLayer);
-  if InternalLayer = AUDIO_MONITOR_LAYER_AUTO then
-    State := WaveMemory.State
-  else
-    State := WaveMemory.GetStateForLayer(InternalLayer);
-
-  if not WaveStateUsable(State) then
-    State := WaveMemory.State;
-
-  if not WaveStateUsable(State) then
-    Exit;
-
   UpdateViewFrame(CurrentFrame);
+
+  State := SelectWaveState(CurrentFrame, InternalLayer);
+  if State = nil then
+    Exit;
 
   if not DisplayWaveValid then
   begin
