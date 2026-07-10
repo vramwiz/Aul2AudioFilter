@@ -19,6 +19,7 @@ implementation
 
 uses
   System.Classes,
+  System.Math,
   System.SysUtils,
   Vcl.ComCtrls,
   Vcl.Controls,
@@ -31,6 +32,7 @@ uses
   Aul2AudioMonitorShared,
   Aul2AudioMonitorSpectrumShared,
   Aul2AudioBasePanel,
+  AviUtl2PluginCore,
   ToolBarPanelManager;
 
 type
@@ -39,6 +41,18 @@ type
     ampSpectrum,
     ampBase
   );
+
+  TMonitorStateSnapshot = record
+    Valid: Boolean;
+    Tick : UInt64;
+    State: TAul2AudioMonitorState;
+  end;
+
+  TSpectrumStateSnapshot = record
+    Valid: Boolean;
+    Tick : UInt64;
+    State: TAul2AudioMonitorSpectrumState;
+  end;
 
   TFormAudioMonitor = class(TForm)
   public
@@ -60,6 +74,7 @@ var
   ButtonWave  : TToolButton;
   ButtonSpectrum: TToolButton;
   ButtonBase  : TToolButton;
+  StateLabel  : TLabel;
   PanelWave   : TPanel;
   PanelSpectrum: TPanel;
   PanelBase   : TPanel;
@@ -74,6 +89,211 @@ var
   SpectrumMemory: TAul2AudioMonitorSpectrumSharedMemory;
   LastViewWidth: Integer;
   LastViewHeight: Integer;
+  LastEditStatePollTick: UInt64;
+  MonitorEditState: TAviUtl2EditState;
+  MonitorEditStateValid: Boolean;
+  LastMonitorEditState: TAviUtl2EditState;
+  LastMonitorEditStateValid: Boolean;
+  MonitorHistory: array[0..127] of TMonitorStateSnapshot;
+  SpectrumHistory: array[0..127] of TSpectrumStateSnapshot;
+  MonitorHistoryIndex: Integer;
+  SpectrumHistoryIndex: Integer;
+
+const
+  PLAYBACK_DISPLAY_DELAY_MS = 3000;
+
+procedure ClearPlaybackHistory;
+begin
+  FillChar(MonitorHistory, SizeOf(MonitorHistory), 0);
+  FillChar(SpectrumHistory, SizeOf(SpectrumHistory), 0);
+  MonitorHistoryIndex := 0;
+  SpectrumHistoryIndex := 0;
+end;
+
+procedure PositionStateLabel;
+var
+  LabelWidth: Integer;
+  LabelLeft : Integer;
+begin
+  if not Assigned(StateLabel) or not Assigned(ToolBar) then
+    Exit;
+
+  LabelWidth := MulDiv(118, MonitorForm.Font.PixelsPerInch, 96);
+  LabelLeft := ToolBar.ClientWidth - LabelWidth - MulDiv(10, MonitorForm.Font.PixelsPerInch, 96);
+  if Assigned(ButtonBase) then
+    LabelLeft := Max(LabelLeft, ButtonBase.Left + ButtonBase.Width +
+      MulDiv(18, MonitorForm.Font.PixelsPerInch, 96));
+
+  StateLabel.SetBounds(LabelLeft, 0, LabelWidth, ToolBar.Height);
+  StateLabel.BringToFront;
+end;
+
+procedure UpdateStateLabel;
+begin
+  if not Assigned(StateLabel) then
+    Exit;
+
+  if not MonitorEditStateValid then
+  begin
+    StateLabel.Caption := 'State: ?';
+    StateLabel.Font.Color := RGB(170, 170, 170);
+    StateLabel.Invalidate;
+    Exit;
+  end;
+
+  case MonitorEditState of
+    aesPlay:
+      begin
+        StateLabel.Caption := 'State: Play';
+        StateLabel.Font.Color := RGB(224, 176, 72);
+      end;
+    aesSave:
+      begin
+        StateLabel.Caption := 'State: Save';
+        StateLabel.Font.Color := RGB(210, 92, 76);
+      end;
+  else
+    begin
+      StateLabel.Caption := 'State: Edit';
+      StateLabel.Font.Color := RGB(92, 190, 122);
+    end;
+  end;
+
+  StateLabel.Invalidate;
+end;
+
+procedure RefreshEditState;
+const
+  EDIT_STATE_POLL_MS = 500;
+var
+  NowTick: UInt64;
+  NewEditState: TAviUtl2EditState;
+begin
+  NowTick := GetTickCount64;
+  if (LastEditStatePollTick <> 0) and
+     (NowTick >= LastEditStatePollTick) and
+     ((NowTick - LastEditStatePollTick) < EDIT_STATE_POLL_MS) then
+    Exit;
+
+  LastEditStatePollTick := NowTick;
+  try
+    NewEditState := AviUtl2GetEditState;
+    if LastMonitorEditStateValid and
+       (LastMonitorEditState = aesEdit) and
+       (NewEditState = aesPlay) then
+    begin
+      ClearPlaybackHistory;
+      ClearAudioMonitorDisplay;
+    end;
+
+    MonitorEditState := NewEditState;
+    MonitorEditStateValid := True;
+    LastMonitorEditState := MonitorEditState;
+    LastMonitorEditStateValid := True;
+  except
+    MonitorEditState := aesEdit;
+    MonitorEditStateValid := False;
+  end;
+
+  UpdateStateLabel;
+end;
+
+function UsePlaybackDelayedDisplay: Boolean;
+begin
+  Result := MonitorEditStateValid and (MonitorEditState = aesPlay);
+end;
+
+procedure PushMonitorHistory(State: PAul2AudioMonitorState);
+begin
+  if State = nil then
+    Exit;
+
+  MonitorHistoryIndex := (MonitorHistoryIndex + 1) mod Length(MonitorHistory);
+  MonitorHistory[MonitorHistoryIndex].Valid := True;
+  MonitorHistory[MonitorHistoryIndex].Tick := GetTickCount64;
+  MonitorHistory[MonitorHistoryIndex].State := State^;
+end;
+
+procedure PushSpectrumHistory(State: PAul2AudioMonitorSpectrumState);
+begin
+  if State = nil then
+    Exit;
+
+  SpectrumHistoryIndex := (SpectrumHistoryIndex + 1) mod Length(SpectrumHistory);
+  SpectrumHistory[SpectrumHistoryIndex].Valid := True;
+  SpectrumHistory[SpectrumHistoryIndex].Tick := GetTickCount64;
+  SpectrumHistory[SpectrumHistoryIndex].State := State^;
+end;
+
+function SelectMonitorSnapshot(Current: PAul2AudioMonitorState;
+  out Snapshot: TAul2AudioMonitorState): PAul2AudioMonitorState;
+var
+  TargetTick: UInt64;
+  I: Integer;
+  BestIndex: Integer;
+begin
+  Result := Current;
+  PushMonitorHistory(Current);
+  if not UsePlaybackDelayedDisplay then
+    Exit;
+
+  TargetTick := GetTickCount64 - PLAYBACK_DISPLAY_DELAY_MS;
+  BestIndex := -1;
+  for I := Low(MonitorHistory) to High(MonitorHistory) do
+  begin
+    if not MonitorHistory[I].Valid then
+      Continue;
+
+    if MonitorHistory[I].Tick <= TargetTick then
+      if (BestIndex < 0) or (MonitorHistory[I].Tick > MonitorHistory[BestIndex].Tick) then
+        BestIndex := I;
+  end;
+
+  if BestIndex < 0 then
+  begin
+    Result := nil;
+    Exit;
+  end;
+
+  Snapshot := MonitorHistory[BestIndex].State;
+  Snapshot.UpdateTick := GetTickCount64;
+  Result := @Snapshot;
+end;
+
+function SelectSpectrumSnapshot(Current: PAul2AudioMonitorSpectrumState;
+  out Snapshot: TAul2AudioMonitorSpectrumState): PAul2AudioMonitorSpectrumState;
+var
+  TargetTick: UInt64;
+  I: Integer;
+  BestIndex: Integer;
+begin
+  Result := Current;
+  PushSpectrumHistory(Current);
+  if not UsePlaybackDelayedDisplay then
+    Exit;
+
+  TargetTick := GetTickCount64 - PLAYBACK_DISPLAY_DELAY_MS;
+  BestIndex := -1;
+  for I := Low(SpectrumHistory) to High(SpectrumHistory) do
+  begin
+    if not SpectrumHistory[I].Valid then
+      Continue;
+
+    if SpectrumHistory[I].Tick <= TargetTick then
+      if (BestIndex < 0) or (SpectrumHistory[I].Tick > SpectrumHistory[BestIndex].Tick) then
+        BestIndex := I;
+  end;
+
+  if BestIndex < 0 then
+  begin
+    Result := nil;
+    Exit;
+  end;
+
+  Snapshot := SpectrumHistory[BestIndex].State;
+  Snapshot.UpdateTick := GetTickCount64;
+  Result := @Snapshot;
+end;
 
 function GetMonitorSharedMemory: TAul2AudioMonitorSharedMemory;
 begin
@@ -133,6 +353,8 @@ begin
 
   if Assigned(SpectrumPaintBox) then
     SpectrumPaintBox.SetBounds(0, 0, PanelSpectrum.Width, PanelSpectrum.Height);
+
+  PositionStateLabel;
 end;
 
 procedure SyncMonitorViewBounds;
@@ -175,6 +397,7 @@ end;
 
 procedure TMonitorTimerTarget.ReadTimerTick(Sender: TObject);
 begin
+  RefreshEditState;
   SyncMonitorViewBounds;
   InvalidateMonitorView;
 end;
@@ -183,6 +406,8 @@ procedure TMonitorTimerTarget.WavePaint(Sender: TObject);
 var
   PaintBox: TPaintBox;
   State: PAul2AudioMonitorState;
+  DisplayState: PAul2AudioMonitorState;
+  StateSnapshot: TAul2AudioMonitorState;
 begin
   if not (Sender is TPaintBox) then
     Exit;
@@ -194,11 +419,12 @@ begin
   except
     State := nil;
   end;
+  DisplayState := SelectMonitorSnapshot(State, StateSnapshot);
 
   DrawBuffered(PaintBox,
     procedure(Canvas: TCanvas; Rect: TRect)
     begin
-      DrawAudioMonitorCanvas(Canvas, Rect, State);
+      DrawAudioMonitorCanvas(Canvas, Rect, DisplayState, True);
     end);
 end;
 
@@ -207,6 +433,10 @@ var
   PaintBox: TPaintBox;
   MonitorState: PAul2AudioMonitorState;
   SpectrumState: PAul2AudioMonitorSpectrumState;
+  DisplayMonitorState: PAul2AudioMonitorState;
+  DisplaySpectrumState: PAul2AudioMonitorSpectrumState;
+  MonitorSnapshot: TAul2AudioMonitorState;
+  SpectrumSnapshot: TAul2AudioMonitorSpectrumState;
 begin
   if not (Sender is TPaintBox) then
     Exit;
@@ -224,11 +454,13 @@ begin
   except
     MonitorState := nil;
   end;
+  DisplaySpectrumState := SelectSpectrumSnapshot(SpectrumState, SpectrumSnapshot);
+  DisplayMonitorState := SelectMonitorSnapshot(MonitorState, MonitorSnapshot);
 
   DrawBuffered(PaintBox,
     procedure(Canvas: TCanvas; Rect: TRect)
     begin
-      DrawAudioSpectrumCanvas(Canvas, Rect, SpectrumState, MonitorState);
+      DrawAudioSpectrumCanvas(Canvas, Rect, DisplaySpectrumState, DisplayMonitorState, True);
     end);
 end;
 
@@ -292,6 +524,18 @@ begin
   ButtonBase.Parent := ToolBar;
   ButtonBase.Caption := 'Base';
   ButtonBase.Left := ButtonSpectrum.Left + ButtonSpectrum.Width + 1;
+
+  StateLabel := TLabel.Create(MonitorForm);
+  StateLabel.Parent := ToolBar;
+  StateLabel.AutoSize := False;
+  StateLabel.Transparent := False;
+  StateLabel.Color := RGB(48, 48, 48);
+  StateLabel.ParentFont := False;
+  StateLabel.Font.Assign(MonitorForm.Font);
+  StateLabel.Layout := tlCenter;
+  StateLabel.Alignment := taLeftJustify;
+  StateLabel.Caption := 'State: ?';
+  StateLabel.Font.Color := RGB(170, 170, 170);
 
   PanelWave := TPanel.Create(MonitorForm);
   PanelWave.Parent := RootPanel;
@@ -361,6 +605,8 @@ begin
   ToolBarManager.AddPanel(PanelBase);
   ToolBarManager.Attach(ToolBar);
   ToolBarManager.Activate(Ord(ampSpectrum));
+  PositionStateLabel;
+  UpdateStateLabel;
 
   ReadTimer := TTimer.Create(MonitorForm);
   ReadTimer.Interval := 50;
@@ -409,6 +655,7 @@ begin
   FreeAndNil(PanelBase);
   FreeAndNil(PanelSpectrum);
   FreeAndNil(PanelWave);
+  FreeAndNil(StateLabel);
   FreeAndNil(ButtonBase);
   FreeAndNil(ButtonSpectrum);
   FreeAndNil(ButtonWave);
@@ -418,6 +665,13 @@ begin
   ClientWindow := 0;
   LastViewWidth := 0;
   LastViewHeight := 0;
+  LastEditStatePollTick := 0;
+  MonitorEditState := aesEdit;
+  MonitorEditStateValid := False;
+  LastMonitorEditState := aesEdit;
+  LastMonitorEditStateValid := False;
+  ClearPlaybackHistory;
+  ClearAudioMonitorDisplay;
 end;
 
 end.

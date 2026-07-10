@@ -174,6 +174,10 @@ type
     CallEditSection: function(Func: TProcEditSection): BOOL; cdecl;
     CallEditSectionParam: function(Param: Pointer; Func: TProcEditSectionParam): BOOL; cdecl;
     GetEditInfo: procedure(Info: PEditInfo; InfoSize: Integer); cdecl;
+    RestartHostApp: procedure; cdecl;
+    EnumEffectName: Pointer;
+    EnumModuleInfo: Pointer;
+    GetHostAppWindow: function: HWND; cdecl;
     GetEditState: function: Integer; cdecl;
   end;
 

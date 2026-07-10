@@ -1,4 +1,4 @@
-unit Aul2AudioMonitorPaint;
+﻿unit Aul2AudioMonitorPaint;
 
 // Aul2AudioMonitor の表示描画を担当する。
 
@@ -11,11 +11,13 @@ uses
   Aul2AudioMonitorSpectrumShared;
 
 procedure DrawAudioMonitorCanvas(Canvas: TCanvas; const ClientRect: TRect;
-  State: PAul2AudioMonitorState);
+  State: PAul2AudioMonitorState; AllowDataUpdate: Boolean);
 procedure DrawAudioMonitorPlaceholder(Canvas: TCanvas; const ClientRect: TRect;
   const Text: string);
 procedure DrawAudioSpectrumCanvas(Canvas: TCanvas; const ClientRect: TRect;
-  SpectrumState: PAul2AudioMonitorSpectrumState; MonitorState: PAul2AudioMonitorState);
+  SpectrumState: PAul2AudioMonitorSpectrumState; MonitorState: PAul2AudioMonitorState;
+  AllowDataUpdate: Boolean);
+procedure ClearAudioMonitorDisplay;
 
 implementation
 
@@ -40,6 +42,25 @@ var
   DisplayInputBands : TAudioMonitorSpectrumData;
   DisplayOutputBands: TAudioMonitorSpectrumData;
   DisplaySpectrumValid: Boolean;
+
+procedure ClearAudioMonitorDisplay;
+begin
+  DisplayPeakInputL := 0;
+  DisplayPeakInputR := 0;
+  DisplayPeakOutputL := 0;
+  DisplayPeakOutputR := 0;
+  DisplayInputBalance := 0;
+  DisplayOutputBalance := 0;
+  DisplayPeakValid := False;
+  FillChar(DisplayInputWaveMin, SizeOf(DisplayInputWaveMin), 0);
+  FillChar(DisplayInputWaveMax, SizeOf(DisplayInputWaveMax), 0);
+  FillChar(DisplayOutputWaveMin, SizeOf(DisplayOutputWaveMin), 0);
+  FillChar(DisplayOutputWaveMax, SizeOf(DisplayOutputWaveMax), 0);
+  DisplayWaveValid := False;
+  FillChar(DisplayInputBands, SizeOf(DisplayInputBands), 0);
+  FillChar(DisplayOutputBands, SizeOf(DisplayOutputBands), 0);
+  DisplaySpectrumValid := False;
+end;
 
 function TickIsFresh(UpdateTick: UInt64): Boolean;
 const
@@ -86,11 +107,11 @@ begin
   Result := Max(-1.0, Min(1.0, (RmsR - RmsL) / Total));
 end;
 
-procedure UpdateDisplayPeaks(State: PAul2AudioMonitorState);
+procedure UpdateDisplayPeaks(State: PAul2AudioMonitorState; AllowDataUpdate: Boolean);
 const
   PEAK_DECAY = 0.84;
 begin
-  if MonitorStateFresh(State) then
+  if AllowDataUpdate and MonitorStateFresh(State) then
   begin
     DisplayPeakInputL := Max(State^.InputPeakL, DisplayPeakInputL * PEAK_DECAY);
     DisplayPeakInputR := Max(State^.InputPeakR, DisplayPeakInputR * PEAK_DECAY);
@@ -119,11 +140,11 @@ begin
   DisplayMax := DisplayMax + ((NewMax - DisplayMax) * WAVE_SMOOTH);
 end;
 
-procedure UpdateDisplayWave(State: PAul2AudioMonitorState);
+procedure UpdateDisplayWave(State: PAul2AudioMonitorState; AllowDataUpdate: Boolean);
 var
   Point: Integer;
 begin
-  if not MonitorStateFresh(State) then
+  if (not AllowDataUpdate) or (not MonitorStateFresh(State)) then
     Exit;
 
   if not DisplayWaveValid then
@@ -161,11 +182,11 @@ begin
   DisplayValue := DisplayValue + ((NewValue - DisplayValue) * Alpha);
 end;
 
-procedure UpdateDisplaySpectrum(SpectrumState: PAul2AudioMonitorSpectrumState);
+procedure UpdateDisplaySpectrum(SpectrumState: PAul2AudioMonitorSpectrumState; AllowDataUpdate: Boolean);
 var
   Band: Integer;
 begin
-  if not SpectrumStateFresh(SpectrumState) then
+  if (not AllowDataUpdate) or (not SpectrumStateFresh(SpectrumState)) then
     Exit;
 
   if not DisplaySpectrumValid then
@@ -219,7 +240,7 @@ begin
 end;
 
 procedure DrawAudioMonitorCanvas(Canvas: TCanvas; const ClientRect: TRect;
-  State: PAul2AudioMonitorState);
+  State: PAul2AudioMonitorState; AllowDataUpdate: Boolean);
 var
   PlotRect: TRect;
   CenterY: Integer;
@@ -240,7 +261,7 @@ begin
 
   try
     StateValid := MonitorStateValid(State);
-    if not StateValid then
+    if (not StateValid) and (not DisplayWaveValid) then
     begin
       DisplayWaveValid := False;
       Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8,
@@ -254,7 +275,7 @@ begin
       CaptionText := 'Wave';
     Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8, CaptionText);
 
-    UpdateDisplayWave(State);
+    UpdateDisplayWave(State, AllowDataUpdate);
 
     CenterY := (PlotRect.Top + PlotRect.Bottom) div 2;
     Canvas.Pen.Color := RGB(84, 84, 84);
@@ -423,7 +444,7 @@ begin
 end;
 
 procedure DrawPeakMeters(Canvas: TCanvas; const MeterRect: TRect;
-  State: PAul2AudioMonitorState);
+  State: PAul2AudioMonitorState; AllowDataUpdate: Boolean);
 var
   BarRect: TRect;
   BalanceRect: TRect;
@@ -436,7 +457,7 @@ begin
   if (MeterRect.Right <= MeterRect.Left) or (MeterRect.Bottom <= MeterRect.Top) then
     Exit;
 
-  UpdateDisplayPeaks(State);
+  UpdateDisplayPeaks(State, AllowDataUpdate);
 
   Canvas.Pen.Color := RGB(56, 56, 56);
   Canvas.Brush.Style := bsClear;
@@ -499,7 +520,8 @@ begin
 end;
 
 procedure DrawAudioSpectrumCanvas(Canvas: TCanvas; const ClientRect: TRect;
-  SpectrumState: PAul2AudioMonitorSpectrumState; MonitorState: PAul2AudioMonitorState);
+  SpectrumState: PAul2AudioMonitorSpectrumState; MonitorState: PAul2AudioMonitorState;
+  AllowDataUpdate: Boolean);
 var
   PlotRect: TRect;
   MeterRect: TRect;
@@ -524,19 +546,22 @@ begin
   Canvas.Brush.Style := bsClear;
 
   try
-    if not SpectrumStateValid(SpectrumState) then
+    if (not SpectrumStateValid(SpectrumState)) and (not DisplaySpectrumValid) then
     begin
       DisplaySpectrumValid := False;
       Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8,
         'Spectrum - waiting audio data');
-      DrawPeakMeters(Canvas, MeterRect, MonitorState);
+      DrawPeakMeters(Canvas, MeterRect, MonitorState, AllowDataUpdate);
       Exit;
     end;
 
-    UpdateDisplaySpectrum(SpectrumState);
+    UpdateDisplaySpectrum(SpectrumState, AllowDataUpdate);
 
-    CaptionText := Format('Spectrum  %d Hz  %d bands',
-      [SpectrumState^.SampleRate, SpectrumState^.BandCount]);
+    if SpectrumStateValid(SpectrumState) then
+      CaptionText := Format('Spectrum  %d Hz  %d bands',
+        [SpectrumState^.SampleRate, SpectrumState^.BandCount])
+    else
+      CaptionText := 'Spectrum';
     Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8, CaptionText);
 
     Canvas.Pen.Color := RGB(56, 56, 56);
@@ -562,7 +587,7 @@ begin
       1, BarWidth);
 
     DrawLegend(Canvas, ClientRect.Left + 12, ClientRect.Top + 26);
-    DrawPeakMeters(Canvas, MeterRect, MonitorState);
+    DrawPeakMeters(Canvas, MeterRect, MonitorState, AllowDataUpdate);
   except
     Canvas.Font.Color := RGB(220, 220, 220);
     Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8,
