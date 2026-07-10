@@ -349,13 +349,14 @@ Base ページの現在レイアウト:
 - Aul2AudioMonitor 側には Aul2AudioView のような「現在描画中の全体フレーム」が渡っていないため、同じ `SourceFrameS + SourceFrame` 照合をそのまま適用できない。Monitor を正確に同期させるには、現在の編集/再生フレームを別経路で取得するか、Monitor は「最新処理音声の観測窓」として扱う方針に分ける必要がある。
 - Debug ビルドで Aul2AudioView を確認した際、表示処理中に範囲チェックエラーが出た。最後のコミットへ戻したため未修正。再調査する場合は、まず Debug range check と描画バッファアクセスの相性を確認する。
 
-## 2026-07-10 Aul2AudioMonitor 再生時先読み対策メモ
+## 2026-07-10 Aul2AudioMonitor 再生同期 再開メモ
 
-- AviUtl2 SDK 54 の `EDIT_HANDLE` では `get_edit_state` が `restart_host_app` / `enum_effect_name` / `enum_module_info` / `get_host_app_window` の後ろにある。旧 Delphi 定義では `get_edit_info` の直後に `GetEditState` を置いていたため、`GetEditState` のつもりで `restart_host_app` を呼ぶ危険があった。`Source\Lib\AviUtl2Plugin\AviUtl2PluginTypes.pas` の `TEditHandle` は SDK 54 の順番に合わせて修正済み。
-- `Aul2AudioMonitorView.pas` のツールバー右側に `State: Edit` / `State: Play` / `State: Save` 表示を追加した。再生状態の取得は描画処理中ではなく、`ReadTimer` 側で 500ms 間隔に抑えて行う。
-- 再生時は `.auf2` 側の音声処理がプレビュー音声を大きく先読みし、共有メモリへ未来側のスペクトラムを書き込む。そのため `.aux2` の Monitor はそのまま最新値を描くと画面上の再生位置より先行して見える。
-- 対策として、Monitor 側で共有メモリから読んだ `TAul2AudioMonitorState` / `TAul2AudioMonitorSpectrumState` を履歴配列へ保存し、`State: Play` の時だけ `PLAYBACK_DISPLAY_DELAY_MS` ms 前に近いスナップショットを描く。現在値は `Aul2AudioMonitorView.pas` の `PLAYBACK_DISPLAY_DELAY_MS = 3000`。実測では約 3 秒程度の遅延補正が必要だった。
-- 履歴配列は 128 個。50ms タイマー基準では約 6.4 秒分を保持できる。遅延表示用に取り出したスナップショットは描画時点で stale 判定に落ちないよう `UpdateTick` を現在 tick に補正してから描画へ渡す。
-- `Aul2AudioMonitorPaint.pas` に `ClearAudioMonitorDisplay` を追加し、描画側の保持値、ピーク、波形、スペクトラム、ステレオバランスを明示クリアできるようにした。
-- クリアタイミングは「編集状態になった時」ではなく、「前回状態が `Edit` で今回状態が `Play` になった時」。この `Edit -> Play` 遷移時に再生遅延用履歴と描画保持バッファを両方クリアする。再生開始直後に遅延時間分の履歴がまだ無い場合は、古い保持値や最古履歴で代替表示せず `nil` を返し、画面が空になるようにしている。
-- 編集中は最後の表示値を保持する方針を継続する。これは停止時やカーソル移動後に Monitor がすぐ空になりすぎるのを避けるため。再生時の先読み補正とは `State: Play` 判定で分けて扱う。
+- 現状は `Aul2AudioView` が実際に描画している `CurrentFrame` を `Local\Aul2AudioViewFrame` へ書き、`Aul2AudioMonitor` が再生中にその `ViewFrame` を優先して読む構成。
+- `Local\Aul2AudioMonitorSpectrum` へ `ViewFrame` を混ぜる案は、View 側のスペクトラム読み取りを巻き込んで表示不能になったため禁止。`Aul2AudioMonitorSpectrumShared.pas` は version 3 のまま維持する。
+- `Aul2AudioViewFrameShared.pas` は `Local\Aul2AudioViewFrame` 専用の小さな共有メモリ。`Aul2AudioView.dpr` / `Aul2AudioMonitor.dpr` と各 `.dproj` に登録済み。
+- 現時点で一番正解に近い挙動は、再生中に `ViewFrame` と `SourceFrameS..SourceFrameE` が一致する履歴のうち、最新の `TAul2AudioMonitorState` / `TAul2AudioMonitorSpectrumState` を描く方式。少し未来側に見えるが、他の試行より安定している。
+- 試したが不採用: 3 秒固定遅延、`GetEditInfo.Frame` 単独同期、`SampleIndex` からのフレーム換算、未来サンプル許容量、音声ブロック中心代表。いずれも無表示、数秒遅れ、または大きな先行に悪化した。
+- 編集中は従来通り最新共有メモリ値と最後の描画値保持でよい。再生中だけ同期課題として扱う。
+- `Aul2AudioMonitorView.pas` の `RefreshMonitorFrame` は ViewFrame 優先、取れない場合だけ `AviUtl2GetEditFrame` fallback。`SelectMonitorSnapshot` / `SelectSpectrumSnapshot` は現在、範囲一致した履歴の最新 tick を選ぶ。
+- 次に触る場合は、いきなり補正値を増やさず、まず再生中の `ViewFrame`, `SourceFrame`, `SourceFrameS/E`, `SampleIndex`, `SampleNum`, `SampleRate` を一時表示またはログに出し、同じ基準軸か確認する。
+- Debug Win64 の `Aul2AudioMonitor.dproj` は直近ビルド成功し、`Aul2AudioMonitor.aux2` へのコピーも成功。AviUtl2 が読み込み済みの場合は再起動して反映する。

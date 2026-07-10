@@ -14,6 +14,7 @@ type
 
 // エディタが編集状態か取得
 function AviUtl2GetEditState: TAviUtl2EditState;
+function AviUtl2GetEditFrame(out Frame: Integer): Boolean;
 
 var
 
@@ -36,6 +37,21 @@ begin
     Result := TAviUtl2EditState(State)
   else
     Result := aesEdit;
+end;
+
+function AviUtl2GetEditFrame(out Frame: Integer): Boolean;
+var
+  Info: TEditInfo;
+begin
+  Frame := -1;
+  Result := False;
+  if EditHandle = nil then
+    Exit;
+
+  FillChar(Info, SizeOf(Info), 0);
+  EditHandle.GetEditInfo(@Info, SizeOf(Info));
+  Frame := Info.Frame;
+  Result := True;
 end;
 
 end.

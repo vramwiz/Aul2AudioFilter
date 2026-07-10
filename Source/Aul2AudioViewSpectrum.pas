@@ -16,10 +16,13 @@ implementation
 
 uses
   System.Math,
-  System.SysUtils;
+  System.SysUtils,
+  Winapi.Windows,
+  Aul2AudioViewFrameShared;
 
 var
   SpectrumMemory: TAul2AudioMonitorSpectrumSharedMemory;
+  ViewFrameMemory: TAul2AudioViewFrameSharedMemory;
   DisplayBands: TAudioMonitorSpectrumData;
   DisplayBandsValid: Boolean;
 
@@ -30,6 +33,7 @@ begin
       SpectrumMemory := TAul2AudioMonitorSpectrumSharedMemory.Create;
   except
     FreeAndNil(SpectrumMemory);
+    FreeAndNil(ViewFrameMemory);
     DisplayBandsValid := False;
   end;
 end;
@@ -37,7 +41,29 @@ end;
 procedure FinalizeViewSpectrum;
 begin
   FreeAndNil(SpectrumMemory);
+  FreeAndNil(ViewFrameMemory);
   DisplayBandsValid := False;
+end;
+
+procedure UpdateViewFrame(CurrentFrame: Integer);
+var
+  State: PAul2AudioViewFrameState;
+begin
+  try
+    if ViewFrameMemory = nil then
+      ViewFrameMemory := TAul2AudioViewFrameSharedMemory.Create;
+
+    State := ViewFrameMemory.State;
+    if State = nil then
+      Exit;
+
+    State^.Magic := AUDIO_VIEW_FRAME_SHARED_MAGIC;
+    State^.Version := AUDIO_VIEW_FRAME_SHARED_VERSION;
+    State^.UpdateTick := GetTickCount64;
+    State^.Frame := CurrentFrame;
+  except
+    FreeAndNil(ViewFrameMemory);
+  end;
 end;
 
 procedure SmoothBand(var DisplayValue: Single; NewValue: Single; Smooth: Integer);
@@ -92,6 +118,8 @@ begin
      (State^.Magic <> AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) or
      (State^.Version <> AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) then
     Exit;
+
+  UpdateViewFrame(CurrentFrame);
 
   if not StateMatchesFrame(State, CurrentFrame) then
   begin

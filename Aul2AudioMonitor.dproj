@@ -121,6 +121,7 @@
         <DCCReference Include="Source\Lib\DragAgent\DragAgent.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioViewFrameShared.pas"/>
         <DCCReference Include="Source\Aul2AudioBaseAlias.pas"/>
         <DCCReference Include="Source\Aul2AudioBaseCreate.pas"/>
         <DCCReference Include="Source\Aul2AudioBasePanel.pas"/>

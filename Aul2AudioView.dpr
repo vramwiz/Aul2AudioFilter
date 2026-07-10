@@ -10,6 +10,7 @@ uses
   Aul2AudioFilterGui in 'Source\Lib\Aul2AudioFilterGui.pas',
   SharedMemoryBase in 'Source\Lib\SharedMemory\SharedMemoryBase.pas',
   Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
+  Aul2AudioViewFrameShared in 'Source\Lib\AudioMonitor\Aul2AudioViewFrameShared.pas',
   AviUtl2GpuTextureOut in 'Source\Lib\AviUtl2GpuTextureOut.pas',
   Aul2AudioViewParams in 'Source\Aul2AudioViewParams.pas',
   Aul2AudioViewRenderUtils in 'Source\Aul2AudioViewRenderUtils.pas',

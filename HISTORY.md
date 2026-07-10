@@ -470,3 +470,15 @@
 - 現段階では描画や別プラグインへの通知は行わず、要求されたフレームバッファを 0 クリアして返すだけの最小構成にした。
 - 参照元は共有メモリで別プラグインへ情報を送っていたが、今回は後段の描画フィルターがオブジェクト側のサイズを参照できる想定のため、共有メモリ連携は入れない。
 - `Aul2AudioBaseInput.dproj` の Debug / Release Win64 ビルドが警告なしで成功し、`Aul2AudioBaseInput.aui2` へのコピーまで完了することを確認した。
+
+## Aul2AudioMonitor playback sync investigation note
+
+- 再生中、`.auf2` 側の音声処理がプレビュー音声を先読みして共有メモリへ未来側のスペクトラムを書き込むため、独立ウィンドウの `Aul2AudioMonitor` は画面上の再生位置より先行して見える問題を調査した。
+- 最初に `PLAYBACK_DISPLAY_DELAY_MS = 3000` の固定遅延と履歴配列を試した。一定の補正にはなったが、View 側が遅延なしで合っていることと整合せず、見え方も安定しなかったため不採用とした。
+- `EDIT_HANDLE.GetEditInfo` から `Frame` を取る `AviUtl2GetEditFrame` を追加し、再生中だけ現在フレームと `SourceFrameS..SourceFrameE` が一致する履歴を選ぶ方式を試した。`GetEditInfo.Frame` は再生中の実描画フレームではなく編集カーソル寄りの値を返す場合があり、`waiting audio data` になったため単独利用は不採用。
+- View 側の映像描画コールバックには正しい `CurrentFrame` があるため、最初は `Local\Aul2AudioMonitorSpectrum` に `ViewFrame` / `ViewFrameUpdateTick` を追加して version 4 に上げた。しかし View 側のスペクトラム読み取りまで巻き込み、表示不能になったため撤回した。スペクトラム共有構造は version 3 へ戻した。
+- 代替として、ViewFrame 専用共有メモリ `Local\Aul2AudioViewFrame` と `Aul2AudioViewFrameShared.pas` を追加した。`Aul2AudioViewSpectrum.pas` が `UpdateViewSpectrum` ごとに現在描画フレームを書き、`Aul2AudioMonitorView.pas` が `RefreshMonitorFrame` で新鮮な ViewFrame を優先して読む。
+- `Aul2AudioMonitorView.pas` の再生中履歴選択は、現時点では `ViewFrame` と `SourceFrameS..SourceFrameE` が一致する履歴のうち最新 tick を選ぶ形が最も安定した。少し未来側に見えるが、他の方式より正解に近い。
+- その後、`SourceFrame` の近さ、未来側除外、`SampleIndex` からのフレーム換算、サンプル単位比較、未来サンプル許容量、音声ブロック中心代表などを試したが、無表示、数秒遅れ、または 12 フレーム程度の先行に悪化したため不採用とした。
+- 編集中は従来通り最新共有メモリ値と最後の描画値を保持する方針を維持する。同期課題は再生中だけに限定して扱う。
+- Debug Win64 で `Aul2AudioMonitor.dproj` のビルドと `Aul2AudioMonitor.aux2` へのコピーが成功することを確認した。

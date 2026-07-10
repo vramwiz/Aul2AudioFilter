@@ -31,6 +31,7 @@ uses
   Aul2AudioMonitorPaint,
   Aul2AudioMonitorShared,
   Aul2AudioMonitorSpectrumShared,
+  Aul2AudioViewFrameShared,
   Aul2AudioBasePanel,
   AviUtl2PluginCore,
   ToolBarPanelManager;
@@ -87,6 +88,7 @@ var
   ToolBarManager: TToolBarPanelManager;
   SharedMemory: TAul2AudioMonitorSharedMemory;
   SpectrumMemory: TAul2AudioMonitorSpectrumSharedMemory;
+  ViewFrameMemory: TAul2AudioViewFrameSharedMemory;
   LastViewWidth: Integer;
   LastViewHeight: Integer;
   LastEditStatePollTick: UInt64;
@@ -94,13 +96,12 @@ var
   MonitorEditStateValid: Boolean;
   LastMonitorEditState: TAviUtl2EditState;
   LastMonitorEditStateValid: Boolean;
+  MonitorFrame: Integer;
+  MonitorFrameValid: Boolean;
   MonitorHistory: array[0..127] of TMonitorStateSnapshot;
   SpectrumHistory: array[0..127] of TSpectrumStateSnapshot;
   MonitorHistoryIndex: Integer;
   SpectrumHistoryIndex: Integer;
-
-const
-  PLAYBACK_DISPLAY_DELAY_MS = 3000;
 
 procedure ClearPlaybackHistory;
 begin
@@ -198,9 +199,88 @@ begin
   UpdateStateLabel;
 end;
 
-function UsePlaybackDelayedDisplay: Boolean;
+procedure RefreshMonitorFrame;
+const
+  VIEW_FRAME_STALE_MS = 300;
+var
+  State: PAul2AudioViewFrameState;
+  NowTick: UInt64;
+begin
+  MonitorFrame := -1;
+  MonitorFrameValid := False;
+
+  try
+    if ViewFrameMemory = nil then
+      ViewFrameMemory := TAul2AudioViewFrameSharedMemory.Create;
+    State := ViewFrameMemory.State;
+    NowTick := GetTickCount64;
+    if (State <> nil) and
+       (State^.Magic = AUDIO_VIEW_FRAME_SHARED_MAGIC) and
+       (State^.Version = AUDIO_VIEW_FRAME_SHARED_VERSION) and
+       (State^.Frame >= 0) and
+       (State^.UpdateTick <> 0) and
+       (NowTick >= State^.UpdateTick) and
+       ((NowTick - State^.UpdateTick) <= VIEW_FRAME_STALE_MS) then
+    begin
+      MonitorFrame := State^.Frame;
+      MonitorFrameValid := True;
+      Exit;
+    end;
+  except
+    MonitorFrame := -1;
+    MonitorFrameValid := False;
+  end;
+
+  try
+    MonitorFrameValid := AviUtl2GetEditFrame(MonitorFrame);
+  except
+    MonitorFrame := -1;
+    MonitorFrameValid := False;
+  end;
+end;
+
+function IsPlaybackDisplay: Boolean;
 begin
   Result := MonitorEditStateValid and (MonitorEditState = aesPlay);
+end;
+
+function PlaybackFrameAvailable: Boolean;
+begin
+  Result := MonitorFrameValid and (MonitorFrame >= 0);
+end;
+
+function MonitorStateMatchesFrame(const State: TAul2AudioMonitorState; Frame: Integer): Boolean;
+begin
+  if Frame < 0 then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  if (State.SourceFrameS <= 0) and (State.SourceFrameE <= 0) then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  Result := (Frame >= State.SourceFrameS) and (Frame <= State.SourceFrameE);
+end;
+
+function SpectrumStateMatchesFrame(const State: TAul2AudioMonitorSpectrumState; Frame: Integer): Boolean;
+begin
+  if Frame < 0 then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  if (State.SourceFrameS <= 0) and (State.SourceFrameE <= 0) then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  Result := (Frame >= State.SourceFrameS) and (Frame <= State.SourceFrameE);
 end;
 
 procedure PushMonitorHistory(State: PAul2AudioMonitorState);
@@ -228,23 +308,26 @@ end;
 function SelectMonitorSnapshot(Current: PAul2AudioMonitorState;
   out Snapshot: TAul2AudioMonitorState): PAul2AudioMonitorState;
 var
-  TargetTick: UInt64;
   I: Integer;
   BestIndex: Integer;
 begin
   Result := Current;
   PushMonitorHistory(Current);
-  if not UsePlaybackDelayedDisplay then
+  if not IsPlaybackDisplay then
     Exit;
+  if not PlaybackFrameAvailable then
+  begin
+    Result := nil;
+    Exit;
+  end;
 
-  TargetTick := GetTickCount64 - PLAYBACK_DISPLAY_DELAY_MS;
   BestIndex := -1;
   for I := Low(MonitorHistory) to High(MonitorHistory) do
   begin
     if not MonitorHistory[I].Valid then
       Continue;
 
-    if MonitorHistory[I].Tick <= TargetTick then
+    if MonitorStateMatchesFrame(MonitorHistory[I].State, MonitorFrame) then
       if (BestIndex < 0) or (MonitorHistory[I].Tick > MonitorHistory[BestIndex].Tick) then
         BestIndex := I;
   end;
@@ -263,23 +346,26 @@ end;
 function SelectSpectrumSnapshot(Current: PAul2AudioMonitorSpectrumState;
   out Snapshot: TAul2AudioMonitorSpectrumState): PAul2AudioMonitorSpectrumState;
 var
-  TargetTick: UInt64;
   I: Integer;
   BestIndex: Integer;
 begin
   Result := Current;
   PushSpectrumHistory(Current);
-  if not UsePlaybackDelayedDisplay then
+  if not IsPlaybackDisplay then
     Exit;
+  if not PlaybackFrameAvailable then
+  begin
+    Result := nil;
+    Exit;
+  end;
 
-  TargetTick := GetTickCount64 - PLAYBACK_DISPLAY_DELAY_MS;
   BestIndex := -1;
   for I := Low(SpectrumHistory) to High(SpectrumHistory) do
   begin
     if not SpectrumHistory[I].Valid then
       Continue;
 
-    if SpectrumHistory[I].Tick <= TargetTick then
+    if SpectrumStateMatchesFrame(SpectrumHistory[I].State, MonitorFrame) then
       if (BestIndex < 0) or (SpectrumHistory[I].Tick > SpectrumHistory[BestIndex].Tick) then
         BestIndex := I;
   end;
@@ -398,6 +484,7 @@ end;
 procedure TMonitorTimerTarget.ReadTimerTick(Sender: TObject);
 begin
   RefreshEditState;
+  RefreshMonitorFrame;
   SyncMonitorViewBounds;
   InvalidateMonitorView;
 end;
@@ -645,6 +732,7 @@ procedure DestroyMonitorView;
 begin
   FreeAndNil(SharedMemory);
   FreeAndNil(SpectrumMemory);
+  FreeAndNil(ViewFrameMemory);
   FreeAndNil(ReadTimer);
   FreeAndNil(ToolBarManager);
   FreeAndNil(TimerTarget);
@@ -670,6 +758,8 @@ begin
   MonitorEditStateValid := False;
   LastMonitorEditState := aesEdit;
   LastMonitorEditStateValid := False;
+  MonitorFrame := -1;
+  MonitorFrameValid := False;
   ClearPlaybackHistory;
   ClearAudioMonitorDisplay;
 end;

@@ -14,6 +14,7 @@ uses
   DragAgent in 'Source\Lib\DragAgent\DragAgent.pas',
   Aul2AudioMonitorShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas',
   Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
+  Aul2AudioViewFrameShared in 'Source\Lib\AudioMonitor\Aul2AudioViewFrameShared.pas',
   Aul2AudioBaseAlias in 'Source\Aul2AudioBaseAlias.pas',
   Aul2AudioBaseCreate in 'Source\Aul2AudioBaseCreate.pas',
   Aul2AudioBasePanel in 'Source\Aul2AudioBasePanel.pas',
