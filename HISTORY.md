@@ -482,3 +482,17 @@
 - その後、`SourceFrame` の近さ、未来側除外、`SampleIndex` からのフレーム換算、サンプル単位比較、未来サンプル許容量、音声ブロック中心代表などを試したが、無表示、数秒遅れ、または 12 フレーム程度の先行に悪化したため不採用とした。
 - 編集中は従来通り最新共有メモリ値と最後の描画値を保持する方針を維持する。同期課題は再生中だけに限定して扱う。
 - Debug Win64 で `Aul2AudioMonitor.dproj` のビルドと `Aul2AudioMonitor.aux2` へのコピーが成功することを確認した。
+
+## Aul2AudioView completion note
+
+- `Aul2AudioView` は `Aul2AudioBaseInput` の上に載る MV 用表示フィルターとして完成扱いにした。
+- 表示タイプは `Equalizer Bars`, `Filled Spectrum`, `Wave Line`, `Pixel Wave`, `Pulse Wave` の 5 種類。スペクトラム系は `Local\Aul2AudioMonitorSpectrum` の `OutputBands`、時間波形系は `Local\Aul2AudioMonitorState` の `OutputWave` / `OutputWaveMin` / `OutputWaveMax` を読む。
+- 描画は背景透明、文字なし、枠なし、グリッドなしを基本とし、MV 素材として邪魔にならない出力にした。
+- `Style` は `Solid` / `Blocks`。`Density`, `Spacing`, `Thickness`, `Smooth` を共通パラメーターとして扱う。
+- `Equalizer Bars` / `Filled Spectrum` の描画マージンは `0` とした。将来的に必要になった場合は `VIEW_MARGIN_X` / `VIEW_MARGIN_Y` を設定項目へ昇格する。
+- `Thickness` は `1..32` とし、`Wave Line` では線幅、`Pixel Wave` では点サイズ、`Pulse Wave` ではパルス幅として再利用する。Pixel Wave の内部 clamp も `32` に合わせた。
+- 色設定は `Color Variation` 1 リストに統合した。`1 Color`, `2 Color`, `3 Color`, `Rainbow`, `Warm`, `Cool`, `Pastel`, `Neon`, `Mono`, `Sepia`, `Gold`, `Silver`, `Fire`, `Ice`, `Water`, `Aurora`, `Starlight`, `Sunset`, `Ocean`, `Forest`, `Cyber`, `Retro Game` を用意した。
+- `Color Blend` は `Auto`, `RGB`, `HSV Short`, `HSV Long`。`Auto` では周期的な色相回転を避けるため、`Rainbow`, `Pastel`, `Neon`, `Cyber`, `Retro Game` を `RGB`、`Aurora` を `HSV Short` とした。`HSV Long` はユーザー指定時だけ強い色相回転として使う。
+- パラメーター名は `Aul2Audio View` 内に表示されるため、`View:` prefix を外し、`Type`, `Style`, `Density`, `Spacing`, `Thickness`, `Color`, `Color Variation`, `Color Blend`, `Smooth` とした。
+- `Source\Lib\Color\Aul2ColorUtils.pas` と `Source\Lib\Color\Aul2ColorPalette.pas` を追加し、RGB/HSV 変換、RGB / HSV短方向 / HSV長方向補間、パレット色取得を共通化した。
+- `dcc64` で `Aul2AudioView.dpr` の直接コンパイルが通ることを確認した。

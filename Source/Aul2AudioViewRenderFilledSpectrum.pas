@@ -60,8 +60,7 @@ begin
     if FillH <= 0 then
       Continue;
 
-    GetSolidOrRainbowColor(Settings.ColorStyle, Settings.ColorR, Settings.ColorG,
-      Settings.ColorB, X, AreaW, R, G, B);
+    GetViewColor(Settings, X, AreaW, R, G, B);
 
     TopY := BaseY - FillH + 1;
     FillRect(Buffer, Width, Height, MarginX + X, TopY, MarginX + X, BaseY, R, G, B, 255);
@@ -91,8 +90,7 @@ begin
     if FillCount <= 0 then
       Continue;
 
-    GetSolidOrRainbowColor(Settings.ColorStyle, Settings.ColorR, Settings.ColorG,
-      Settings.ColorB, X, AreaW, R, G, B);
+    GetViewColor(Settings, X, AreaW, R, G, B);
     for Block := 0 to FillCount - 1 do
     begin
       Y2 := BaseY - Block * (BlockH + Gap);

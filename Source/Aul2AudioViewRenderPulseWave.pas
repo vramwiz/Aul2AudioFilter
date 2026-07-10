@@ -92,8 +92,7 @@ begin
   Thickness := Max(1, Min(32, Settings.Thickness));
   Gap := Max(0, Settings.Spacing);
 
-  GetSolidOrRainbowColor(Settings.ColorStyle, Settings.ColorR, Settings.ColorG,
-    Settings.ColorB, 0, Max(1, Width), R, G, B);
+  GetViewColor(Settings, 0, Max(1, Width), R, G, B);
   DrawCenterGuide(Buffer, Width, Height, CenterY, Thickness, R, G, B);
 
   if not CurrentWaveValid then
@@ -117,8 +116,7 @@ begin
     if PulseH <= 0 then
       Continue;
 
-    GetSolidOrRainbowColor(Settings.ColorStyle, Settings.ColorR, Settings.ColorG,
-      Settings.ColorB, I, PulseCount, R, G, B);
+    GetViewColor(Settings, I, PulseCount, R, G, B);
     DrawPulse(Buffer, Width, Height, CenterY, X, PulseH, Thickness, R, G, B, 255);
   end;
 end;

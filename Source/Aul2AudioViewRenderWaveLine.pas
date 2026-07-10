@@ -127,8 +127,7 @@ begin
     YMin := CenterY - Round(Max(-1.0, Min(1.0, MinValue)) * HalfHeight);
     YMax := CenterY - Round(Max(-1.0, Min(1.0, MaxValue)) * HalfHeight);
 
-    GetSolidOrRainbowColor(Settings.ColorStyle, Settings.ColorR, Settings.ColorG,
-      Settings.ColorB, X, Width, R, G, B);
+    GetViewColor(Settings, X, Width, R, G, B);
     DrawLine(Buffer, Width, Height, X, YMin, X, YMax, Max(1, Thickness div 2), R, G, B, 120);
   end;
 end;
@@ -156,8 +155,7 @@ begin
   HalfHeight := Max(1, (Height - 1) div 2);
   Thickness := Max(1, Min(32, Settings.Thickness));
 
-  GetSolidOrRainbowColor(Settings.ColorStyle, Settings.ColorR, Settings.ColorG,
-    Settings.ColorB, 0, Max(1, Width), R, G, B);
+  GetViewColor(Settings, 0, Max(1, Width), R, G, B);
   DrawLine(Buffer, Width, Height, 0, CenterY, Width - 1, CenterY,
     Max(1, Thickness div 2), R div 3, G div 3, B div 3, 255);
 
@@ -171,8 +169,7 @@ begin
   for X := 1 to Width - 1 do
   begin
     Y := CenterY - Round(WaveValue(X, Width) * HalfHeight);
-    GetSolidOrRainbowColor(Settings.ColorStyle, Settings.ColorR, Settings.ColorG,
-      Settings.ColorB, X, Width, R, G, B);
+    GetViewColor(Settings, X, Width, R, G, B);
     DrawLine(Buffer, Width, Height, PrevX, PrevY, X, Y, Thickness, R, G, B, 255);
     if Settings.Style = VIEW_STYLE_BLOCKS then
     begin

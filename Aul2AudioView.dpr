@@ -13,6 +13,8 @@ uses
   Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
   Aul2AudioViewFrameShared in 'Source\Lib\AudioMonitor\Aul2AudioViewFrameShared.pas',
   AviUtl2GpuTextureOut in 'Source\Lib\AviUtl2GpuTextureOut.pas',
+  Aul2ColorUtils in 'Source\Lib\Color\Aul2ColorUtils.pas',
+  Aul2ColorPalette in 'Source\Lib\Color\Aul2ColorPalette.pas',
   Aul2AudioViewParams in 'Source\Aul2AudioViewParams.pas',
   Aul2AudioViewRenderUtils in 'Source\Aul2AudioViewRenderUtils.pas',
   Aul2AudioViewSpectrum in 'Source\Aul2AudioViewSpectrum.pas',

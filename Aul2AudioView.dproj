@@ -121,6 +121,8 @@
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioViewFrameShared.pas"/>
         <DCCReference Include="Source\Lib\AviUtl2GpuTextureOut.pas"/>
+        <DCCReference Include="Source\Lib\Color\Aul2ColorUtils.pas"/>
+        <DCCReference Include="Source\Lib\Color\Aul2ColorPalette.pas"/>
         <DCCReference Include="Source\Aul2AudioViewParams.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRenderUtils.pas"/>
         <DCCReference Include="Source\Aul2AudioViewSpectrum.pas"/>

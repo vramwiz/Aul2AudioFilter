@@ -5,7 +5,8 @@ unit Aul2AudioViewRenderUtils;
 interface
 
 uses
-  Aul2AudioFilterTypes;
+  Aul2AudioFilterTypes,
+  Aul2AudioViewParams;
 
 type
   TPixelArray = array[0..0] of TPIXEL_RGBA;
@@ -14,14 +15,15 @@ type
 procedure ClearPixels(Buffer: PPIXEL_RGBA; Width, Height: Integer);
 procedure FillRect(Buffer: PPIXEL_RGBA; Width, Height, X1, Y1, X2, Y2: Integer;
   R, G, B, A: Byte);
-procedure GetSolidOrRainbowColor(ColorStyle: Integer; BaseR, BaseG, BaseB: Byte;
-  Index, Count: Integer; out R, G, B: Byte);
+procedure GetViewColor(const Settings: TAul2AudioViewSettings; Index, Count: Integer;
+  out R, G, B: Byte);
 
 implementation
 
 uses
   System.Math,
-  Aul2AudioViewParams;
+  Aul2ColorUtils,
+  Aul2ColorPalette;
 
 procedure ClearPixels(Buffer: PPIXEL_RGBA; Width, Height: Integer);
 var
@@ -80,38 +82,56 @@ begin
       PutPixel(Pixels, Width, Height, X, Y, R, G, B, A);
 end;
 
-procedure GetSolidOrRainbowColor(ColorStyle: Integer; BaseR, BaseG, BaseB: Byte;
-  Index, Count: Integer; out R, G, B: Byte);
-var
-  Hue: Double;
-  Segment: Integer;
-  F: Double;
-  Q: Byte;
-  T: Byte;
+function ToColorBlendMode(Value: Integer): TAul2ColorBlendMode;
 begin
-  if ColorStyle <> VIEW_COLOR_RAINBOW then
+  case Value of
+    VIEW_COLOR_BLEND_RGB:
+      Result := cbRGB;
+    VIEW_COLOR_BLEND_HSV_SHORT:
+      Result := cbHSVShort;
+    VIEW_COLOR_BLEND_HSV_LONG:
+      Result := cbHSVLong;
+  else
+    Result := cbAuto;
+  end;
+end;
+
+function ToColorPalette(ColorVariation: Integer): TAul2ColorPalette;
+var
+  PaletteValue: Integer;
+begin
+  PaletteValue := ColorVariation - 1;
+  if (PaletteValue >= Ord(Low(TAul2ColorPalette))) and
+     (PaletteValue <= Ord(High(TAul2ColorPalette))) then
+    Result := TAul2ColorPalette(PaletteValue)
+  else
+    Result := cpRainbow;
+end;
+
+procedure GetViewColor(const Settings: TAul2AudioViewSettings; Index, Count: Integer;
+  out R, G, B: Byte);
+var
+  T: Double;
+  Color: TAul2RGBColor;
+begin
+  if Settings.ColorVariation = VIEW_COLOR_VARIATION_ONE_COLOR then
   begin
-    R := BaseR;
-    G := BaseG;
-    B := BaseB;
+    R := Settings.ColorR;
+    G := Settings.ColorG;
+    B := Settings.ColorB;
     Exit;
   end;
 
-  Hue := 6.0 * Index / Max(1, Count);
-  Segment := Trunc(Hue);
-  F := Hue - Segment;
-  Q := Round(255 * (1.0 - F));
-  T := Round(255 * F);
+  T := Index / Max(1, Count - 1);
+  Color := GetPaletteColor(
+    ToColorPalette(Settings.ColorVariation),
+    T,
+    ToColorBlendMode(Settings.ColorBlend)
+  );
 
-  case Segment mod 6 of
-    0: begin R := 255; G := T;   B := 0;   end;
-    1: begin R := Q;   G := 255; B := 0;   end;
-    2: begin R := 0;   G := 255; B := T;   end;
-    3: begin R := 0;   G := Q;   B := 255; end;
-    4: begin R := T;   G := 0;   B := 255; end;
-  else
-       begin R := 255; G := 0;   B := Q;   end;
-  end;
+  R := Color.R;
+  G := Color.G;
+  B := Color.B;
 end;
 
 end.

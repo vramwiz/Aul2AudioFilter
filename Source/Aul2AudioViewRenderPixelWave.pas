@@ -96,8 +96,7 @@ begin
   HalfHeight := Max(1, (Height - 1) div 2);
   PixelSize := Max(1, Min(32, Settings.Thickness));
 
-  GetSolidOrRainbowColor(Settings.ColorStyle, Settings.ColorR, Settings.ColorG,
-    Settings.ColorB, 0, Max(1, Width), R, G, B);
+  GetViewColor(Settings, 0, Max(1, Width), R, G, B);
   DrawCenterGuide(Buffer, Width, Height, CenterY, PixelSize, R, G, B);
 
   if not CurrentWaveValid then
@@ -110,8 +109,7 @@ begin
   for I := 0 to PointCount - 1 do
   begin
     X := Round(I * Max(0, Width - 1) / Max(1, PointCount - 1));
-    GetSolidOrRainbowColor(Settings.ColorStyle, Settings.ColorR, Settings.ColorG,
-      Settings.ColorB, I, PointCount, R, G, B);
+    GetViewColor(Settings, I, PointCount, R, G, B);
 
     if Settings.Style = VIEW_STYLE_BLOCKS then
     begin
