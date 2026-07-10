@@ -10,7 +10,8 @@ uses
 procedure InitializeViewSpectrum;
 procedure FinalizeViewSpectrum;
 procedure UpdateViewSpectrum(Smooth: Integer; out Bands: TAudioMonitorSpectrumData;
-  out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single; CurrentFrame: Integer);
+  out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single;
+  CurrentFrame, SourceLayer: Integer);
 
 implementation
 
@@ -18,6 +19,7 @@ uses
   System.Math,
   System.SysUtils,
   Winapi.Windows,
+  Aul2AudioMonitorShared,
   Aul2AudioViewFrameShared;
 
 var
@@ -98,11 +100,23 @@ begin
   Result := (CurrentFrame >= State^.SourceFrameS) and (CurrentFrame <= State^.SourceFrameE);
 end;
 
+function ResolveSourceLayer(SourceLayer: Integer): Integer;
+begin
+  if SourceLayer <= 0 then
+    Exit(AUDIO_MONITOR_LAYER_AUTO);
+
+  Result := SourceLayer - 1;
+  if (Result < 0) or (Result > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Result := AUDIO_MONITOR_LAYER_AUTO;
+end;
+
 procedure UpdateViewSpectrum(Smooth: Integer; out Bands: TAudioMonitorSpectrumData;
-  out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single; CurrentFrame: Integer);
+  out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single;
+  CurrentFrame, SourceLayer: Integer);
 var
   State: PAul2AudioMonitorSpectrumState;
   Band: Integer;
+  InternalLayer: Integer;
 begin
   FillChar(Bands, SizeOf(Bands), 0);
   Valid := False;
@@ -115,7 +129,11 @@ begin
   if SpectrumMemory = nil then
     Exit;
 
-  State := SpectrumMemory.State;
+  InternalLayer := ResolveSourceLayer(SourceLayer);
+  if InternalLayer = AUDIO_MONITOR_LAYER_AUTO then
+    State := SpectrumMemory.State
+  else
+    State := SpectrumMemory.GetStateForLayer(InternalLayer);
   if (State = nil) or
      (State^.Magic <> AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) or
      (State^.Version <> AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) then

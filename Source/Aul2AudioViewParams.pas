@@ -53,6 +53,7 @@ type
     Spacing: Integer;
     Thickness: Integer;
     Smooth: Integer;
+    SourceLayer: Integer;
     SpectrumScale: Integer;
     SpectrumLowHz: Integer;
     SpectrumHighHz: Integer;

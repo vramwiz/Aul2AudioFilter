@@ -22,17 +22,22 @@ uses
   Aul2AudioMonitorShared,
   Aul2AudioMonitorSpectrumShared;
 
+type
+  TAudioMonitorInputSnapshot = record
+    PeakL: Single;
+    PeakR: Single;
+    RmsL: Single;
+    RmsR: Single;
+    Wave: TAudioMonitorWaveData;
+    WaveMin: TAudioMonitorWaveData;
+    WaveMax: TAudioMonitorWaveData;
+    Spectrum: TAudioMonitorSpectrumData;
+  end;
+
 var
   SharedMemory: TAul2AudioMonitorSharedMemory;
   SpectrumMemory: TAul2AudioMonitorSpectrumSharedMemory;
-  LastInputPeakL: Single;
-  LastInputPeakR: Single;
-  LastInputRmsL: Single;
-  LastInputRmsR: Single;
-  LastInputWave: TAudioMonitorWaveData;
-  LastInputWaveMin: TAudioMonitorWaveData;
-  LastInputWaveMax: TAudioMonitorWaveData;
-  LastInputSpectrum: TAudioMonitorSpectrumData;
+  LastInputSnapshots: array[0..AUDIO_MONITOR_LAYER_SLOT_LAST] of TAudioMonitorInputSnapshot;
   SpectrumCosTable: TArray<Single>;
   SpectrumSinTable: TArray<Single>;
   SpectrumTableSampleRate: Integer;
@@ -54,66 +59,71 @@ begin
   Result := SpectrumMemory;
 end;
 
+function AudioLayer(Audio: PFILTER_PROC_AUDIO): Integer;
+begin
+  if (Audio = nil) or (Audio^.Object_ = nil) then
+    Exit(AUDIO_MONITOR_LAYER_AUTO);
+
+  Result := Audio^.Object_^.Layer;
+  if (Result < 0) or (Result > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Result := AUDIO_MONITOR_LAYER_AUTO;
+end;
+
+procedure ResetInputSnapshot(var Snapshot: TAudioMonitorInputSnapshot);
+begin
+  FillChar(Snapshot, SizeOf(Snapshot), 0);
+end;
+
+procedure InitializeMonitorSlot(var State: TAul2AudioMonitorState; Layer: Integer);
+begin
+  FillChar(State, SizeOf(State), 0);
+  State.Magic := AUDIO_MONITOR_SHARED_MAGIC;
+  State.Version := AUDIO_MONITOR_SHARED_VERSION;
+  State.UpdateTick := 0;
+  State.Stage := 1;
+  State.SourceLayer := Layer;
+end;
+
+procedure InitializeSpectrumSlot(var State: TAul2AudioMonitorSpectrumState; Layer: Integer);
+begin
+  FillChar(State, SizeOf(State), 0);
+  State.Magic := AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC;
+  State.Version := AUDIO_MONITOR_SPECTRUM_SHARED_VERSION;
+  State.UpdateTick := 0;
+  State.SourceLayer := Layer;
+  State.BandCount := AUDIO_MONITOR_SPECTRUM_BAND_COUNT;
+  State.MinHz := 20;
+  State.MaxHz := 20000;
+end;
+
 procedure AudioMonitorInitialize;
 var
-  State: PAul2AudioMonitorState;
-  SpectrumState: PAul2AudioMonitorSpectrumState;
+  SharedRoot: PAul2AudioMonitorLayeredState;
+  SpectrumRoot: PAul2AudioMonitorLayeredSpectrumState;
+  Layer: Integer;
 begin
   try
-    State := GetSharedMemory.State;
-    if State = nil then
+    SharedRoot := GetSharedMemory.Root;
+    if SharedRoot = nil then
       Exit;
 
-    State^.Magic := AUDIO_MONITOR_SHARED_MAGIC;
-    State^.Version := AUDIO_MONITOR_SHARED_VERSION;
-    State^.UpdateTick := GetTickCount64;
-    State^.Stage := 1;
-    State^.SampleRate := 0;
-    State^.SampleNum := 0;
-    State^.ChannelNum := 0;
-    State^.SourceFrame := 0;
-    State^.SourceFrameS := 0;
-    State^.SourceFrameE := 0;
-    State^.SourceLayer := 0;
-    State^.SourceIndex := 0;
-    State^.SampleIndex := 0;
-    State^.InputPeakL := 0;
-    State^.InputPeakR := 0;
-    State^.OutputPeakL := 0;
-    State^.OutputPeakR := 0;
-    State^.InputRmsL := 0;
-    State^.InputRmsR := 0;
-    State^.OutputRmsL := 0;
-    State^.OutputRmsR := 0;
-    FillChar(State^.InputWave, SizeOf(State^.InputWave), 0);
-    FillChar(State^.OutputWave, SizeOf(State^.OutputWave), 0);
-    FillChar(State^.InputWaveMin, SizeOf(State^.InputWaveMin), 0);
-    FillChar(State^.InputWaveMax, SizeOf(State^.InputWaveMax), 0);
-    FillChar(State^.OutputWaveMin, SizeOf(State^.OutputWaveMin), 0);
-    FillChar(State^.OutputWaveMax, SizeOf(State^.OutputWaveMax), 0);
-    Inc(State^.Generation);
+    SharedRoot^.Magic := AUDIO_MONITOR_SHARED_MAGIC;
+    SharedRoot^.Version := AUDIO_MONITOR_SHARED_VERSION;
+    SharedRoot^.LastLayer := AUDIO_MONITOR_LAYER_AUTO;
+    FillChar(LastInputSnapshots, SizeOf(LastInputSnapshots), 0);
+    for Layer := 0 to AUDIO_MONITOR_LAYER_SLOT_LAST do
+      InitializeMonitorSlot(SharedRoot^.Slots[Layer], Layer);
+    Inc(SharedRoot^.Generation);
 
-    SpectrumState := GetSpectrumMemory.State;
-    if SpectrumState <> nil then
+    SpectrumRoot := GetSpectrumMemory.Root;
+    if SpectrumRoot <> nil then
     begin
-      SpectrumState^.Magic := AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC;
-      SpectrumState^.Version := AUDIO_MONITOR_SPECTRUM_SHARED_VERSION;
-      SpectrumState^.UpdateTick := GetTickCount64;
-      SpectrumState^.SampleRate := 0;
-      SpectrumState^.SampleNum := 0;
-      SpectrumState^.ChannelNum := 0;
-      SpectrumState^.SourceFrame := 0;
-      SpectrumState^.SourceFrameS := 0;
-      SpectrumState^.SourceFrameE := 0;
-      SpectrumState^.SourceLayer := 0;
-      SpectrumState^.SourceIndex := 0;
-      SpectrumState^.SampleIndex := 0;
-      SpectrumState^.BandCount := AUDIO_MONITOR_SPECTRUM_BAND_COUNT;
-      SpectrumState^.MinHz := 20;
-      SpectrumState^.MaxHz := 20000;
-      FillChar(SpectrumState^.InputBands, SizeOf(SpectrumState^.InputBands), 0);
-      FillChar(SpectrumState^.OutputBands, SizeOf(SpectrumState^.OutputBands), 0);
-      Inc(SpectrumState^.Generation);
+      SpectrumRoot^.Magic := AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC;
+      SpectrumRoot^.Version := AUDIO_MONITOR_SPECTRUM_SHARED_VERSION;
+      SpectrumRoot^.LastLayer := AUDIO_MONITOR_LAYER_AUTO;
+      for Layer := 0 to AUDIO_MONITOR_LAYER_SLOT_LAST do
+        InitializeSpectrumSlot(SpectrumRoot^.Slots[Layer], Layer);
+      Inc(SpectrumRoot^.Generation);
     end;
   except
     // 初期化疎通は補助機能なので、プラグインロードへ例外を漏らさない。
@@ -123,9 +133,14 @@ end;
 procedure AudioMonitorSetStage(Stage: Integer; Audio: PFILTER_PROC_AUDIO);
 var
   State: PAul2AudioMonitorState;
+  Layer: Integer;
 begin
   try
-    State := GetSharedMemory.State;
+    Layer := AudioLayer(Audio);
+    if Layer = AUDIO_MONITOR_LAYER_AUTO then
+      Exit;
+
+    State := GetSharedMemory.GetStateForLayer(Layer);
     if State = nil then
       Exit;
 
@@ -150,6 +165,8 @@ begin
     end;
 
     Inc(State^.Generation);
+    GetSharedMemory.Root^.LastLayer := Layer;
+    Inc(GetSharedMemory.Root^.Generation);
   except
     // Monitor diagnostics must never affect the audio callback.
   end;
@@ -380,24 +397,33 @@ end;
 procedure AudioMonitorCaptureInput(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer);
 var
   State: PAul2AudioMonitorState;
+  Layer: Integer;
 begin
+  Layer := AUDIO_MONITOR_LAYER_AUTO;
   try
-    State := GetSharedMemory.State;
-    if State <> nil then
-      State^.Stage := 2;
+    Layer := AudioLayer(Audio);
+    if Layer = AUDIO_MONITOR_LAYER_AUTO then
+      Exit;
 
-    CaptureWave(Audio, SampleNum, ChannelNum, LastInputWave, LastInputWaveMin,
-      LastInputWaveMax, LastInputPeakL, LastInputPeakR, LastInputRmsL, LastInputRmsR);
-    CaptureSpectrum(Audio, SampleNum, ChannelNum, LastInputSpectrum);
+    State := GetSharedMemory.GetStateForLayer(Layer);
+    if State <> nil then
+    begin
+      State^.Stage := 2;
+      State^.UpdateTick := GetTickCount64;
+      State^.SourceLayer := Layer;
+      Inc(State^.Generation);
+      GetSharedMemory.Root^.LastLayer := Layer;
+      Inc(GetSharedMemory.Root^.Generation);
+    end;
+
+    CaptureWave(Audio, SampleNum, ChannelNum, LastInputSnapshots[Layer].Wave,
+      LastInputSnapshots[Layer].WaveMin, LastInputSnapshots[Layer].WaveMax,
+      LastInputSnapshots[Layer].PeakL, LastInputSnapshots[Layer].PeakR,
+      LastInputSnapshots[Layer].RmsL, LastInputSnapshots[Layer].RmsR);
+    CaptureSpectrum(Audio, SampleNum, ChannelNum, LastInputSnapshots[Layer].Spectrum);
   except
-    LastInputPeakL := 0;
-    LastInputPeakR := 0;
-    LastInputRmsL := 0;
-    LastInputRmsR := 0;
-    FillChar(LastInputWave, SizeOf(LastInputWave), 0);
-    FillChar(LastInputWaveMin, SizeOf(LastInputWaveMin), 0);
-    FillChar(LastInputWaveMax, SizeOf(LastInputWaveMax), 0);
-    FillChar(LastInputSpectrum, SizeOf(LastInputSpectrum), 0);
+    if (Layer >= 0) and (Layer <= AUDIO_MONITOR_LAYER_SLOT_LAST) then
+      ResetInputSnapshot(LastInputSnapshots[Layer]);
   end;
 end;
 
@@ -414,17 +440,25 @@ var
   OutputWaveMax: TAudioMonitorWaveData;
   OutputSpectrum: TAudioMonitorSpectrumData;
   SpectrumState: PAul2AudioMonitorSpectrumState;
+  SpectrumRoot: PAul2AudioMonitorLayeredSpectrumState;
+  Layer: Integer;
+  InputSnapshot: TAudioMonitorInputSnapshot;
 begin
   try
+    Layer := AudioLayer(Audio);
+    if Layer = AUDIO_MONITOR_LAYER_AUTO then
+      Exit;
+
     CaptureWave(Audio, SampleNum, ChannelNum, OutputWave, OutputWaveMin, OutputWaveMax,
       OutputPeakL, OutputPeakR, OutputRmsL, OutputRmsR);
     CaptureSpectrum(Audio, SampleNum, ChannelNum, OutputSpectrum);
 
     Shared := GetSharedMemory;
-    State := Shared.State;
+    State := Shared.GetStateForLayer(Layer);
     if State = nil then
       Exit;
 
+    InputSnapshot := LastInputSnapshots[Layer];
     State^.Magic := AUDIO_MONITOR_SHARED_MAGIC;
     State^.Version := AUDIO_MONITOR_SHARED_VERSION;
     State^.UpdateTick := GetTickCount64;
@@ -435,29 +469,32 @@ begin
     State^.SourceFrame := Audio^.Object_^.Frame;
     State^.SourceFrameS := Audio^.Object_^.FrameS;
     State^.SourceFrameE := Audio^.Object_^.FrameE;
-    State^.SourceLayer := Audio^.Object_^.Layer;
+    State^.SourceLayer := Layer;
     State^.SourceIndex := Audio^.Object_^.Index;
     State^.SampleIndex := Audio^.Object_^.SampleIndex;
-    State^.InputPeakL := LastInputPeakL;
-    State^.InputPeakR := LastInputPeakR;
+    State^.InputPeakL := InputSnapshot.PeakL;
+    State^.InputPeakR := InputSnapshot.PeakR;
     State^.OutputPeakL := OutputPeakL;
     State^.OutputPeakR := OutputPeakR;
-    State^.InputRmsL := LastInputRmsL;
-    State^.InputRmsR := LastInputRmsR;
+    State^.InputRmsL := InputSnapshot.RmsL;
+    State^.InputRmsR := InputSnapshot.RmsR;
     State^.OutputRmsL := OutputRmsL;
     State^.OutputRmsR := OutputRmsR;
-    State^.InputWave := LastInputWave;
+    State^.InputWave := InputSnapshot.Wave;
     State^.OutputWave := OutputWave;
-    State^.InputWaveMin := LastInputWaveMin;
-    State^.InputWaveMax := LastInputWaveMax;
+    State^.InputWaveMin := InputSnapshot.WaveMin;
+    State^.InputWaveMax := InputSnapshot.WaveMax;
     State^.OutputWaveMin := OutputWaveMin;
     State^.OutputWaveMax := OutputWaveMax;
 
     Inc(State^.Generation);
+    Shared.Root^.LastLayer := Layer;
+    Inc(Shared.Root^.Generation);
 
-    SpectrumState := GetSpectrumMemory.State;
+    SpectrumState := GetSpectrumMemory.GetStateForLayer(Layer);
     if SpectrumState <> nil then
     begin
+      SpectrumRoot := GetSpectrumMemory.Root;
       SpectrumState^.Magic := AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC;
       SpectrumState^.Version := AUDIO_MONITOR_SPECTRUM_SHARED_VERSION;
       SpectrumState^.UpdateTick := GetTickCount64;
@@ -467,15 +504,20 @@ begin
       SpectrumState^.SourceFrame := Audio^.Object_^.Frame;
       SpectrumState^.SourceFrameS := Audio^.Object_^.FrameS;
       SpectrumState^.SourceFrameE := Audio^.Object_^.FrameE;
-      SpectrumState^.SourceLayer := Audio^.Object_^.Layer;
+      SpectrumState^.SourceLayer := Layer;
       SpectrumState^.SourceIndex := Audio^.Object_^.Index;
       SpectrumState^.SampleIndex := Audio^.Object_^.SampleIndex;
       SpectrumState^.BandCount := AUDIO_MONITOR_SPECTRUM_BAND_COUNT;
       SpectrumState^.MinHz := 20;
       SpectrumState^.MaxHz := Min(20000, Audio^.Scene^.SampleRate * 0.5);
-      SpectrumState^.InputBands := LastInputSpectrum;
+      SpectrumState^.InputBands := InputSnapshot.Spectrum;
       SpectrumState^.OutputBands := OutputSpectrum;
       Inc(SpectrumState^.Generation);
+      if SpectrumRoot <> nil then
+      begin
+        SpectrumRoot^.LastLayer := Layer;
+        Inc(SpectrumRoot^.Generation);
+      end;
     end;
   except
     // モニター連携は補助機能なので、音声処理へ例外を漏らさない。

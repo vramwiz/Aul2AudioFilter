@@ -14,6 +14,7 @@ procedure FinalizeViewPlugin;
 implementation
 
 uses
+  System.SysUtils,
   Aul2AudioFilterGui,
   Aul2AudioViewParams,
   Aul2AudioViewRender,
@@ -28,6 +29,9 @@ var
   GViewDensityTrack: TFILTER_ITEM_TRACK;
   GViewSpacingTrack: TFILTER_ITEM_TRACK;
   GViewThicknessTrack: TFILTER_ITEM_TRACK;
+  GViewSourceLayerSelect: TFILTER_ITEM_SELECT;
+  GViewSourceLayerList: array[0..65] of TFILTER_ITEM_SELECT_ITEM;
+  GViewSourceLayerNames: array[0..64] of string;
   GViewSpectrumScaleSelect: TFILTER_ITEM_SELECT;
   GViewSpectrumScaleList: array[0..2] of TFILTER_ITEM_SELECT_ITEM;
   GViewSpectrumLowHzTrack: TFILTER_ITEM_TRACK;
@@ -59,6 +63,7 @@ begin
     Settings.Spacing := Round(GViewSpacingTrack.Value);
     Settings.Thickness := Round(GViewThicknessTrack.Value);
     Settings.Smooth := Round(GViewSmoothTrack.Value);
+    Settings.SourceLayer := GViewSourceLayerSelect.Value;
     Settings.SpectrumScale := GViewSpectrumScaleSelect.Value;
     Settings.SpectrumLowHz := Round(GViewSpectrumLowHzTrack.Value);
     Settings.SpectrumHighHz := Round(GViewSpectrumHighHzTrack.Value);
@@ -84,6 +89,8 @@ begin
 end;
 
 function GetViewFilterTable: PFILTER_PLUGIN_TABLE;
+var
+  Layer: Integer;
 begin
   if GTable.Name = nil then
   begin
@@ -95,6 +102,15 @@ begin
       ViewProcVideo,
       nil
     );
+
+    ClearSelectList;
+    AddSelectList(GViewSourceLayerList, 'Auto', 0);
+    for Layer := 1 to 64 do
+    begin
+      GViewSourceLayerNames[Layer] := 'Layer ' + IntToStr(Layer);
+      AddSelectList(GViewSourceLayerList, PWideChar(GViewSourceLayerNames[Layer]), Layer);
+    end;
+    AddSelect(GViewSourceLayerSelect, 'Source Layer', 0, @GViewSourceLayerList[0]);
 
     ClearSelectList;
     AddSelectList(GViewTypeList, 'Equalizer Bars', VIEW_TYPE_EQUALIZER_BARS);

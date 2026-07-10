@@ -126,7 +126,7 @@ begin
 
   ClearPixels(Buffer, Width, Height);
   UpdateViewSpectrum(Settings.Smooth, CurrentBands, CurrentBandsValid,
-    CurrentSourceMinHz, CurrentSourceMaxHz, CurrentFrame);
+    CurrentSourceMinHz, CurrentSourceMaxHz, CurrentFrame, Settings.SourceLayer);
 
   MarginX := VIEW_MARGIN_X;
   MarginY := VIEW_MARGIN_Y;

@@ -85,7 +85,7 @@ begin
 
   ClearPixels(Buffer, Width, Height);
   UpdateViewWave(Settings.Smooth, CurrentWave, CurrentWaveMin, CurrentWaveMax,
-    CurrentWaveValid, CurrentFrame);
+    CurrentWaveValid, CurrentFrame, Settings.SourceLayer);
 
   CenterY := Height div 2;
   HalfHeight := Max(1, (Height - 1) div 2);

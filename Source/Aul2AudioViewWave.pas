@@ -10,7 +10,7 @@ uses
 procedure InitializeViewWave;
 procedure FinalizeViewWave;
 procedure UpdateViewWave(Smooth: Integer; out Wave, WaveMin, WaveMax: TAudioMonitorWaveData;
-  out Valid: Boolean; CurrentFrame: Integer);
+  out Valid: Boolean; CurrentFrame, SourceLayer: Integer);
 
 implementation
 
@@ -79,6 +79,16 @@ begin
   Result := (CurrentFrame >= State^.SourceFrameS) and (CurrentFrame <= State^.SourceFrameE);
 end;
 
+function ResolveSourceLayer(SourceLayer: Integer): Integer;
+begin
+  if SourceLayer <= 0 then
+    Exit(AUDIO_MONITOR_LAYER_AUTO);
+
+  Result := SourceLayer - 1;
+  if (Result < 0) or (Result > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Result := AUDIO_MONITOR_LAYER_AUTO;
+end;
+
 procedure SmoothPoint(var DisplayValue: Single; NewValue: Single; Smooth: Integer);
 var
   Alpha: Single;
@@ -91,10 +101,11 @@ begin
 end;
 
 procedure UpdateViewWave(Smooth: Integer; out Wave, WaveMin, WaveMax: TAudioMonitorWaveData;
-  out Valid: Boolean; CurrentFrame: Integer);
+  out Valid: Boolean; CurrentFrame, SourceLayer: Integer);
 var
   State: PAul2AudioMonitorState;
   Point: Integer;
+  InternalLayer: Integer;
 begin
   FillChar(Wave, SizeOf(Wave), 0);
   FillChar(WaveMin, SizeOf(WaveMin), 0);
@@ -107,7 +118,11 @@ begin
   if WaveMemory = nil then
     Exit;
 
-  State := WaveMemory.State;
+  InternalLayer := ResolveSourceLayer(SourceLayer);
+  if InternalLayer = AUDIO_MONITOR_LAYER_AUTO then
+    State := WaveMemory.State
+  else
+    State := WaveMemory.GetStateForLayer(InternalLayer);
   if (State = nil) or
      (State^.Magic <> AUDIO_MONITOR_SHARED_MAGIC) or
      (State^.Version <> AUDIO_MONITOR_SHARED_VERSION) then

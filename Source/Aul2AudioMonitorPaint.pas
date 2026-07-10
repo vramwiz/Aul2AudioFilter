@@ -204,6 +204,12 @@ begin
   end;
 end;
 
+function MonitorSourceText(Layer, Index, FrameS, FrameE: Integer): string;
+begin
+  Result := Format('Layer %d  Index %d  Frame %d-%d',
+    [Layer + 1, Index, FrameS, FrameE]);
+end;
+
 procedure DrawWaveEnvelope(Canvas: TCanvas; const PlotRect: TRect;
   const WaveMin, WaveMax: TAudioMonitorWaveData; Color: TColor);
 var
@@ -270,7 +276,10 @@ begin
     end;
 
     if StateValid then
-      CaptionText := Format('Wave  %d Hz  %d ch', [State^.SampleRate, State^.ChannelNum])
+      CaptionText := Format('Wave  %d Hz  %d ch  %s',
+        [State^.SampleRate, State^.ChannelNum,
+         MonitorSourceText(State^.SourceLayer, State^.SourceIndex,
+           State^.SourceFrameS, State^.SourceFrameE)])
     else
       CaptionText := 'Wave';
     Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8, CaptionText);
@@ -558,8 +567,10 @@ begin
     UpdateDisplaySpectrum(SpectrumState, AllowDataUpdate);
 
     if SpectrumStateValid(SpectrumState) then
-      CaptionText := Format('Spectrum  %d Hz  %d bands',
-        [SpectrumState^.SampleRate, SpectrumState^.BandCount])
+      CaptionText := Format('Spectrum  %d Hz  %d bands  %s',
+        [SpectrumState^.SampleRate, SpectrumState^.BandCount,
+         MonitorSourceText(SpectrumState^.SourceLayer, SpectrumState^.SourceIndex,
+           SpectrumState^.SourceFrameS, SpectrumState^.SourceFrameE)])
     else
       CaptionText := 'Spectrum';
     Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8, CaptionText);

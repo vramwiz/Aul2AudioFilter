@@ -4,6 +4,15 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-10 Aul2AudioView layer source routing
+
+- `Audio^.Object_^.Layer` がフィルター配置レイヤーではなく、制御対象の音声オブジェクトの内部 0-based レイヤーを返すことを Monitor 表示で確認した。表示上のレイヤー番号は `+1` で一致する。
+- `Local\Aul2AudioMonitorState` / `Local\Aul2AudioMonitorSpectrum` を 64 レイヤー分のスロット構造へ変更した。最終更新レイヤーは `LastLayer` として保持する。
+- `Aul2AudioFilter` は対象レイヤーのスロットへ波形/スペクトラムを書き、`Aul2AudioMonitor` はデバッグ表示で表示レイヤー番号を `内部 + 1` として出すようにした。
+- `Aul2Audio View` に `Source Layer` を追加した。`Auto` は最後に更新されたレイヤーを読み、`Layer 1`..`Layer 64` は指定した表示レイヤー由来の解析結果だけを読む。
+- `Source Layer` は利用頻度が高いため、View GUI の最上段へ移動した。
+- Debug Win64 ビルドで `Aul2AudioFilter` / `Aul2AudioMonitor` / `Aul2AudioView` の成功を確認した。
+
 ## 2026-07-10 Aul2AudioMonitor/View stale display guard
 
 - Monitor のツールバーボタンを少し小さくし、DPI 対応後の余白を詰めた。
