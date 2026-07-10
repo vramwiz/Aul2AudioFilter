@@ -35,6 +35,7 @@
 - `無線` と `劣化` は `Noise` 使用時に無音化や AviUtl2 側の例外が出る可能性があったため、プリセットからは `Noise` を外している。
 - `FilterProcAudio` 全体は `try..except` で保護し、音声処理中の Delphi 例外が AviUtl2 まで漏れないようにしている。
 - 緊急: 2 人分の声など複数音声素材を 1 つの `グループ制御（音声）` で処理すると、Monitor 表示だけでなくエフェクト本体も壊れる可能性が高い。最初に解くべき問題は、1 つのフィルターが複数音声を扱うケースであり、この場合は素材別の独立エフェクトではなく、グループ/バスに入った 1 本のミックス音声として扱う方針にする。現在の Delay / Chorus / Reverb / EQ / Compressor / Limiter / AutoGain / NoiseGate などの状態持ち処理は、`GDelayChannels` や `GNextSampleIndex` のようなユニット単位の単一グローバル状態を使っているため、AviUtl2 が子音声ごとに交互呼び出しする場合はリセットや履歴混入が起きる。まず `グループ制御（音声）` 時の `FilterProcAudio` 呼び出し単位を診断し、ミックス済み 1 回呼び出しなのか、子音声ごとの複数回呼び出しなのかを確認する。その後、同じフレーム上の複数音声オブジェクトそれぞれにフィルターが追加されるケースへ、Syncroh2 の `GCTX` と同様のフィルターオブジェクト別 Context 分離を適用する。
+- 2026-07-10: `グループ制御（音声）` 配下の 2 音声再生ログで、同じ `EffectID` / `SampleIndex` に対して `Object_.ID` と `Layer` が異なる子音声が交互に `FilterProcAudio` へ来ることを確認した。`Delay` / `Chorus` / `Reverb` / `EQ` / `Compressor` / `Limiter` は `Object_.ID + EffectID` ごとの状態スロットへ分離済み。Debug Win64 ビルド成功、2 音声再生で改善確認済み。残りの状態持ち候補は `AutoGain` / `NoiseGate` / `Ghost` / `Wobble` / `Pitch` / `Muffle` / `Whisper` / `BitCrusher` / `VoiceDrive` など。
 - 詳細な実装記録、検証ログ、プリセット試聴メモは `HISTORY.md` を参照する。
 
 ## プロジェクト構成
@@ -115,6 +116,7 @@
 ## 今後の主な確認候補
 
 - 最優先: 1 つのフィルターが `グループ制御（音声）` 配下の複数音声を扱う問題を先に解く。音響上は、子音声別に Delay/Reverb などの履歴を分けるのではなく、グループ/バスへ入った 1 本のミックス音声に対して 1 つのエフェクト状態を持つのが正しい方針。まず `FilterProcAudio` の一時診断で、同一フレーム/同一 `SampleIndex` 周辺に対して `Object_.ID`、`EffectID`、`Layer`、`Index`、`Num`、`SampleIndex` がどう並ぶかを確認する。AviUtl2 がミックス済み 1 回呼び出しを渡しているなら単一状態を維持し、リセット条件を見直す。子音声ごとの複数回呼び出しなら、素材別状態分離ではなく、ミックス音声として扱うために何を同一グループ入力として束ねられるかを先に判断する。
+- `FilterProcAudio` の呼び出し診断は `Source\Aul2AudioFilterAudioTrace.pas` で行う。`%TEMP%\Aul2AudioFilterAudioTrace.enable` という空ファイルがある時だけ、最大 2048 行まで `%TEMP%\Aul2AudioFilterAudioTrace.log` へ `Object_.ID` / `EffectID` / `Layer` / `Index` / `Num` / `SampleIndex` などを書き出す。通常時は enable ファイルを置かない。
 - 次点: 同じフレームに複数の音声オブジェクトがあり、それぞれに `Aul2AudioFilter` が追加されているケースは、Syncroh2 の `GCTX` と同様にフィルターオブジェクト別 Context で状態を分離する。対象候補は Delay、Chorus、Reverb、EQ、Compressor、Limiter、AutoGain、NoiseGate、Ghost、Wobble、Pitch、Muffle、Whisper、BitCrusher など。こちらは `Object_.ID` + `EffectID` を主キー候補にし、1 フィルター内の複数音声ミックス問題を解いた後に展開する。
 - `エコー` と `反響` は似すぎているため、必要なら用途差が分かる値へ再調整する。
 - `無線` と `劣化` は `Noise` を外した状態で運用中。`Noise` の無音化や例外原因は別途調査候補とする。

@@ -29,6 +29,7 @@ uses
   Aul2AudioFilterPluginLimiter,
   Aul2AudioFilterPluginChorus,
   Aul2AudioFilterPluginReverb,
+  Aul2AudioFilterAudioTrace,
   Aul2AudioFilterMonitorBridge;
 
 function GetFilterTable: PFILTER_PLUGIN_TABLE;
@@ -39,6 +40,7 @@ implementation
 
 procedure InitializeFilterPlugin;
 begin
+  AudioTraceInitialize;
   AudioMonitorInitialize;
 end;
 
@@ -67,6 +69,7 @@ begin
       Exit;
     end;
 
+    AudioTraceProcAudio(Audio, SampleNum, ChannelNum);
     AudioMonitorCaptureInput(Audio, SampleNum, ChannelNum);
 
     ProcessDelay(Audio, SampleNum, ChannelNum);
@@ -139,6 +142,7 @@ end;
 procedure FinalizeFilterPlugin;
 begin
   AudioMonitorFinalize;
+  AudioTraceFinalize;
 end;
 
 end.

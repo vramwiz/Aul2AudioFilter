@@ -41,6 +41,16 @@ type
     HighCutLP: TBiQuadState; // High Cut 用 2 次 low-pass 状態
   end;
 
+  TEqContext = record
+    ObjectID  : Int64;
+    EffectID  : Int64;
+    Channels  : array of TEqChannelState;
+    SampleRate: Integer;
+    Mode      : Integer;
+    NextIndex : Int64;
+  end;
+  PEqContext = ^TEqContext;
+
 var
   GEqGroup      : TFILTER_ITEM_GROUP;
   GEqUseCheck   : TFILTER_ITEM_CHECK;
@@ -49,57 +59,70 @@ var
   GLowCutTrack  : TFILTER_ITEM_TRACK;
   GHighCutTrack : TFILTER_ITEM_TRACK;
   GEqMixTrack   : TFILTER_ITEM_TRACK;
-  GEqChannels   : array of TEqChannelState; // チャンネル別の EQ 状態
-  GEqSampleRate : Integer;                  // 状態を構築したサンプルレート
-  GEqMode       : Integer;                  // 状態を構築した EQ Mode
-  GEqObjectID   : Int64;                    // 状態を構築した対象オブジェクト
-  GEqEffectID   : Int64;                    // 状態を構築した対象エフェクト
-  GEqNextIndex  : Int64;                    // 連続処理を判定する次のサンプル位置
+  GEqContexts   : array of TEqContext;
+  GEqContextIndex: Integer;
 
 procedure ClearEqState;
 begin
-  SetLength(GEqChannels, 0);
-  GEqSampleRate := 0;
-  GEqMode := EQ_MODE_BAND_PASS;
-  GEqObjectID := 0;
-  GEqEffectID := 0;
-  GEqNextIndex := 0;
+  SetLength(GEqContexts, 0);
+  GEqContextIndex := -1;
 end;
 
-procedure ResetEqState(ChannelNum, SampleRate, Mode: Integer);
+function CurrentEqContext: PEqContext;
+begin
+  Result := nil;
+  if (GEqContextIndex >= 0) and (GEqContextIndex < Length(GEqContexts)) then
+    Result := @GEqContexts[GEqContextIndex];
+end;
+
+function FindEqContext(ObjectID, EffectID: Int64): Integer;
+var
+  I: Integer;
+begin
+  for I := 0 to High(GEqContexts) do
+    if (GEqContexts[I].ObjectID = ObjectID) and (GEqContexts[I].EffectID = EffectID) then
+      Exit(I);
+
+  Result := Length(GEqContexts);
+  SetLength(GEqContexts, Result + 1);
+  GEqContexts[Result].ObjectID := ObjectID;
+  GEqContexts[Result].EffectID := EffectID;
+  GEqContexts[Result].Mode := EQ_MODE_BAND_PASS;
+end;
+
+procedure ResetEqState(var Context: TEqContext; ChannelNum, SampleRate, Mode: Integer);
 var
   Channel: Integer;
 begin
-  SetLength(GEqChannels, ChannelNum);
+  SetLength(Context.Channels, ChannelNum);
 
   for Channel := 0 to ChannelNum - 1 do
   begin
-    FillChar(GEqChannels[Channel].LowCutHP, SizeOf(TBiQuadState), 0);
-    FillChar(GEqChannels[Channel].HighCutLP, SizeOf(TBiQuadState), 0);
+    FillChar(Context.Channels[Channel].LowCutHP, SizeOf(TBiQuadState), 0);
+    FillChar(Context.Channels[Channel].HighCutLP, SizeOf(TBiQuadState), 0);
   end;
 
-  GEqSampleRate := SampleRate;
-  GEqMode := Mode;
+  Context.SampleRate := SampleRate;
+  Context.Mode := Mode;
 end;
 
 procedure EnsureEqState(Audio: PFILTER_PROC_AUDIO; ChannelNum, Mode: Integer);
 var
   ObjectInfo: POBJECT_INFO;
+  Context: PEqContext;
 begin
   ObjectInfo := Audio^.Object_;
+  GEqContextIndex := FindEqContext(ObjectInfo^.ID, ObjectInfo^.EffectID);
+  Context := CurrentEqContext;
+  if Context = nil then
+    Exit;
 
   // IIR の状態が別素材へ混ざらないよう、処理対象や連続位置が変わったら作り直す。
-  if (Length(GEqChannels) <> ChannelNum) or
-     (GEqSampleRate <> Audio^.Scene^.SampleRate) or
-     (GEqMode <> Mode) or
-     (GEqObjectID <> ObjectInfo^.ID) or
-     (GEqEffectID <> ObjectInfo^.EffectID) or
-     (GEqNextIndex <> ObjectInfo^.SampleIndex) then
-  begin
-    ResetEqState(ChannelNum, Audio^.Scene^.SampleRate, Mode);
-    GEqObjectID := ObjectInfo^.ID;
-    GEqEffectID := ObjectInfo^.EffectID;
-  end;
+  if (Length(Context^.Channels) <> ChannelNum) or
+     (Context^.SampleRate <> Audio^.Scene^.SampleRate) or
+     (Context^.Mode <> Mode) or
+     (Context^.NextIndex <> ObjectInfo^.SampleIndex) then
+    ResetEqState(Context^, ChannelNum, Audio^.Scene^.SampleRate, Mode);
 end;
 
 function ClampSingle(Value, MinValue, MaxValue: Single): Single;
@@ -193,14 +216,19 @@ var
   LowCutCoeff: TBiQuadCoeff;
   HighCutCoeff: TBiQuadCoeff;
   State: ^TEqChannelState;
+  Context: PEqContext;
 begin
+  Context := CurrentEqContext;
+  if Context = nil then
+    Exit;
+
   Mix := ClampSingle(Mix, 0.0, 1.0);
   if (Mode = EQ_MODE_BAND_PASS) and (HighCutHz <= LowCutHz) then
     HighCutHz := LowCutHz + 1.0;
 
   LowCutCoeff := MakeHighPassCoeff(LowCutHz, SampleRate);
   HighCutCoeff := MakeLowPassCoeff(HighCutHz, SampleRate);
-  State := @GEqChannels[Channel];
+  State := @Context^.Channels[Channel];
 
   for I := 0 to SampleNum - 1 do
   begin
@@ -256,6 +284,7 @@ var
   LowCutHz: Single;
   HighCutHz: Single;
   Mix: Single;
+  Context: PEqContext;
 begin
   Result := GEqUseCheck.Value <> 0;
   if not Result then
@@ -279,7 +308,9 @@ begin
     Audio^.SetSampleData(@Buffer[0], Channel);
   end;
 
-  GEqNextIndex := Audio^.Object_^.SampleIndex + SampleNum;
+  Context := CurrentEqContext;
+  if Context <> nil then
+    Context^.NextIndex := Audio^.Object_^.SampleIndex + SampleNum;
 end;
 
 end.

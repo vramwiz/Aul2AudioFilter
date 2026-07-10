@@ -20,56 +20,80 @@ type
     Gain: Single; // 現在適用しているピーク抑制ゲイン
   end;
 
+  TLimiterContext = record
+    ObjectID  : Int64;
+    EffectID  : Int64;
+    Channels  : array of TLimiterChannelState;
+    SampleRate: Integer;
+    NextIndex : Int64;
+  end;
+  PLimiterContext = ^TLimiterContext;
+
 var
   GLimiterGroup      : TFILTER_ITEM_GROUP;
   GLimiterUseCheck   : TFILTER_ITEM_CHECK;
   GCeilingTrack      : TFILTER_ITEM_TRACK;
   GReleaseTrack      : TFILTER_ITEM_TRACK;
   GLimiterMixTrack   : TFILTER_ITEM_TRACK;
-  GLimiterChannels   : array of TLimiterChannelState; // チャンネル別のゲイン状態
-  GLimiterSampleRate : Integer;                       // 状態を構築したサンプルレート
-  GLimiterObjectID   : Int64;                         // 状態を構築した対象オブジェクト
-  GLimiterEffectID   : Int64;                         // 状態を構築した対象エフェクト
-  GLimiterNextIndex  : Int64;                         // 連続処理を判定する次のサンプル位置
+  GLimiterContexts   : array of TLimiterContext;
+  GLimiterContextIndex: Integer;
 
 procedure ClearLimiterState;
 begin
-  SetLength(GLimiterChannels, 0);
-  GLimiterSampleRate := 0;
-  GLimiterObjectID := 0;
-  GLimiterEffectID := 0;
-  GLimiterNextIndex := 0;
+  SetLength(GLimiterContexts, 0);
+  GLimiterContextIndex := -1;
 end;
 
-procedure ResetLimiterState(ChannelNum, SampleRate: Integer);
+function CurrentLimiterContext: PLimiterContext;
+begin
+  Result := nil;
+  if (GLimiterContextIndex >= 0) and (GLimiterContextIndex < Length(GLimiterContexts)) then
+    Result := @GLimiterContexts[GLimiterContextIndex];
+end;
+
+function FindLimiterContext(ObjectID, EffectID: Int64): Integer;
+var
+  I: Integer;
+begin
+  for I := 0 to High(GLimiterContexts) do
+    if (GLimiterContexts[I].ObjectID = ObjectID) and
+       (GLimiterContexts[I].EffectID = EffectID) then
+      Exit(I);
+
+  Result := Length(GLimiterContexts);
+  SetLength(GLimiterContexts, Result + 1);
+  GLimiterContexts[Result].ObjectID := ObjectID;
+  GLimiterContexts[Result].EffectID := EffectID;
+end;
+
+procedure ResetLimiterState(var Context: TLimiterContext; ChannelNum, SampleRate: Integer);
 var
   Channel: Integer;
 begin
-  SetLength(GLimiterChannels, ChannelNum);
+  SetLength(Context.Channels, ChannelNum);
 
   for Channel := 0 to ChannelNum - 1 do
-    GLimiterChannels[Channel].Gain := 1.0;
+    Context.Channels[Channel].Gain := 1.0;
 
-  GLimiterSampleRate := SampleRate;
+  Context.SampleRate := SampleRate;
 end;
 
 procedure EnsureLimiterState(Audio: PFILTER_PROC_AUDIO; ChannelNum: Integer);
 var
   ObjectInfo: POBJECT_INFO;
+  Context: PLimiterContext;
 begin
   ObjectInfo := Audio^.Object_;
+  GLimiterContextIndex := FindLimiterContext(ObjectInfo^.ID, ObjectInfo^.EffectID);
+  Context := CurrentLimiterContext;
+  if Context = nil then
+    Exit;
 
   // ゲイン状態が別素材へ混ざらないよう、処理対象や連続位置が変わったら作り直す。
-  if (Length(GLimiterChannels) <> ChannelNum) or
-     (GLimiterSampleRate <> Audio^.Scene^.SampleRate) or
-     (GLimiterObjectID <> ObjectInfo^.ID) or
-     (GLimiterEffectID <> ObjectInfo^.EffectID) or
-     (GLimiterNextIndex <> ObjectInfo^.SampleIndex) then
-  begin
-    ResetLimiterState(ChannelNum, Audio^.Scene^.SampleRate);
-    GLimiterObjectID := ObjectInfo^.ID;
-    GLimiterEffectID := ObjectInfo^.EffectID;
-  end;
+  if (Length(Context^.Channels) <> ChannelNum) or
+     (Context^.SampleRate <> Audio^.Scene^.SampleRate) or
+     (Context^.NextIndex <> ObjectInfo^.SampleIndex) then
+    ResetLimiterState(Context^, ChannelNum, Audio^.Scene^.SampleRate);
 end;
 
 function ClampSingle(Value, MinValue, MaxValue: Single): Single;
@@ -103,11 +127,16 @@ var
   Ceiling: Single;
   Release: Single;
   State: ^TLimiterChannelState;
+  Context: PLimiterContext;
 begin
+  Context := CurrentLimiterContext;
+  if Context = nil then
+    Exit;
+
   Mix := ClampSingle(Mix, 0.0, 1.0);
   Ceiling := DbToLinear(CeilingDb);
   Release := ReleaseCoeff(ReleaseMs, SampleRate);
-  State := @GLimiterChannels[Channel];
+  State := @Context^.Channels[Channel];
 
   for I := 0 to SampleNum - 1 do
   begin
@@ -154,6 +183,7 @@ var
   CeilingDb: Single;
   ReleaseMs: Single;
   Mix: Single;
+  Context: PLimiterContext;
 begin
   Result := GLimiterUseCheck.Value <> 0;
   if not Result then
@@ -176,7 +206,9 @@ begin
     Audio^.SetSampleData(@Buffer[0], Channel);
   end;
 
-  GLimiterNextIndex := Audio^.Object_^.SampleIndex + SampleNum;
+  Context := CurrentLimiterContext;
+  if Context <> nil then
+    Context^.NextIndex := Audio^.Object_^.SampleIndex + SampleNum;
 end;
 
 end.

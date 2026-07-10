@@ -25,6 +25,16 @@ type
     Position: Integer;        // 次に読み書きするリングバッファ位置
   end;
 
+  TDelayContext = record
+    ObjectID       : Int64;                       // 状態を構築した対象オブジェクト
+    EffectID       : Int64;                       // 状態を構築した対象エフェクト
+    Channels       : array of TDelayChannelState; // チャンネル別の遅延状態
+    Samples        : Integer;                     // 現在確保している遅延サンプル数
+    Mode           : Integer;                     // 状態を構築したときの Stereo Mode
+    NextSampleIndex: Int64;                       // 連続処理を判定する次サンプル位置
+  end;
+  PDelayContext = ^TDelayContext;
+
 var
   GDelayGroup     : TFILTER_ITEM_GROUP;
   GDelayUseCheck  : TFILTER_ITEM_CHECK;
@@ -34,57 +44,72 @@ var
   GDryTrack       : TFILTER_ITEM_TRACK;
   GWetTrack       : TFILTER_ITEM_TRACK;
   GFeedbackTrack  : TFILTER_ITEM_TRACK;
-  GDelayChannels  : array of TDelayChannelState; // チャンネル別の遅延状態
-  GDelaySamples   : Integer;                     // 現在確保している遅延サンプル数
-  GDelayMode      : Integer;                     // 状態を構築したときの Stereo Mode
-  GLastObjectID   : Int64;                       // 状態を構築した対象オブジェクト
-  GLastEffectID   : Int64;                       // 状態を構築した対象エフェクト
-  GNextSampleIndex: Int64;                       // 連続処理を判定する次サンプル位置
+  GDelayContexts  : array of TDelayContext;
+  GDelayContextIndex: Integer;
 
 procedure ClearDelayState;
 begin
-  SetLength(GDelayChannels, 0);
-  GDelaySamples := 0;
-  GDelayMode := DELAY_STEREO_NORMAL;
-  GLastObjectID := 0;
-  GLastEffectID := 0;
-  GNextSampleIndex := 0;
+  SetLength(GDelayContexts, 0);
+  GDelayContextIndex := -1;
 end;
 
-procedure ResetDelayState(ChannelNum, DelaySamples: Integer);
+function CurrentDelayContext: PDelayContext;
+begin
+  Result := nil;
+  if (GDelayContextIndex >= 0) and (GDelayContextIndex < Length(GDelayContexts)) then
+    Result := @GDelayContexts[GDelayContextIndex];
+end;
+
+function FindDelayContext(ObjectID, EffectID: Int64): Integer;
+var
+  I: Integer;
+begin
+  for I := 0 to High(GDelayContexts) do
+    if (GDelayContexts[I].ObjectID = ObjectID) and (GDelayContexts[I].EffectID = EffectID) then
+      Exit(I);
+
+  Result := Length(GDelayContexts);
+  SetLength(GDelayContexts, Result + 1);
+  GDelayContexts[Result].ObjectID := ObjectID;
+  GDelayContexts[Result].EffectID := EffectID;
+  GDelayContexts[Result].Mode := DELAY_STEREO_NORMAL;
+end;
+
+procedure ResetDelayState(var Context: TDelayContext; ChannelNum, DelaySamples: Integer);
 var
   Channel: Integer;
 begin
-  SetLength(GDelayChannels, ChannelNum);
+  SetLength(Context.Channels, ChannelNum);
 
   for Channel := 0 to ChannelNum - 1 do
   begin
-    SetLength(GDelayChannels[Channel].Buffer, DelaySamples);
-    FillChar(GDelayChannels[Channel].Buffer[0], DelaySamples * SizeOf(Single), 0);
-    GDelayChannels[Channel].Position := 0;
+    SetLength(Context.Channels[Channel].Buffer, DelaySamples);
+    FillChar(Context.Channels[Channel].Buffer[0], DelaySamples * SizeOf(Single), 0);
+    Context.Channels[Channel].Position := 0;
   end;
 
-  GDelaySamples := DelaySamples;
+  Context.Samples := DelaySamples;
 end;
 
 procedure EnsureDelayState(Audio: PFILTER_PROC_AUDIO; ChannelNum, DelaySamples, StereoMode: Integer);
 var
   ObjectInfo: POBJECT_INFO;
+  Context: PDelayContext;
 begin
   ObjectInfo := Audio^.Object_;
+  GDelayContextIndex := FindDelayContext(ObjectInfo^.ID, ObjectInfo^.EffectID);
+  Context := CurrentDelayContext;
+  if Context = nil then
+    Exit;
 
   // オブジェクトやサンプル位置が飛んだ場合、前回の遅延音を混ぜないよう状態を作り直す。
-  if (Length(GDelayChannels) <> ChannelNum) or
-     (GDelaySamples <> DelaySamples) or
-     (GDelayMode <> StereoMode) or
-     (GLastObjectID <> ObjectInfo^.ID) or
-     (GLastEffectID <> ObjectInfo^.EffectID) or
-     (GNextSampleIndex <> ObjectInfo^.SampleIndex) then
+  if (Length(Context^.Channels) <> ChannelNum) or
+     (Context^.Samples <> DelaySamples) or
+     (Context^.Mode <> StereoMode) or
+     (Context^.NextSampleIndex <> ObjectInfo^.SampleIndex) then
   begin
-    ResetDelayState(ChannelNum, DelaySamples);
-    GDelayMode := StereoMode;
-    GLastObjectID := ObjectInfo^.ID;
-    GLastEffectID := ObjectInfo^.EffectID;
+    ResetDelayState(Context^, ChannelNum, DelaySamples);
+    Context^.Mode := StereoMode;
   end;
 end;
 
@@ -95,8 +120,13 @@ var
   InputSample: Single;
   DelayedSample: Single;
   State: ^TDelayChannelState;
+  Context: PDelayContext;
 begin
-  State := @GDelayChannels[Channel];
+  Context := CurrentDelayContext;
+  if Context = nil then
+    Exit;
+
+  State := @Context^.Channels[Channel];
 
   for I := 0 to SampleNum - 1 do
   begin
@@ -107,7 +137,7 @@ begin
     Buffer[I] := (InputSample * Dry) + (DelayedSample * Wet);
 
     Inc(State^.Position);
-    if State^.Position >= GDelaySamples then
+    if State^.Position >= Context^.Samples then
       State^.Position := 0;
   end;
 end;
@@ -122,9 +152,14 @@ var
   DelayedR: Single;
   LeftState: ^TDelayChannelState;
   RightState: ^TDelayChannelState;
+  Context: PDelayContext;
 begin
-  LeftState := @GDelayChannels[0];
-  RightState := @GDelayChannels[1];
+  Context := CurrentDelayContext;
+  if Context = nil then
+    Exit;
+
+  LeftState := @Context^.Channels[0];
+  RightState := @Context^.Channels[1];
 
   for I := 0 to SampleNum - 1 do
   begin
@@ -140,11 +175,11 @@ begin
     RightBuffer[I] := (InputR * Dry) + (DelayedR * Wet);
 
     Inc(LeftState^.Position);
-    if LeftState^.Position >= GDelaySamples then
+    if LeftState^.Position >= Context^.Samples then
       LeftState^.Position := 0;
 
     Inc(RightState^.Position);
-    if RightState^.Position >= GDelaySamples then
+    if RightState^.Position >= Context^.Samples then
       RightState^.Position := 0;
   end;
 end;
@@ -235,6 +270,7 @@ var
   Wet: Single;
   Feedback: Single;
   StereoMode: Integer;
+  Context: PDelayContext;
 begin
   Result := GDelayUseCheck.Value <> 0;
   if not Result then
@@ -260,7 +296,9 @@ begin
   else
     ProcessNormalDelay(Audio, SampleNum, ChannelNum, Dry, Wet, Feedback);
 
-  GNextSampleIndex := Audio^.Object_^.SampleIndex + SampleNum;
+  Context := CurrentDelayContext;
+  if Context <> nil then
+    Context^.NextSampleIndex := Audio^.Object_^.SampleIndex + SampleNum;
 end;
 
 end.
