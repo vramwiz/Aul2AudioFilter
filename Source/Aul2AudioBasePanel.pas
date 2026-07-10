@@ -1,4 +1,4 @@
-unit Aul2AudioBasePanel;
+﻿unit Aul2AudioBasePanel;
 
 {$WARN IMPLICIT_STRING_CAST OFF}
 

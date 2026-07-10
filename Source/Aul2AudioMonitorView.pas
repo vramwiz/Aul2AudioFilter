@@ -283,9 +283,25 @@ begin
   Result := (Frame >= State.SourceFrameS) and (Frame <= State.SourceFrameE);
 end;
 
+function MonitorStateUsable(State: PAul2AudioMonitorState): Boolean;
+begin
+  Result := (State <> nil) and
+            (State^.Magic = AUDIO_MONITOR_SHARED_MAGIC) and
+            (State^.Version = AUDIO_MONITOR_SHARED_VERSION) and
+            (State^.UpdateTick <> 0);
+end;
+
+function SpectrumStateUsable(State: PAul2AudioMonitorSpectrumState): Boolean;
+begin
+  Result := (State <> nil) and
+            (State^.Magic = AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) and
+            (State^.Version = AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) and
+            (State^.UpdateTick <> 0);
+end;
+
 procedure PushMonitorHistory(State: PAul2AudioMonitorState);
 begin
-  if State = nil then
+  if not MonitorStateUsable(State) then
     Exit;
 
   MonitorHistoryIndex := (MonitorHistoryIndex + 1) mod Length(MonitorHistory);
@@ -296,7 +312,7 @@ end;
 
 procedure PushSpectrumHistory(State: PAul2AudioMonitorSpectrumState);
 begin
-  if State = nil then
+  if not SpectrumStateUsable(State) then
     Exit;
 
   SpectrumHistoryIndex := (SpectrumHistoryIndex + 1) mod Length(SpectrumHistory);
@@ -317,7 +333,7 @@ begin
     Exit;
   if not PlaybackFrameAvailable then
   begin
-    Result := nil;
+    Result := Current;
     Exit;
   end;
 
@@ -325,6 +341,8 @@ begin
   for I := Low(MonitorHistory) to High(MonitorHistory) do
   begin
     if not MonitorHistory[I].Valid then
+      Continue;
+    if MonitorHistory[I].State.UpdateTick = 0 then
       Continue;
 
     if MonitorStateMatchesFrame(MonitorHistory[I].State, MonitorFrame) then
@@ -334,7 +352,7 @@ begin
 
   if BestIndex < 0 then
   begin
-    Result := nil;
+    Result := Current;
     Exit;
   end;
 
@@ -355,7 +373,7 @@ begin
     Exit;
   if not PlaybackFrameAvailable then
   begin
-    Result := nil;
+    Result := Current;
     Exit;
   end;
 
@@ -363,6 +381,8 @@ begin
   for I := Low(SpectrumHistory) to High(SpectrumHistory) do
   begin
     if not SpectrumHistory[I].Valid then
+      Continue;
+    if SpectrumHistory[I].State.UpdateTick = 0 then
       Continue;
 
     if SpectrumStateMatchesFrame(SpectrumHistory[I].State, MonitorFrame) then
@@ -372,7 +392,7 @@ begin
 
   if BestIndex < 0 then
   begin
-    Result := nil;
+    Result := Current;
     Exit;
   end;
 

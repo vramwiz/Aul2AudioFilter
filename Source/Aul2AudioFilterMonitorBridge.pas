@@ -66,7 +66,7 @@ begin
 
   Result := Audio^.Object_^.Layer;
   if (Result < 0) or (Result > AUDIO_MONITOR_LAYER_SLOT_LAST) then
-    Result := AUDIO_MONITOR_LAYER_AUTO;
+    Result := 0;
 end;
 
 procedure ResetInputSnapshot(var Snapshot: TAudioMonitorInputSnapshot);

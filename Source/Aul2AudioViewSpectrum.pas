@@ -110,6 +110,14 @@ begin
     Result := AUDIO_MONITOR_LAYER_AUTO;
 end;
 
+function SpectrumStateUsable(State: PAul2AudioMonitorSpectrumState): Boolean;
+begin
+  Result := (State <> nil) and
+            (State^.Magic = AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) and
+            (State^.Version = AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) and
+            (State^.UpdateTick <> 0);
+end;
+
 procedure UpdateViewSpectrum(Smooth: Integer; out Bands: TAudioMonitorSpectrumData;
   out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single;
   CurrentFrame, SourceLayer: Integer);
@@ -134,18 +142,14 @@ begin
     State := SpectrumMemory.State
   else
     State := SpectrumMemory.GetStateForLayer(InternalLayer);
-  if (State = nil) or
-     (State^.Magic <> AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) or
-     (State^.Version <> AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) then
+
+  if not SpectrumStateUsable(State) then
+    State := SpectrumMemory.State;
+
+  if not SpectrumStateUsable(State) then
     Exit;
 
   UpdateViewFrame(CurrentFrame);
-
-  if not StateMatchesFrame(State, CurrentFrame) then
-  begin
-    DisplayBandsValid := False;
-    Exit;
-  end;
 
   SourceMinHz := Max(1.0, State^.MinHz);
   SourceMaxHz := Max(SourceMinHz + 1.0, State^.MaxHz);

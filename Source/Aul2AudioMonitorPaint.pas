@@ -64,7 +64,7 @@ end;
 
 function TickIsFresh(UpdateTick: UInt64): Boolean;
 const
-  MONITOR_STALE_MS = 800;
+  MONITOR_STALE_MS = 2500;
 var
   NowTick: UInt64;
 begin

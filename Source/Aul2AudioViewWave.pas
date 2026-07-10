@@ -89,6 +89,14 @@ begin
     Result := AUDIO_MONITOR_LAYER_AUTO;
 end;
 
+function WaveStateUsable(State: PAul2AudioMonitorState): Boolean;
+begin
+  Result := (State <> nil) and
+            (State^.Magic = AUDIO_MONITOR_SHARED_MAGIC) and
+            (State^.Version = AUDIO_MONITOR_SHARED_VERSION) and
+            (State^.UpdateTick <> 0);
+end;
+
 procedure SmoothPoint(var DisplayValue: Single; NewValue: Single; Smooth: Integer);
 var
   Alpha: Single;
@@ -123,18 +131,14 @@ begin
     State := WaveMemory.State
   else
     State := WaveMemory.GetStateForLayer(InternalLayer);
-  if (State = nil) or
-     (State^.Magic <> AUDIO_MONITOR_SHARED_MAGIC) or
-     (State^.Version <> AUDIO_MONITOR_SHARED_VERSION) then
+
+  if not WaveStateUsable(State) then
+    State := WaveMemory.State;
+
+  if not WaveStateUsable(State) then
     Exit;
 
   UpdateViewFrame(CurrentFrame);
-
-  if not StateMatchesFrame(State, CurrentFrame) then
-  begin
-    DisplayWaveValid := False;
-    Exit;
-  end;
 
   if not DisplayWaveValid then
   begin
