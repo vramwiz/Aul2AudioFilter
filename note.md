@@ -39,6 +39,7 @@
 - 2026-07-10: `グループ制御（音声）` 配下の 2 音声再生ログで、同じ `EffectID` / `SampleIndex` に対して `Object_.ID` と `Layer` が異なる子音声が交互に `FilterProcAudio` へ来ることを確認した。`Delay` / `Chorus` / `Reverb` / `EQ` / `Compressor` / `Limiter` は `Object_.ID + EffectID` ごとの状態スロットへ分離済み。Debug Win64 ビルド成功、2 音声再生で改善確認済み。状態スロット管理は `Source\Aul2AudioFilterContextManager.pas` の Syncroh2 `GCTX` 方式に近い共通 Context List へ寄せた。残りの状態持ち候補は `AutoGain` / `NoiseGate` / `Ghost` / `Wobble` / `Pitch` / `Muffle` / `Whisper` / `BitCrusher` / `VoiceDrive` など。
 - 2026-07-10: 同一フレームに 2 音声ファイルを置き、それぞれに別の `Aul2AudioFilter` 設定を付けると、Use OFF のエフェクトが `ClearXxxState` で全 Context を消し、もう一方の状態まで引っ張る問題を確認。`Delay` / `Chorus` / `Reverb` / `EQ` / `Compressor` / `Limiter` は、処理中に Use OFF でも全 Context を消さず何もしない方針へ変更した。プリセット適用時の明示的な `SetXxxGuiParams` では引き続き Context をクリアする。修正後、同一フレーム上の 2 音声ファイルへ別々のフィルター設定/別エフェクトをかける構成で、片方に引っ張られず正しく効くことを確認済み。
 - 2026-07-10: `Aul2Audio View` と `Aul2AudioMonitor` は、再生中も現在フレーム基準で十分に同期が取れていることを確認済み。Filter 側が共有メモリへレイヤー別履歴リングを書き、View / Monitor 側が `SourceFrame` を描画フレーム基準へ正規化して現在フレームに最も近い履歴を選択する。
+- 2026-07-11: 音声コールバックが数秒先まで先読みされるため、Monitor は View が共有する現在描画フレームを基準に履歴を選択する方式で同期を改善した。再生中に現在フレームへ対応する履歴が見つからない場合、先読み側の最新値へフォールバックせず、直前の Wave / Spectrum / Peak / RMS を 50ms ごとに減衰させて 0 へ収束させる。これにより無音区間で表示が持続する問題と、再生開始時に前回のバッファが表示される問題が解消し、正常表示を確認済み。
 - 詳細な実装記録、検証ログ、プリセット試聴メモは `HISTORY.md` を参照する。
 
 ## プロジェクト構成
@@ -118,7 +119,7 @@
 
 ## 今後の主な確認候補
 
-- 最優先: `Aul2AudioMonitor` の再生中同期を再設計する。編集中は、1 つの `グループ制御（音声）` フィルターへ 2 音声が交互に来る場合に、後から処理された無音レイヤーが有音レイヤーを `LastLayer` として上書きする問題を修正済み（コミット `0d03015`）。一方、再生中は音声コールバックの先読み分だけ表示が進む。View の現在描画フレームに近い履歴を選ぶ試行では大きな同期ずれとちらつきが発生したため、未コミットの試行コードは破棄して最終コミットへ戻した。次回は View と Monitor の各フレーム値、選択した履歴の `SourceFrame` / `SourceFrameS` / `SourceFrameE` / `SampleIndex` / `Layer` を同時に診断表示またはログ出力し、座標系と履歴選択を推測せず確認してから実装する。View の現在正常な同期処理は崩さない。
+- `Aul2AudioMonitor` の再生中同期は、View が共有する現在描画フレームと履歴選択を利用して改善済み。無音区間では直前の表示値を減衰させ、前回バッファや先読み側の値を表示し続けない。今後同期処理を変更する場合は、View の正常な同期処理とこの無音時減衰を崩さない。
 - 最優先: 1 つのフィルターが `グループ制御（音声）` 配下の複数音声を扱う問題を先に解く。音響上は、子音声別に Delay/Reverb などの履歴を分けるのではなく、グループ/バスへ入った 1 本のミックス音声に対して 1 つのエフェクト状態を持つのが正しい方針。まず `FilterProcAudio` の一時診断で、同一フレーム/同一 `SampleIndex` 周辺に対して `Object_.ID`、`EffectID`、`Layer`、`Index`、`Num`、`SampleIndex` がどう並ぶかを確認する。AviUtl2 がミックス済み 1 回呼び出しを渡しているなら単一状態を維持し、リセット条件を見直す。子音声ごとの複数回呼び出しなら、素材別状態分離ではなく、ミックス音声として扱うために何を同一グループ入力として束ねられるかを先に判断する。
 - `FilterProcAudio` の呼び出し診断は `Source\Aul2AudioFilterAudioTrace.pas` で行う。`%TEMP%\Aul2AudioFilterAudioTrace.enable` という空ファイルがある時だけ、最大 2048 行まで `%TEMP%\Aul2AudioFilterAudioTrace.log` へ `Object_.ID` / `EffectID` / `Layer` / `Index` / `Num` / `SampleIndex` などを書き出す。通常時は enable ファイルを置かない。
 - 次点: 同じフレームに複数の音声オブジェクトがあり、それぞれに `Aul2AudioFilter` が追加されているケースは、Syncroh2 の `GCTX` と同様にフィルターオブジェクト別 Context で状態を分離する。対象候補は Delay、Chorus、Reverb、EQ、Compressor、Limiter、AutoGain、NoiseGate、Ghost、Wobble、Pitch、Muffle、Whisper、BitCrusher など。こちらは `Object_.ID` + `EffectID` を主キー候補にし、1 フィルター内の複数音声ミックス問題を解いた後に展開する。

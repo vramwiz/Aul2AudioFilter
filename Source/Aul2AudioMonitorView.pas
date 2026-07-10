@@ -87,9 +87,15 @@ var
   LastMonitorEditStateValid: Boolean;
   MonitorFrame: Integer;
   MonitorFrameValid: Boolean;
+  PlaybackMonitorSnapshot: TAul2AudioMonitorState;
+  PlaybackSpectrumSnapshot: TAul2AudioMonitorSpectrumState;
+  PlaybackMonitorSnapshotValid: Boolean;
+  PlaybackSpectrumSnapshotValid: Boolean;
 
 procedure ClearPlaybackHistory;
 begin
+  PlaybackMonitorSnapshotValid := False;
+  PlaybackSpectrumSnapshotValid := False;
 end;
 
 procedure PositionStateLabel;
@@ -396,6 +402,46 @@ begin
   end;
 end;
 
+procedure DecayMonitorSnapshot(var State: TAul2AudioMonitorState);
+const
+  DECAY = 0.72;
+var
+  Index: Integer;
+begin
+  State.InputPeakL := State.InputPeakL * DECAY;
+  State.InputPeakR := State.InputPeakR * DECAY;
+  State.OutputPeakL := State.OutputPeakL * DECAY;
+  State.OutputPeakR := State.OutputPeakR * DECAY;
+  State.InputRmsL := State.InputRmsL * DECAY;
+  State.InputRmsR := State.InputRmsR * DECAY;
+  State.OutputRmsL := State.OutputRmsL * DECAY;
+  State.OutputRmsR := State.OutputRmsR * DECAY;
+  for Index := 0 to AUDIO_MONITOR_WAVE_POINT_LAST do
+  begin
+    State.InputWave[Index] := State.InputWave[Index] * DECAY;
+    State.OutputWave[Index] := State.OutputWave[Index] * DECAY;
+    State.InputWaveMin[Index] := State.InputWaveMin[Index] * DECAY;
+    State.InputWaveMax[Index] := State.InputWaveMax[Index] * DECAY;
+    State.OutputWaveMin[Index] := State.OutputWaveMin[Index] * DECAY;
+    State.OutputWaveMax[Index] := State.OutputWaveMax[Index] * DECAY;
+  end;
+  State.UpdateTick := GetTickCount64;
+end;
+
+procedure DecaySpectrumSnapshot(var State: TAul2AudioMonitorSpectrumState);
+const
+  DECAY = 0.72;
+var
+  Index: Integer;
+begin
+  for Index := 0 to AUDIO_MONITOR_SPECTRUM_BAND_LAST do
+  begin
+    State.InputBands[Index] := State.InputBands[Index] * DECAY;
+    State.OutputBands[Index] := State.OutputBands[Index] * DECAY;
+  end;
+  State.UpdateTick := GetTickCount64;
+end;
+
 function SelectMonitorSnapshot(Current: PAul2AudioMonitorState;
   out Snapshot: TAul2AudioMonitorState): PAul2AudioMonitorState;
 begin
@@ -407,12 +453,20 @@ begin
 
   Result := FindMonitorHistoryState(MonitorFrame);
   if Result = nil then
-    Result := Current;
+  begin
+    if not PlaybackMonitorSnapshotValid then
+      Exit(nil);
+    DecayMonitorSnapshot(PlaybackMonitorSnapshot);
+    Snapshot := PlaybackMonitorSnapshot;
+    Exit(@Snapshot);
+  end;
   if not MonitorStateUsable(Result) then
     Exit;
 
   Snapshot := Result^;
   Snapshot.UpdateTick := GetTickCount64;
+  PlaybackMonitorSnapshot := Snapshot;
+  PlaybackMonitorSnapshotValid := True;
   Result := @Snapshot;
 end;
 
@@ -427,12 +481,20 @@ begin
 
   Result := FindSpectrumHistoryState(MonitorFrame);
   if Result = nil then
-    Result := Current;
+  begin
+    if not PlaybackSpectrumSnapshotValid then
+      Exit(nil);
+    DecaySpectrumSnapshot(PlaybackSpectrumSnapshot);
+    Snapshot := PlaybackSpectrumSnapshot;
+    Exit(@Snapshot);
+  end;
   if not SpectrumStateUsable(Result) then
     Exit;
 
   Snapshot := Result^;
   Snapshot.UpdateTick := GetTickCount64;
+  PlaybackSpectrumSnapshot := Snapshot;
+  PlaybackSpectrumSnapshotValid := True;
   Result := @Snapshot;
 end;
 
