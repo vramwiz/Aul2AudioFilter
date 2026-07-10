@@ -37,7 +37,7 @@
 - 緊急: 2 人分の声など複数音声素材を 1 つの `グループ制御（音声）` で処理すると、Monitor 表示だけでなくエフェクト本体も壊れる可能性が高い。最初に解くべき問題は、1 つのフィルターが複数音声を扱うケースであり、この場合は素材別の独立エフェクトではなく、グループ/バスに入った 1 本のミックス音声として扱う方針にする。現在の Delay / Chorus / Reverb / EQ / Compressor / Limiter / AutoGain / NoiseGate などの状態持ち処理は、`GDelayChannels` や `GNextSampleIndex` のようなユニット単位の単一グローバル状態を使っているため、AviUtl2 が子音声ごとに交互呼び出しする場合はリセットや履歴混入が起きる。まず `グループ制御（音声）` 時の `FilterProcAudio` 呼び出し単位を診断し、ミックス済み 1 回呼び出しなのか、子音声ごとの複数回呼び出しなのかを確認する。その後、同じフレーム上の複数音声オブジェクトそれぞれにフィルターが追加されるケースへ、Syncroh2 の `GCTX` と同様のフィルターオブジェクト別 Context 分離を適用する。
 - 2026-07-10: `グループ制御（音声）` 配下の 2 音声再生ログで、同じ `EffectID` / `SampleIndex` に対して `Object_.ID` と `Layer` が異なる子音声が交互に `FilterProcAudio` へ来ることを確認した。`Delay` / `Chorus` / `Reverb` / `EQ` / `Compressor` / `Limiter` は `Object_.ID + EffectID` ごとの状態スロットへ分離済み。Debug Win64 ビルド成功、2 音声再生で改善確認済み。状態スロット管理は `Source\Aul2AudioFilterContextManager.pas` の Syncroh2 `GCTX` 方式に近い共通 Context List へ寄せた。残りの状態持ち候補は `AutoGain` / `NoiseGate` / `Ghost` / `Wobble` / `Pitch` / `Muffle` / `Whisper` / `BitCrusher` / `VoiceDrive` など。
 - 2026-07-10: 同一フレームに 2 音声ファイルを置き、それぞれに別の `Aul2AudioFilter` 設定を付けると、Use OFF のエフェクトが `ClearXxxState` で全 Context を消し、もう一方の状態まで引っ張る問題を確認。`Delay` / `Chorus` / `Reverb` / `EQ` / `Compressor` / `Limiter` は、処理中に Use OFF でも全 Context を消さず何もしない方針へ変更した。プリセット適用時の明示的な `SetXxxGuiParams` では引き続き Context をクリアする。修正後、同一フレーム上の 2 音声ファイルへ別々のフィルター設定/別エフェクトをかける構成で、片方に引っ張られず正しく効くことを確認済み。
-- 2026-07-10: `Aul2Audio View` と `Aul2AudioMonitor` は、編集中にタイムラインカーソルを移動させた場合は正常に追従する。再生中は AviUtl2 の音声先読みで共有メモリへ未来側の音声解析値が入り、表示が先行反応するため完全同期は取れていない。現時点では仕様/既知課題として記録し、まだ修正しない。
+- 2026-07-10: `Aul2Audio View` と `Aul2AudioMonitor` は、再生中も現在フレーム基準で十分に同期が取れていることを確認済み。Filter 側が共有メモリへレイヤー別履歴リングを書き、View / Monitor 側が `SourceFrame` を描画フレーム基準へ正規化して現在フレームに最も近い履歴を選択する。
 - 詳細な実装記録、検証ログ、プリセット試聴メモは `HISTORY.md` を参照する。
 
 ## プロジェクト構成
@@ -129,7 +129,7 @@
 - 外部 AI からの提案として、Lo-Fi 系の質感強化を検討候補にする。`BitCrusher` に加えて、8kHz / 11kHz 相当へ落とすダウンサンプリング的な音を想定する。
 - 外部 AI からの提案として、複数レイヤー/グループ制御時の負荷と競合を継続確認する。`Source Layer` の個別指定で干渉回避できるが、`Auto` の安定性と多重トラック時の軽量化は確認候補に残す。
 - 外部 AI からの提案として、`Aul2Audio View` の View Type 拡張を検討候補にする。円形波形、ドーナツ型スペクトラム、音量反応の明滅、不透明度やブラーの揺れなど、MV 用素材として映像表現へ直接効く描画を想定する。
-- `Aul2Audio View` の再生中同期は未解決。共有メモリを最新値で読む方式では AviUtl2 の音声先読みの影響で同期ズレが出る可能性が高い。フレーム履歴リング、`SampleIndex` ベースのフレーム復元、`Sync Offset(ms)` 追加、履歴数拡張を試したが、View の同期改善は確認できず、Monitor 表示が出なくなる副作用が出たためコミット状態へ戻した。次に触る場合は推測で補正せず、View が要求しているフレームと音声側が書いた `SourceFrame` / `SampleIndex` を可視化する一時診断を先に入れる。
+- `Aul2Audio View` / `Aul2AudioMonitor` の再生同期は現状良好。今後触る場合は、共有メモリ履歴リングとフレーム距離優先選択を崩さない。
 - 新しい実装作業や試聴結果を終えたら、詳細な経緯は `HISTORY.md` へ追記する。
 
 ## ビルド方法
@@ -193,7 +193,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - `Spectrum` 右側には Peak Meter と Stereo Balance を表示する。
 - 共有メモリは基本状態/時間波形用の `Local\Aul2AudioMonitorState` と、スペクトラム用の `Local\Aul2AudioMonitorSpectrum` に分ける。
 - 生の音声サンプル全体は共有メモリに載せない。Wave、Spectrum、Meter、Stereo は表示用に軽量集計した値だけを使う。
-- 再生中の Monitor は音声先読みの影響で完全なタイムライン同期ではなく、最新処理音声の観測窓として扱う。詳細な同期調査履歴は `HISTORY.md` を参照する。
+- 再生中の Monitor は共有メモリ履歴リングから現在フレームに最も近い解析値を選び、十分に同期が取れている。詳細な同期調査履歴は `HISTORY.md` を参照する。
 
 ## Aul2AudioBaseInput / Base 現状
 
@@ -220,15 +220,10 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - `Mirror Bars` はスペクトラム系の値を中心線から上下対称に伸びるバーへ変換する。`Density` / `Spacing` / `Thickness` / `Smooth` / 色 / 周波数範囲設定を流用する。
 - 完了済みの実装経緯や試行錯誤は `HISTORY.md` の `Aul2AudioView completion note` を参照する。
 
-## 2026-07-10 Aul2AudioView 再生同期の現状
+## Aul2AudioView / Monitor 再生同期の現状
 
-- View は再生中の先行読み込みに対して、現在は同期が取れて継続表示できている。
-- 原因は、View が共有メモリの最新状態だけを見ると、AviUtl2 の音声先読みで未来フレームの解析結果に引っ張られることだった。
-- 対応として `Local\Aul2AudioMonitorState` と `Local\Aul2AudioMonitorSpectrum` にレイヤー別の履歴リングを追加した。
-- 履歴数は 128 件。共有メモリ構造変更のため、Wave 側 version は 8、Spectrum 側 version は 6。
-- Filter 側は `AudioMonitorCaptureOutput` で最新スロットに加えて履歴リングへも状態を書き込む。
-- View 側は `CurrentFrame` に対して、`SourceFrame` を描画フレーム基準へ正規化し、現在フレームに最も近い履歴を選択する。
-- 初期実装では `UpdateTick` が最新の履歴を選んでいたため、同じ `FrameS/FrameE` 範囲内の未来側・無音側が勝ち、最初の 1～2 回同期後に 0 へ収束するように見えた。
-- 現在は `UpdateTick` 優先ではなくフレーム距離優先に変更済み。距離が同じ場合のみ `UpdateTick` をタイブレークに使う。
-- `Aul2AudioFilter.auf2` / `Aul2AudioView.auf2` へ反映済み。Release Win64 ビルドも成功済み。
-- Monitor はまだ再生同期が不十分。View とは別問題として残す。
+- View と Monitor は再生中も現在フレーム基準で同期が取れている。
+- 共有メモリは基本状態/時間波形用 version 8、スペクトラム用 version 6。各レイヤー 128 件の履歴リングを持つ。
+- Filter 側は `AudioMonitorCaptureOutput` で最新スロットと履歴リングの両方へ書き込む。
+- View / Monitor 側は `SourceFrame` を描画フレーム基準へ正規化し、現在フレームに最も近い履歴を選ぶ。距離が同じ場合のみ `UpdateTick` をタイブレークに使う。
+- 詳細な工程、試行錯誤、検証結果は `HISTORY.md` の `Aul2AudioView / Monitor playback sync completion note` を参照する。

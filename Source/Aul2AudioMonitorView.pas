@@ -43,18 +43,6 @@ type
     ampBase
   );
 
-  TMonitorStateSnapshot = record
-    Valid: Boolean;
-    Tick : UInt64;
-    State: TAul2AudioMonitorState;
-  end;
-
-  TSpectrumStateSnapshot = record
-    Valid: Boolean;
-    Tick : UInt64;
-    State: TAul2AudioMonitorSpectrumState;
-  end;
-
   TFormAudioMonitor = class(TForm)
   public
     constructor Create(AOwner: TComponent); override;
@@ -98,17 +86,9 @@ var
   LastMonitorEditStateValid: Boolean;
   MonitorFrame: Integer;
   MonitorFrameValid: Boolean;
-  MonitorHistory: array[0..127] of TMonitorStateSnapshot;
-  SpectrumHistory: array[0..127] of TSpectrumStateSnapshot;
-  MonitorHistoryIndex: Integer;
-  SpectrumHistoryIndex: Integer;
 
 procedure ClearPlaybackHistory;
 begin
-  FillChar(MonitorHistory, SizeOf(MonitorHistory), 0);
-  FillChar(SpectrumHistory, SizeOf(SpectrumHistory), 0);
-  MonitorHistoryIndex := 0;
-  SpectrumHistoryIndex := 0;
 end;
 
 procedure PositionStateLabel;
@@ -299,104 +279,161 @@ begin
             (State^.UpdateTick <> 0);
 end;
 
-procedure PushMonitorHistory(State: PAul2AudioMonitorState);
-begin
-  if not MonitorStateUsable(State) then
-    Exit;
+function GetMonitorSharedMemory: TAul2AudioMonitorSharedMemory; forward;
+function GetSpectrumSharedMemory: TAul2AudioMonitorSpectrumSharedMemory; forward;
 
-  MonitorHistoryIndex := (MonitorHistoryIndex + 1) mod Length(MonitorHistory);
-  MonitorHistory[MonitorHistoryIndex].Valid := True;
-  MonitorHistory[MonitorHistoryIndex].Tick := GetTickCount64;
-  MonitorHistory[MonitorHistoryIndex].State := State^;
+function MonitorStateDisplayFrame(State: PAul2AudioMonitorState): Integer;
+begin
+  Result := State^.SourceFrame;
+  if (State^.SourceFrameS <= State^.SourceFrameE) and
+     ((Result < State^.SourceFrameS) or (Result > State^.SourceFrameE)) then
+    Result := State^.SourceFrameS + State^.SourceFrame;
 end;
 
-procedure PushSpectrumHistory(State: PAul2AudioMonitorSpectrumState);
+function SpectrumStateDisplayFrame(State: PAul2AudioMonitorSpectrumState): Integer;
 begin
-  if not SpectrumStateUsable(State) then
+  Result := State^.SourceFrame;
+  if (State^.SourceFrameS <= State^.SourceFrameE) and
+     ((Result < State^.SourceFrameS) or (Result > State^.SourceFrameE)) then
+    Result := State^.SourceFrameS + State^.SourceFrame;
+end;
+
+function MonitorStateFrameDistance(State: PAul2AudioMonitorState; Frame: Integer): Integer;
+begin
+  if Frame < 0 then
+    Exit(0);
+
+  Result := Abs(MonitorStateDisplayFrame(State) - Frame);
+end;
+
+function SpectrumStateFrameDistance(State: PAul2AudioMonitorSpectrumState; Frame: Integer): Integer;
+begin
+  if Frame < 0 then
+    Exit(0);
+
+  Result := Abs(SpectrumStateDisplayFrame(State) - Frame);
+end;
+
+function PreferMonitorState(Candidate, Current: PAul2AudioMonitorState;
+  Frame: Integer): Boolean;
+var
+  CandidateDistance: Integer;
+  CurrentDistance: Integer;
+begin
+  if Current = nil then
+    Exit(True);
+
+  CandidateDistance := MonitorStateFrameDistance(Candidate, Frame);
+  CurrentDistance := MonitorStateFrameDistance(Current, Frame);
+  if CandidateDistance <> CurrentDistance then
+    Exit(CandidateDistance < CurrentDistance);
+
+  Result := Candidate^.UpdateTick > Current^.UpdateTick;
+end;
+
+function PreferSpectrumState(Candidate, Current: PAul2AudioMonitorSpectrumState;
+  Frame: Integer): Boolean;
+var
+  CandidateDistance: Integer;
+  CurrentDistance: Integer;
+begin
+  if Current = nil then
+    Exit(True);
+
+  CandidateDistance := SpectrumStateFrameDistance(Candidate, Frame);
+  CurrentDistance := SpectrumStateFrameDistance(Current, Frame);
+  if CandidateDistance <> CurrentDistance then
+    Exit(CandidateDistance < CurrentDistance);
+
+  Result := Candidate^.UpdateTick > Current^.UpdateTick;
+end;
+
+function FindMonitorHistoryState(Frame: Integer): PAul2AudioMonitorState;
+var
+  Layer: Integer;
+  Index: Integer;
+  State: PAul2AudioMonitorState;
+  Memory: TAul2AudioMonitorSharedMemory;
+begin
+  Result := nil;
+
+  Memory := GetMonitorSharedMemory;
+  if (Memory = nil) or (Memory.Root = nil) then
     Exit;
 
-  SpectrumHistoryIndex := (SpectrumHistoryIndex + 1) mod Length(SpectrumHistory);
-  SpectrumHistory[SpectrumHistoryIndex].Valid := True;
-  SpectrumHistory[SpectrumHistoryIndex].Tick := GetTickCount64;
-  SpectrumHistory[SpectrumHistoryIndex].State := State^;
+  for Layer := 0 to AUDIO_MONITOR_LAYER_SLOT_LAST do
+  begin
+    for Index := 0 to AUDIO_MONITOR_HISTORY_LAST do
+    begin
+      State := Memory.GetHistoryStateForLayer(Layer, Index);
+      if MonitorStateUsable(State) and MonitorStateMatchesFrame(State^, Frame) and
+         PreferMonitorState(State, Result, Frame) then
+        Result := State;
+    end;
+  end;
+end;
+
+function FindSpectrumHistoryState(Frame: Integer): PAul2AudioMonitorSpectrumState;
+var
+  Layer: Integer;
+  Index: Integer;
+  State: PAul2AudioMonitorSpectrumState;
+  Memory: TAul2AudioMonitorSpectrumSharedMemory;
+begin
+  Result := nil;
+
+  Memory := GetSpectrumSharedMemory;
+  if (Memory = nil) or (Memory.Root = nil) then
+    Exit;
+
+  for Layer := 0 to AUDIO_MONITOR_LAYER_SLOT_LAST do
+  begin
+    for Index := 0 to AUDIO_MONITOR_SPECTRUM_HISTORY_LAST do
+    begin
+      State := Memory.GetHistoryStateForLayer(Layer, Index);
+      if SpectrumStateUsable(State) and SpectrumStateMatchesFrame(State^, Frame) and
+         PreferSpectrumState(State, Result, Frame) then
+        Result := State;
+    end;
+  end;
 end;
 
 function SelectMonitorSnapshot(Current: PAul2AudioMonitorState;
   out Snapshot: TAul2AudioMonitorState): PAul2AudioMonitorState;
-var
-  I: Integer;
-  BestIndex: Integer;
 begin
   Result := Current;
-  PushMonitorHistory(Current);
   if not IsPlaybackDisplay then
     Exit;
   if not PlaybackFrameAvailable then
-  begin
-    Result := Current;
     Exit;
-  end;
 
-  BestIndex := -1;
-  for I := Low(MonitorHistory) to High(MonitorHistory) do
-  begin
-    if not MonitorHistory[I].Valid then
-      Continue;
-    if MonitorHistory[I].State.UpdateTick = 0 then
-      Continue;
-
-    if MonitorStateMatchesFrame(MonitorHistory[I].State, MonitorFrame) then
-      if (BestIndex < 0) or (MonitorHistory[I].Tick > MonitorHistory[BestIndex].Tick) then
-        BestIndex := I;
-  end;
-
-  if BestIndex < 0 then
-  begin
+  Result := FindMonitorHistoryState(MonitorFrame);
+  if Result = nil then
     Result := Current;
+  if not MonitorStateUsable(Result) then
     Exit;
-  end;
 
-  Snapshot := MonitorHistory[BestIndex].State;
+  Snapshot := Result^;
   Snapshot.UpdateTick := GetTickCount64;
   Result := @Snapshot;
 end;
 
 function SelectSpectrumSnapshot(Current: PAul2AudioMonitorSpectrumState;
   out Snapshot: TAul2AudioMonitorSpectrumState): PAul2AudioMonitorSpectrumState;
-var
-  I: Integer;
-  BestIndex: Integer;
 begin
   Result := Current;
-  PushSpectrumHistory(Current);
   if not IsPlaybackDisplay then
     Exit;
   if not PlaybackFrameAvailable then
-  begin
-    Result := Current;
     Exit;
-  end;
 
-  BestIndex := -1;
-  for I := Low(SpectrumHistory) to High(SpectrumHistory) do
-  begin
-    if not SpectrumHistory[I].Valid then
-      Continue;
-    if SpectrumHistory[I].State.UpdateTick = 0 then
-      Continue;
-
-    if SpectrumStateMatchesFrame(SpectrumHistory[I].State, MonitorFrame) then
-      if (BestIndex < 0) or (SpectrumHistory[I].Tick > SpectrumHistory[BestIndex].Tick) then
-        BestIndex := I;
-  end;
-
-  if BestIndex < 0 then
-  begin
+  Result := FindSpectrumHistoryState(MonitorFrame);
+  if Result = nil then
     Result := Current;
+  if not SpectrumStateUsable(Result) then
     Exit;
-  end;
 
-  Snapshot := SpectrumHistory[BestIndex].State;
+  Snapshot := Result^;
   Snapshot.UpdateTick := GetTickCount64;
   Result := @Snapshot;
 end;

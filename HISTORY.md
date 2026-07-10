@@ -500,6 +500,24 @@
 - 編集中は従来通り最新共有メモリ値と最後の描画値を保持する方針を維持する。同期課題は再生中だけに限定して扱う。
 - Debug Win64 で `Aul2AudioMonitor.dproj` のビルドと `Aul2AudioMonitor.aux2` へのコピーが成功することを確認した。
 
+## Aul2AudioView / Monitor playback sync completion note
+
+- 2026-07-10、再生中の `Aul2AudioView` と `Aul2AudioMonitor` が AviUtl2 の音声先読みで未来側の解析値に引っ張られる問題を解決した。
+- まず `Aul2AudioView` で、共有メモリの最新スロットだけを読む方式では先読み済みの未来フレームが勝つことを確認した。
+- `Local\Aul2AudioMonitorState` と `Local\Aul2AudioMonitorSpectrum` にレイヤー別の履歴リングを追加した。履歴数は各レイヤー 128 件。
+- 共有メモリ構造変更に伴い、Wave/基本状態側は version 8、Spectrum 側は version 6 へ更新した。
+- `.auf2` 側の `AudioMonitorCaptureOutput` は、従来の最新スロットに加えて履歴リングにも同じ解析状態を書き込むようにした。
+- View 側は `CurrentFrame` に対して `SourceFrame` を描画フレーム基準へ正規化し、現在フレームに最も近い履歴を選択するようにした。
+- 初期実装では `SourceFrameS..SourceFrameE` に一致する履歴のうち `UpdateTick` が最新のものを選んだため、同じ音声オブジェクト範囲内で未来側・無音側が勝ち、最初の 1～2 回同期後に 0 へ収束するように見えた。
+- そのため選択基準を `UpdateTick` 優先からフレーム距離優先へ変更した。距離が同じ場合のみ `UpdateTick` をタイブレークに使う。
+- View は再生中の先行読み込みに対して同期が取れ、継続表示できることを確認した。
+- Monitor 側は当初、`.aux2` 内で最新共有メモリ値を 50ms タイマーで独自履歴化していたため、すでに未来へ進んだ最新値を履歴化する弱点が残っていた。
+- Monitor 側も View と同じく、`.auf2` 側が書いた共有メモリ履歴リングを直接スキャンする方式へ変更した。
+- `Aul2AudioMonitorView.pas` の `SelectMonitorSnapshot` / `SelectSpectrumSnapshot` は、再生中に `MonitorFrame` へ最も近い履歴を選択する。編集時やフレーム取得不可時は従来通り最新スロットを使う。
+- Monitor は `Local\Aul2AudioViewFrame` の新鮮な ViewFrame を優先し、なければ `AviUtl2GetEditFrame` へフォールバックする。
+- ユーザー確認により、View と Monitor のどちらも再生中に十分同期が取れている状態になった。
+- Release Win64 で `Aul2AudioFilter.dproj` / `Aul2AudioView.dproj` / `Aul2AudioMonitor.dproj` のビルドが成功し、`Aul2AudioFilter.auf2` / `Aul2AudioView.auf2` / `Aul2AudioMonitor.aux2` へ反映した。
+
 ## Aul2AudioView completion note
 
 - `Aul2AudioView` は `Aul2AudioBaseInput` の上に載る MV 用表示フィルターとして完成扱いにした。
