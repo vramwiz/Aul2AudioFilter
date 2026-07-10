@@ -113,8 +113,8 @@ begin
 
     if Settings.Style = VIEW_STYLE_BLOCKS then
     begin
-      YMin := CenterY - Round(InterpolateWave(CurrentWaveMin, I, PointCount) * HalfHeight);
-      YMax := CenterY - Round(InterpolateWave(CurrentWaveMax, I, PointCount) * HalfHeight);
+      YMin := CenterY - Round(ApplyViewGain(InterpolateWave(CurrentWaveMin, I, PointCount), Settings) * HalfHeight);
+      YMax := CenterY - Round(ApplyViewGain(InterpolateWave(CurrentWaveMax, I, PointCount), Settings) * HalfHeight);
       if YMin > YMax then
       begin
         Y := YMin;
@@ -132,7 +132,7 @@ begin
     end
     else
     begin
-      Y := CenterY - Round(InterpolateWave(CurrentWave, I, PointCount) * HalfHeight);
+      Y := CenterY - Round(ApplyViewGain(InterpolateWave(CurrentWave, I, PointCount), Settings) * HalfHeight);
       DrawPixel(Buffer, Width, Height, X, Y, PixelSize, R, G, B, 255);
     end;
   end;

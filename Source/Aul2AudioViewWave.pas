@@ -99,10 +99,7 @@ end;
 
 function StateDisplayFrame(State: PAul2AudioMonitorState): Integer;
 begin
-  Result := State^.SourceFrame;
-  if (State^.SourceFrameS <= State^.SourceFrameE) and
-     ((Result < State^.SourceFrameS) or (Result > State^.SourceFrameE)) then
-    Result := State^.SourceFrameS + State^.SourceFrame;
+  Result := State^.SourceFrameS + State^.SourceFrame;
 end;
 
 function StateFrameDistance(State: PAul2AudioMonitorState; CurrentFrame: Integer): Integer;

@@ -56,6 +56,7 @@ type
     Thickness: Integer;
     BaseRadius: Integer;
     Smooth: Integer;
+    ViewGain: Integer;
     SourceLayer: Integer;
     SpectrumScale: Integer;
     SpectrumLowHz: Integer;

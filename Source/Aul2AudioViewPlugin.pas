@@ -46,6 +46,7 @@ var
   GViewColorBlendSelect: TFILTER_ITEM_SELECT;
   GViewColorBlendList  : array[0..4] of TFILTER_ITEM_SELECT_ITEM;
   GViewSmoothTrack : TFILTER_ITEM_TRACK;
+  GViewGainTrack   : TFILTER_ITEM_TRACK;
 
 procedure InitializeViewPlugin;
 begin
@@ -65,6 +66,7 @@ begin
     Settings.Thickness := Round(GViewThicknessTrack.Value);
     Settings.BaseRadius := Round(GViewBaseRadiusTrack.Value);
     Settings.Smooth := Round(GViewSmoothTrack.Value);
+    Settings.ViewGain := Round(GViewGainTrack.Value);
     Settings.SourceLayer := GViewSourceLayerSelect.Value;
     Settings.SpectrumScale := GViewSpectrumScaleSelect.Value;
     Settings.SpectrumLowHz := Round(GViewSpectrumLowHzTrack.Value);
@@ -134,6 +136,7 @@ begin
     AddTrack(GViewThicknessTrack, 'Thickness', 2, 1, 32, 1);
     AddTrack(GViewBaseRadiusTrack, 'Base Radius', 24, 0, 100, 1);
     AddTrack(GViewSmoothTrack, 'Smooth', 50, 0, 100, 1);
+    AddTrack(GViewGainTrack, 'View Gain(%)', 100, 10, 500, 1);
 
     ClearSelectList;
     AddSelectList(GViewSpectrumScaleList, 'Log', VIEW_SPECTRUM_SCALE_LOG);

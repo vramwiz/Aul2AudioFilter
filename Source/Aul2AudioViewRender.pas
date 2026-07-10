@@ -48,10 +48,7 @@ begin
     Exit;
 
   ObjectInfo := Video^.Object_;
-  Result := ObjectInfo^.Frame;
-  if (ObjectInfo^.FrameS <= ObjectInfo^.FrameE) and
-     ((Result < ObjectInfo^.FrameS) or (Result > ObjectInfo^.FrameE)) then
-    Result := ObjectInfo^.FrameS + ObjectInfo^.Frame;
+  Result := ObjectInfo^.FrameS + ObjectInfo^.Frame;
 end;
 
 procedure DrawViewType(Buffer: PPIXEL_RGBA; Width, Height: Integer;

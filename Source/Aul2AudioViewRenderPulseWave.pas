@@ -109,9 +109,9 @@ begin
 
     X := Round(I * Max(0, Width - 1) / Max(1, PulseCount - 1));
     if Settings.Style = VIEW_STYLE_BLOCKS then
-      PulseH := Round(HalfHeight * InterpolateWaveAbs(CurrentWaveMin, CurrentWaveMax, I, PulseCount))
+      PulseH := Round(HalfHeight * ApplyViewGain(InterpolateWaveAbs(CurrentWaveMin, CurrentWaveMax, I, PulseCount), Settings))
     else
-      PulseH := Round(HalfHeight * InterpolateWaveAbs(CurrentWave, CurrentWave, I, PulseCount));
+      PulseH := Round(HalfHeight * ApplyViewGain(InterpolateWaveAbs(CurrentWave, CurrentWave, I, PulseCount), Settings));
 
     if PulseH <= 0 then
       Continue;

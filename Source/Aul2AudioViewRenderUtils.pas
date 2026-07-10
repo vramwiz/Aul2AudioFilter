@@ -18,6 +18,7 @@ procedure FillRect(Buffer: PPIXEL_RGBA; Width, Height, X1, Y1, X2, Y2: Integer;
   R, G, B, A: Byte);
 procedure GetViewColor(const Settings: TAul2AudioViewSettings; Index, Count: Integer;
   out R, G, B: Byte);
+function ApplyViewGain(Value: Single; const Settings: TAul2AudioViewSettings): Single;
 function GetSpectrumDisplayValue(const Bands: TAudioMonitorSpectrumData; Valid: Boolean;
   SourceMinHz, SourceMaxHz: Single; const Settings: TAul2AudioViewSettings;
   Index, Count: Integer): Single;
@@ -31,22 +32,16 @@ uses
 
 procedure ClearPixels(Buffer: PPIXEL_RGBA; Width, Height: Integer);
 var
-  I: Integer;
-  PixelCount: Integer;
-  Pixels: PPixelArray;
+  BufferSize: NativeUInt;
 begin
   if (Buffer = nil) or (Width <= 0) or (Height <= 0) then
     Exit;
 
-  Pixels := PPixelArray(Buffer);
-  PixelCount := Width * Height;
-  for I := 0 to PixelCount - 1 do
-  begin
-    Pixels^[I].R := 0;
-    Pixels^[I].G := 0;
-    Pixels^[I].B := 0;
-    Pixels^[I].A := 0;
-  end;
+  BufferSize := NativeUInt(Width) * NativeUInt(Height) * SizeOf(TPIXEL_RGBA);
+  if BufferSize > NativeUInt(High(NativeInt)) then
+    Exit;
+
+  FillChar(Buffer^, NativeInt(BufferSize), 0);
 end;
 
 procedure PutPixel(Buffer: PPixelArray; Width, Height, X, Y: Integer; R, G, B, A: Byte);
@@ -56,7 +51,8 @@ begin
   if (Buffer = nil) or (X < 0) or (Y < 0) or (X >= Width) or (Y >= Height) then
     Exit;
 
-  P := @Buffer^[Y * Width + X];
+  P := Pointer(NativeUInt(Buffer) +
+    NativeUInt(Y * Width + X) * SizeOf(TPIXEL_RGBA));
   P^.R := R;
   P^.G := G;
   P^.B := B;
@@ -169,6 +165,12 @@ begin
   B := Color.B;
 end;
 
+function ApplyViewGain(Value: Single; const Settings: TAul2AudioViewSettings): Single;
+begin
+  Result := Value * Max(10, Min(500, Settings.ViewGain)) / 100.0;
+  Result := Max(-1.0, Min(1.0, Result));
+end;
+
 function ClampHzRange(const Settings: TAul2AudioViewSettings; SourceMinHz, SourceMaxHz: Single;
   out LowHz, HighHz: Double): Boolean;
 begin
@@ -248,6 +250,7 @@ begin
   Position := HzToSourceBand(FreqHz, SourceMinHz, SourceMaxHz);
   Result := Max(0.0, Min(1.0, SampleSpectrumBand(Bands, Position)));
   Result := ApplySpectrumHighBoost(Result, Settings, Index, Count);
+  Result := ApplyViewGain(Result, Settings);
 end;
 
 end.
