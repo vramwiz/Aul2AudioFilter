@@ -1,4 +1,4 @@
-unit Aul2AudioViewParams;
+﻿unit Aul2AudioViewParams;
 
 // Shared parameter definitions for Aul2AudioView render units.
 
@@ -10,6 +10,8 @@ const
   VIEW_TYPE_PIXEL_WAVE      = 2;
   VIEW_TYPE_FILLED_SPECTRUM = 3;
   VIEW_TYPE_PULSE_WAVE      = 4;
+  VIEW_TYPE_CIRCULAR_SPECTRUM = 5;
+  VIEW_TYPE_MIRROR_BARS     = 6;
 
   VIEW_STYLE_SOLID  = 0;
   VIEW_STYLE_BLOCKS = 1;
@@ -52,6 +54,7 @@ type
     Density: Integer;
     Spacing: Integer;
     Thickness: Integer;
+    BaseRadius: Integer;
     Smooth: Integer;
     SourceLayer: Integer;
     SpectrumScale: Integer;

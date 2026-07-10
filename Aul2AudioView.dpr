@@ -20,6 +20,8 @@ uses
   Aul2AudioViewSpectrum in 'Source\Aul2AudioViewSpectrum.pas',
   Aul2AudioViewRenderEqualizer in 'Source\Aul2AudioViewRenderEqualizer.pas',
   Aul2AudioViewRenderFilledSpectrum in 'Source\Aul2AudioViewRenderFilledSpectrum.pas',
+  Aul2AudioViewRenderCircularSpectrum in 'Source\Aul2AudioViewRenderCircularSpectrum.pas',
+  Aul2AudioViewRenderMirrorBars in 'Source\Aul2AudioViewRenderMirrorBars.pas',
   Aul2AudioViewWave in 'Source\Aul2AudioViewWave.pas',
   Aul2AudioViewRenderWaveLine in 'Source\Aul2AudioViewRenderWaveLine.pas',
   Aul2AudioViewRenderPixelWave in 'Source\Aul2AudioViewRenderPixelWave.pas',

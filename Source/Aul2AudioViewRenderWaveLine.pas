@@ -1,4 +1,4 @@
-unit Aul2AudioViewRenderWaveLine;
+﻿unit Aul2AudioViewRenderWaveLine;
 
 // Draws the Wave Line view type.
 

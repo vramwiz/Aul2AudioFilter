@@ -1,4 +1,4 @@
-unit AviUtl2GpuTextureOut;
+﻿unit AviUtl2GpuTextureOut;
 
 // Optional D3D11 texture output path for AviUtl2 video filters.
 

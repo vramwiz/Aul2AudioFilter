@@ -23,12 +23,13 @@ uses
 
 var
   GViewTypeSelect  : TFILTER_ITEM_SELECT;
-  GViewTypeList    : array[0..5] of TFILTER_ITEM_SELECT_ITEM;
+  GViewTypeList    : array[0..7] of TFILTER_ITEM_SELECT_ITEM;
   GViewStyleSelect : TFILTER_ITEM_SELECT;
   GViewStyleList   : array[0..2] of TFILTER_ITEM_SELECT_ITEM;
   GViewDensityTrack: TFILTER_ITEM_TRACK;
   GViewSpacingTrack: TFILTER_ITEM_TRACK;
   GViewThicknessTrack: TFILTER_ITEM_TRACK;
+  GViewBaseRadiusTrack: TFILTER_ITEM_TRACK;
   GViewSourceLayerSelect: TFILTER_ITEM_SELECT;
   GViewSourceLayerList: array[0..65] of TFILTER_ITEM_SELECT_ITEM;
   GViewSourceLayerNames: array[0..64] of string;
@@ -62,6 +63,7 @@ begin
     Settings.Density := Round(GViewDensityTrack.Value);
     Settings.Spacing := Round(GViewSpacingTrack.Value);
     Settings.Thickness := Round(GViewThicknessTrack.Value);
+    Settings.BaseRadius := Round(GViewBaseRadiusTrack.Value);
     Settings.Smooth := Round(GViewSmoothTrack.Value);
     Settings.SourceLayer := GViewSourceLayerSelect.Value;
     Settings.SpectrumScale := GViewSpectrumScaleSelect.Value;
@@ -118,6 +120,8 @@ begin
     AddSelectList(GViewTypeList, 'Pixel Wave', VIEW_TYPE_PIXEL_WAVE);
     AddSelectList(GViewTypeList, 'Filled Spectrum', VIEW_TYPE_FILLED_SPECTRUM);
     AddSelectList(GViewTypeList, 'Pulse Wave', VIEW_TYPE_PULSE_WAVE);
+    AddSelectList(GViewTypeList, 'Circular Spectrum', VIEW_TYPE_CIRCULAR_SPECTRUM);
+    AddSelectList(GViewTypeList, 'Mirror Bars', VIEW_TYPE_MIRROR_BARS);
     AddSelect(GViewTypeSelect, 'Type', VIEW_TYPE_EQUALIZER_BARS, @GViewTypeList[0]);
 
     ClearSelectList;
@@ -128,6 +132,7 @@ begin
     AddTrack(GViewDensityTrack, 'Density', 32, 4, 128, 1);
     AddTrack(GViewSpacingTrack, 'Spacing', 2, 0, 32, 1);
     AddTrack(GViewThicknessTrack, 'Thickness', 2, 1, 32, 1);
+    AddTrack(GViewBaseRadiusTrack, 'Base Radius', 24, 0, 100, 1);
     AddTrack(GViewSmoothTrack, 'Smooth', 50, 0, 100, 1);
 
     ClearSelectList;

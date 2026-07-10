@@ -1,4 +1,4 @@
-unit Aul2AudioViewRenderFilledSpectrum;
+﻿unit Aul2AudioViewRenderFilledSpectrum;
 
 // Draws the Filled Spectrum view type.
 

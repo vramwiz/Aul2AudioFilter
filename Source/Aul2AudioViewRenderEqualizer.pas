@@ -1,4 +1,4 @@
-unit Aul2AudioViewRenderEqualizer;
+﻿unit Aul2AudioViewRenderEqualizer;
 
 // Draws the Equalizer Bars view type.
 

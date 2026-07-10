@@ -117,6 +117,11 @@
 - `無線` と `劣化` は `Noise` を外した状態で運用中。`Noise` の無音化や例外原因は別途調査候補とする。
 - `Pitch` は簡易方式のため、声素材で `男性` / `女性` のぶつ切れや不自然さを継続確認する。
 - `風邪`、`遠く` は専用プリセットとしては未追加。必要になったら既存エフェクトの組み合わせで検討する。
+- 外部 AI からの提案として、ユーザー調整値を `ユーザープリセット1` のように保存/書き出しできるカスタムプリセット機能を検討候補にする。シリーズ動画で同じ音作りを再利用する用途を想定する。
+- 外部 AI からの提案として、`Wobble` / `Pitch` のランダム性を強める方向を検討候補にする。周期 LFO だけでなく、古いテープのワウ・フラッターのような不規則なピッチ揺れを想定する。
+- 外部 AI からの提案として、Lo-Fi 系の質感強化を検討候補にする。`BitCrusher` に加えて、8kHz / 11kHz 相当へ落とすダウンサンプリング的な音を想定する。
+- 外部 AI からの提案として、複数レイヤー/グループ制御時の負荷と競合を継続確認する。`Source Layer` の個別指定で干渉回避できるが、`Auto` の安定性と多重トラック時の軽量化は確認候補に残す。
+- 外部 AI からの提案として、`Aul2Audio View` の View Type 拡張を検討候補にする。円形波形、ドーナツ型スペクトラム、音量反応の明滅、不透明度やブラーの揺れなど、MV 用素材として映像表現へ直接効く描画を想定する。
 - 新しい実装作業や試聴結果を終えたら、詳細な経緯は `HISTORY.md` へ追記する。
 
 ## ビルド方法
@@ -196,10 +201,13 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - `Aul2AudioView` は `Aul2AudioBaseInput` の上に載る MV 用表示フィルター。編集補助ではなく、音に反応する見た目を生成する用途。
 - 描画は背景透明、文字なし、枠なし、グリッドなしを基本にする。
 - 出力は安定優先で `Video^.SetImageData(Buffer, Width, Height)` を使う。GPU texture 出力はヘルパーだけ保持し、通常は無効。
-- 表示タイプは `Equalizer Bars` / `Filled Spectrum` / `Wave Line` / `Pixel Wave` / `Pulse Wave` の 5 種類で完成扱い。
+- 表示タイプは `Equalizer Bars` / `Mirror Bars` / `Filled Spectrum` / `Circular Spectrum` / `Wave Line` / `Pixel Wave` / `Pulse Wave` の 7 種類。
 - スペクトラム系は `Local\Aul2AudioMonitorSpectrum` の `OutputBands`、時間波形系は `Local\Aul2AudioMonitorState` の `OutputWave` / `OutputWaveMin` / `OutputWaveMax` を読む。
-- 共通パラメーターは `Type`, `Style`, `Density`, `Spacing`, `Thickness`, `Color`, `Color Variation`, `Color Blend`, `Smooth`。
+- 共通パラメーターは `Type`, `Style`, `Density`, `Spacing`, `Thickness`, `Base Radius`, `Color`, `Color Variation`, `Color Blend`, `Smooth`。
 - `Color Variation` は `1 Color`, `2 Color`, `3 Color`, `Rainbow`, `Warm`, `Cool`, `Pastel`, `Neon`, `Mono`, `Sepia`, `Gold`, `Silver`, `Fire`, `Ice`, `Water`, `Aurora`, `Starlight`, `Sunset`, `Ocean`, `Forest`, `Cyber`, `Retro Game`。
 - `Color Blend` は `Auto`, `RGB`, `HSV Short`, `HSV Long`。`Auto` では周期的な色相回転を避ける設定にする。
 - `Equalizer Bars` / `Filled Spectrum` の描画マージンは `0`。必要になった場合は `VIEW_MARGIN_X` / `VIEW_MARGIN_Y` を設定項目へ昇格する。
+- `Base Radius` は円形系表示の共通設定候補。`Circular Spectrum` では中心からどの半径を起点に外側へ伸ばすかを決める。今後ほかの円形 View Type を追加する場合も同じ設定値を採用する方向。
+- `Circular Spectrum` はスペクトラム系の値を中心から外へ伸びる放射状表示に変換する。現時点では `Density` / `Spacing` / `Thickness` / `Base Radius` / `Smooth` / 色 / 周波数範囲設定を流用する。
+- `Mirror Bars` はスペクトラム系の値を中心線から上下対称に伸びるバーへ変換する。`Density` / `Spacing` / `Thickness` / `Smooth` / 色 / 周波数範囲設定を流用する。
 - 完了済みの実装経緯や試行錯誤は `HISTORY.md` の `Aul2AudioView completion note` を参照する。

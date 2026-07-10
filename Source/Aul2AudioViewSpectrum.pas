@@ -1,4 +1,4 @@
-unit Aul2AudioViewSpectrum;
+﻿unit Aul2AudioViewSpectrum;
 
 // Reads and smooths spectrum values for Aul2AudioView render units.
 

@@ -1,4 +1,4 @@
-unit Aul2ColorUtils;
+﻿unit Aul2ColorUtils;
 
 interface
 

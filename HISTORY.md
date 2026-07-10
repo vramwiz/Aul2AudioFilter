@@ -4,6 +4,14 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-10 Aul2AudioView Circular Spectrum
+
+- `Aul2Audio View` の新しい View Type として `Circular Spectrum` を追加した。
+- 既存のスペクトラム読み取り、`Source Layer`、周波数範囲、`High Boost`、`Smooth`、色バリエーションを流用し、専用 GUI はまだ増やさない方針にした。
+- `Solid` は中心から外へ伸びる放射状の線、`Blocks` は外側へ積むセグメント表示として描画する。
+- 円形系表示の共通設定候補として `Base Radius` を追加した。`Circular Spectrum` では中心からどの半径を起点に外側へ伸ばすかを `0..100` で指定する。
+- `Aul2Audio View` の新しい View Type として `Mirror Bars` を追加した。中心線から上下対称に伸びるスペクトラムで、`Solid` は連続バー、`Blocks` は中心から上下へ積むブロック表示にした。
+
 ## 2026-07-10 Aul2AudioView layer source routing
 
 - `Audio^.Object_^.Layer` がフィルター配置レイヤーではなく、制御対象の音声オブジェクトの内部 0-based レイヤーを返すことを Monitor 表示で確認した。表示上のレイヤー番号は `+1` で一致する。

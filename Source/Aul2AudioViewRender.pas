@@ -1,4 +1,4 @@
-unit Aul2AudioViewRender;
+﻿unit Aul2AudioViewRender;
 
 // Builds the first visible frame for Aul2AudioView and sends it to AviUtl2.
 
@@ -15,8 +15,10 @@ implementation
 uses
   System.SysUtils,
   AviUtl2GpuTextureOut,
+  Aul2AudioViewRenderCircularSpectrum,
   Aul2AudioViewRenderEqualizer,
   Aul2AudioViewRenderFilledSpectrum,
+  Aul2AudioViewRenderMirrorBars,
   Aul2AudioViewRenderPixelWave,
   Aul2AudioViewRenderPulseWave,
   Aul2AudioViewRenderWaveLine;
@@ -61,6 +63,8 @@ begin
     VIEW_TYPE_PIXEL_WAVE: DrawPixelWave(Buffer, Width, Height, Settings, CurrentFrame);
     VIEW_TYPE_FILLED_SPECTRUM: DrawFilledSpectrum(Buffer, Width, Height, Settings, CurrentFrame);
     VIEW_TYPE_PULSE_WAVE: DrawPulseWave(Buffer, Width, Height, Settings, CurrentFrame);
+    VIEW_TYPE_CIRCULAR_SPECTRUM: DrawCircularSpectrum(Buffer, Width, Height, Settings, CurrentFrame);
+    VIEW_TYPE_MIRROR_BARS: DrawMirrorBars(Buffer, Width, Height, Settings, CurrentFrame);
   else
     DrawEqualizerBars(Buffer, Width, Height, Settings, CurrentFrame);
   end;

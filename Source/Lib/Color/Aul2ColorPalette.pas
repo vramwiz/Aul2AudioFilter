@@ -1,4 +1,4 @@
-unit Aul2ColorPalette;
+﻿unit Aul2ColorPalette;
 
 interface
 

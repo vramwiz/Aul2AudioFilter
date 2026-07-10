@@ -1,4 +1,4 @@
-unit Aul2AudioViewWave;
+﻿unit Aul2AudioViewWave;
 
 // Reads and smooths waveform values for Aul2AudioView render units.
 

@@ -1,4 +1,4 @@
-unit Aul2AudioViewRenderPulseWave;
+﻿unit Aul2AudioViewRenderPulseWave;
 
 // Draws the Pulse Wave view type.
 

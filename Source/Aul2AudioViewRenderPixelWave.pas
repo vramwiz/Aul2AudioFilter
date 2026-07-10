@@ -1,4 +1,4 @@
-unit Aul2AudioViewRenderPixelWave;
+﻿unit Aul2AudioViewRenderPixelWave;
 
 // Draws the Pixel Wave view type.
 

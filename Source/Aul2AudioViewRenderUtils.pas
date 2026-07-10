@@ -1,4 +1,4 @@
-unit Aul2AudioViewRenderUtils;
+﻿unit Aul2AudioViewRenderUtils;
 
 // Small pixel drawing helpers shared by Aul2AudioView render units.
 
