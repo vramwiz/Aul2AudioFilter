@@ -5,9 +5,11 @@
 interface
 
 uses
+  System.SysUtils,
   System.Math,
   Aul2AudioFilterTypes,
-  Aul2AudioFilterGui;
+  Aul2AudioFilterGui,
+  Aul2AudioFilterContextManager;
 
 procedure AddCompressorItems;
 function ProcessCompressor(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
@@ -21,14 +23,12 @@ type
     Envelope: Single; // 入力レベルを平滑化した検出値
   end;
 
-  TCompressorContext = record
-    ObjectID  : Int64;
-    EffectID  : Int64;
+  TCompressorContext = class(TAul2AudioFilterContextItem)
+  public
     Channels  : array of TCompressorChannelState;
     SampleRate: Integer;
     NextIndex : Int64;
   end;
-  PCompressorContext = ^TCompressorContext;
 
 var
   GCompressorGroup       : TFILTER_ITEM_GROUP;
@@ -39,41 +39,34 @@ var
   GReleaseTrack          : TFILTER_ITEM_TRACK;
   GMakeupTrack           : TFILTER_ITEM_TRACK;
   GCompressorMixTrack    : TFILTER_ITEM_TRACK;
-  GCompressorContexts    : array of TCompressorContext;
-  GCompressorContextIndex: Integer;
+  GCompressorContexts    : TAul2AudioFilterContextList<TCompressorContext>;
+  GCompressorContext     : TCompressorContext;
 
 procedure ClearCompressorState;
 begin
-  SetLength(GCompressorContexts, 0);
-  GCompressorContextIndex := -1;
+  FreeAndNil(GCompressorContexts);
+  GCompressorContext := nil;
 end;
 
-function CurrentCompressorContext: PCompressorContext;
+function CompressorContexts: TAul2AudioFilterContextList<TCompressorContext>;
 begin
-  Result := nil;
-  if (GCompressorContextIndex >= 0) and (GCompressorContextIndex < Length(GCompressorContexts)) then
-    Result := @GCompressorContexts[GCompressorContextIndex];
+  if GCompressorContexts = nil then
+    GCompressorContexts := TAul2AudioFilterContextList<TCompressorContext>.Create;
+  Result := GCompressorContexts;
 end;
 
-function FindCompressorContext(ObjectID, EffectID: Int64): Integer;
-var
-  I: Integer;
+function CurrentCompressorContext: TCompressorContext;
 begin
-  for I := 0 to High(GCompressorContexts) do
-    if (GCompressorContexts[I].ObjectID = ObjectID) and
-       (GCompressorContexts[I].EffectID = EffectID) then
-      Exit(I);
-
-  Result := Length(GCompressorContexts);
-  SetLength(GCompressorContexts, Result + 1);
-  GCompressorContexts[Result].ObjectID := ObjectID;
-  GCompressorContexts[Result].EffectID := EffectID;
+  Result := GCompressorContext;
 end;
 
-procedure ResetCompressorState(var Context: TCompressorContext; ChannelNum, SampleRate: Integer);
+procedure ResetCompressorState(Context: TCompressorContext; ChannelNum, SampleRate: Integer);
 var
   Channel: Integer;
 begin
+  if Context = nil then
+    Exit;
+
   SetLength(Context.Channels, ChannelNum);
 
   for Channel := 0 to ChannelNum - 1 do
@@ -85,19 +78,19 @@ end;
 procedure EnsureCompressorState(Audio: PFILTER_PROC_AUDIO; ChannelNum: Integer);
 var
   ObjectInfo: POBJECT_INFO;
-  Context: PCompressorContext;
+  Context: TCompressorContext;
 begin
   ObjectInfo := Audio^.Object_;
-  GCompressorContextIndex := FindCompressorContext(ObjectInfo^.ID, ObjectInfo^.EffectID);
-  Context := CurrentCompressorContext;
+  GCompressorContext := CompressorContexts.GetContext(Audio);
+  Context := GCompressorContext;
   if Context = nil then
     Exit;
 
   // レベル検出の状態が別素材へ混ざらないよう、処理対象や連続位置が変わったら作り直す。
-  if (Length(Context^.Channels) <> ChannelNum) or
-     (Context^.SampleRate <> Audio^.Scene^.SampleRate) or
-     (Context^.NextIndex <> ObjectInfo^.SampleIndex) then
-    ResetCompressorState(Context^, ChannelNum, Audio^.Scene^.SampleRate);
+  if (Length(Context.Channels) <> ChannelNum) or
+     (Context.SampleRate <> Audio^.Scene^.SampleRate) or
+     (Context.NextIndex <> ObjectInfo^.SampleIndex) then
+    ResetCompressorState(Context, ChannelNum, Audio^.Scene^.SampleRate);
 end;
 
 function ClampSingle(Value, MinValue, MaxValue: Single): Single;
@@ -142,7 +135,7 @@ var
   ReleaseCoeff: Single;
   MakeupGain: Single;
   State: ^TCompressorChannelState;
-  Context: PCompressorContext;
+  Context: TCompressorContext;
 begin
   Context := CurrentCompressorContext;
   if Context = nil then
@@ -153,7 +146,7 @@ begin
   AttackCoeff := TimeCoeff(AttackMs, SampleRate);
   ReleaseCoeff := TimeCoeff(ReleaseMs, SampleRate);
   MakeupGain := DbToLinear(MakeupDb);
-  State := @Context^.Channels[Channel];
+  State := @Context.Channels[Channel];
 
   for I := 0 to SampleNum - 1 do
   begin
@@ -212,14 +205,11 @@ var
   ReleaseMs: Single;
   MakeupDb: Single;
   Mix: Single;
-  Context: PCompressorContext;
+  Context: TCompressorContext;
 begin
   Result := GCompressorUseCheck.Value <> 0;
   if not Result then
-  begin
-    ClearCompressorState;
     Exit;
-  end;
 
   ThresholdDb := GThresholdTrack.Value;
   Ratio := GRatioTrack.Value;
@@ -241,7 +231,7 @@ begin
 
   Context := CurrentCompressorContext;
   if Context <> nil then
-    Context^.NextIndex := Audio^.Object_^.SampleIndex + SampleNum;
+    Context.NextIndex := Audio^.Object_^.SampleIndex + SampleNum;
 end;
 
 end.

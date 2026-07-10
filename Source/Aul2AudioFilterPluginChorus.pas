@@ -8,7 +8,8 @@ uses
   System.SysUtils,
   System.Math,
   Aul2AudioFilterTypes,
-  Aul2AudioFilterGui;
+  Aul2AudioFilterGui,
+  Aul2AudioFilterContextManager;
 
 procedure AddChorusItems;
 function ProcessChorus(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
@@ -26,14 +27,12 @@ type
     Position: Integer;        // 次に書き込む位置
   end;
 
-  TChorusContext = record
-    ObjectID : Int64;
-    EffectID : Int64;
+  TChorusContext = class(TAul2AudioFilterContextItem)
+  public
     Channels : array of TChorusChannelState;
     Samples  : Integer;
     NextIndex: Int64;
   end;
-  PChorusContext = ^TChorusContext;
 
 var
   GChorusGroup     : TFILTER_ITEM_GROUP;
@@ -44,40 +43,34 @@ var
   GChorusDepthTrack: TFILTER_ITEM_TRACK;
   GChorusRateTrack : TFILTER_ITEM_TRACK;
   GChorusMixTrack  : TFILTER_ITEM_TRACK;
-  GChorusContexts  : array of TChorusContext;
-  GChorusContextIndex: Integer;
+  GChorusContexts  : TAul2AudioFilterContextList<TChorusContext>;
+  GChorusContext   : TChorusContext;
 
 procedure ClearChorusState;
 begin
-  SetLength(GChorusContexts, 0);
-  GChorusContextIndex := -1;
+  FreeAndNil(GChorusContexts);
+  GChorusContext := nil;
 end;
 
-function CurrentChorusContext: PChorusContext;
+function ChorusContexts: TAul2AudioFilterContextList<TChorusContext>;
 begin
-  Result := nil;
-  if (GChorusContextIndex >= 0) and (GChorusContextIndex < Length(GChorusContexts)) then
-    Result := @GChorusContexts[GChorusContextIndex];
+  if GChorusContexts = nil then
+    GChorusContexts := TAul2AudioFilterContextList<TChorusContext>.Create;
+  Result := GChorusContexts;
 end;
 
-function FindChorusContext(ObjectID, EffectID: Int64): Integer;
-var
-  I: Integer;
+function CurrentChorusContext: TChorusContext;
 begin
-  for I := 0 to High(GChorusContexts) do
-    if (GChorusContexts[I].ObjectID = ObjectID) and (GChorusContexts[I].EffectID = EffectID) then
-      Exit(I);
-
-  Result := Length(GChorusContexts);
-  SetLength(GChorusContexts, Result + 1);
-  GChorusContexts[Result].ObjectID := ObjectID;
-  GChorusContexts[Result].EffectID := EffectID;
+  Result := GChorusContext;
 end;
 
-procedure ResetChorusState(var Context: TChorusContext; ChannelNum, BufferSamples: Integer);
+procedure ResetChorusState(Context: TChorusContext; ChannelNum, BufferSamples: Integer);
 var
   Channel: Integer;
 begin
+  if Context = nil then
+    Exit;
+
   SetLength(Context.Channels, ChannelNum);
 
   for Channel := 0 to ChannelNum - 1 do
@@ -93,19 +86,19 @@ end;
 procedure EnsureChorusState(Audio: PFILTER_PROC_AUDIO; ChannelNum, BufferSamples: Integer);
 var
   ObjectInfo: POBJECT_INFO;
-  Context: PChorusContext;
+  Context: TChorusContext;
 begin
   ObjectInfo := Audio^.Object_;
-  GChorusContextIndex := FindChorusContext(ObjectInfo^.ID, ObjectInfo^.EffectID);
-  Context := CurrentChorusContext;
+  GChorusContext := ChorusContexts.GetContext(Audio);
+  Context := GChorusContext;
   if Context = nil then
     Exit;
 
   // 可変ディレイは過去サンプルを読むため、不連続な呼び出しでは履歴を破棄する。
-  if (Length(Context^.Channels) <> ChannelNum) or
-     (Context^.Samples <> BufferSamples) or
-     (Context^.NextIndex <> ObjectInfo^.SampleIndex) then
-    ResetChorusState(Context^, ChannelNum, BufferSamples);
+  if (Length(Context.Channels) <> ChannelNum) or
+     (Context.Samples <> BufferSamples) or
+     (Context.NextIndex <> ObjectInfo^.SampleIndex) then
+    ResetChorusState(Context, ChannelNum, BufferSamples);
 end;
 
 function ReadChorusDelaySample(const State: TChorusChannelState; DelaySamples: Double): Single;
@@ -147,13 +140,13 @@ var
   Phase: Double;
   DelayedSample: Single;
   State: ^TChorusChannelState;
-  Context: PChorusContext;
+  Context: TChorusContext;
 begin
   Context := CurrentChorusContext;
   if Context = nil then
     Exit;
 
-  State := @Context^.Channels[Channel];
+  State := @Context.Channels[Channel];
 
   for I := 0 to SampleNum - 1 do
   begin
@@ -174,7 +167,7 @@ begin
     Buffer[I] := (InputSample * (1.0 - Mix)) + (DelayedSample * Mix);
 
     Inc(State^.Position);
-    if State^.Position >= Context^.Samples then
+    if State^.Position >= Context.Samples then
       State^.Position := 0;
   end;
 end;
@@ -220,15 +213,11 @@ var
   RateHz: Single;
   Mix: Single;
   StereoMode: Integer;
-  Context: PChorusContext;
+  Context: TChorusContext;
 begin
   Result := GChorusUseCheck.Value <> 0;
   if not Result then
-  begin
-    // OFF にした後の音声へ履歴バッファが残らないようにする。
-    ClearChorusState;
     Exit;
-  end;
 
   BaseDelayMs := GChorusDelayTrack.Value;
   DepthMs := GChorusDepthTrack.Value;
@@ -254,7 +243,7 @@ begin
 
   Context := CurrentChorusContext;
   if Context <> nil then
-    Context^.NextIndex := Audio^.Object_^.SampleIndex + SampleNum;
+    Context.NextIndex := Audio^.Object_^.SampleIndex + SampleNum;
 end;
 
 end.

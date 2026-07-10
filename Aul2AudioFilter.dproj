@@ -137,6 +137,7 @@
         <DCCReference Include="Source\Aul2AudioFilterPluginLimiter.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginChorus.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginReverb.pas"/>
+        <DCCReference Include="Source\Aul2AudioFilterContextManager.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterAudioTrace.pas"/>
         <DCCReference Include="Source\Lib\SharedMemory\SharedMemoryBase.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas"/>

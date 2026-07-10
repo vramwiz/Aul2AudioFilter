@@ -4,9 +4,11 @@
 interface
 
 uses
+  System.SysUtils,
   System.Math,
   Aul2AudioFilterTypes,
-  Aul2AudioFilterGui;
+  Aul2AudioFilterGui,
+  Aul2AudioFilterContextManager;
 
 procedure AddReverbItems;
 function ProcessReverb(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
@@ -39,15 +41,13 @@ type
     Combs: array[0..REVERB_COMB_COUNT - 1] of TReverbCombState;
   end;
 
-  TReverbContext = record
-    ObjectID  : Int64;
-    EffectID  : Int64;
+  TReverbContext = class(TAul2AudioFilterContextItem)
+  public
     Channels  : array of TReverbChannelState;
     SampleRate: Integer;
     ReverbType: Integer;
     NextIndex : Int64;
   end;
-  PReverbContext = ^TReverbContext;
 
 var
   GReverbGroup     : TFILTER_ITEM_GROUP;
@@ -58,13 +58,13 @@ var
   GDampingTrack    : TFILTER_ITEM_TRACK;
   GReverbDryTrack  : TFILTER_ITEM_TRACK;
   GReverbWetTrack  : TFILTER_ITEM_TRACK;
-  GReverbContexts  : array of TReverbContext;
-  GReverbContextIndex: Integer;
+  GReverbContexts  : TAul2AudioFilterContextList<TReverbContext>;
+  GReverbContext   : TReverbContext;
 
 procedure ClearReverbState;
 begin
-  SetLength(GReverbContexts, 0);
-  GReverbContextIndex := -1;
+  FreeAndNil(GReverbContexts);
+  GReverbContext := nil;
 end;
 
 function ClampReverbType(Value: Integer): Integer;
@@ -112,34 +112,27 @@ begin
     Result := 1;
 end;
 
-function CurrentReverbContext: PReverbContext;
+function ReverbContexts: TAul2AudioFilterContextList<TReverbContext>;
 begin
-  Result := nil;
-  if (GReverbContextIndex >= 0) and (GReverbContextIndex < Length(GReverbContexts)) then
-    Result := @GReverbContexts[GReverbContextIndex];
+  if GReverbContexts = nil then
+    GReverbContexts := TAul2AudioFilterContextList<TReverbContext>.Create;
+  Result := GReverbContexts;
 end;
 
-function FindReverbContext(ObjectID, EffectID: Int64): Integer;
-var
-  I: Integer;
+function CurrentReverbContext: TReverbContext;
 begin
-  for I := 0 to High(GReverbContexts) do
-    if (GReverbContexts[I].ObjectID = ObjectID) and (GReverbContexts[I].EffectID = EffectID) then
-      Exit(I);
-
-  Result := Length(GReverbContexts);
-  SetLength(GReverbContexts, Result + 1);
-  GReverbContexts[Result].ObjectID := ObjectID;
-  GReverbContexts[Result].EffectID := EffectID;
-  GReverbContexts[Result].ReverbType := -1;
+  Result := GReverbContext;
 end;
 
-procedure ResetReverbState(var Context: TReverbContext; ChannelNum, SampleRate, ReverbType: Integer);
+procedure ResetReverbState(Context: TReverbContext; ChannelNum, SampleRate, ReverbType: Integer);
 var
   Channel: Integer;
   Comb: Integer;
   DelaySamples: Integer;
 begin
+  if Context = nil then
+    Exit;
+
   SetLength(Context.Channels, ChannelNum);
 
   for Channel := 0 to ChannelNum - 1 do
@@ -161,20 +154,20 @@ end;
 procedure EnsureReverbState(Audio: PFILTER_PROC_AUDIO; ChannelNum, ReverbType: Integer);
 var
   ObjectInfo: POBJECT_INFO;
-  Context: PReverbContext;
+  Context: TReverbContext;
 begin
   ObjectInfo := Audio^.Object_;
-  GReverbContextIndex := FindReverbContext(ObjectInfo^.ID, ObjectInfo^.EffectID);
-  Context := CurrentReverbContext;
+  GReverbContext := ReverbContexts.GetContext(Audio);
+  Context := GReverbContext;
   if Context = nil then
     Exit;
 
   // 残響は過去状態を強く使うため、別オブジェクトや不連続位置では必ずリセットする。
-  if (Length(Context^.Channels) <> ChannelNum) or
-     (Context^.SampleRate <> Audio^.Scene^.SampleRate) or
-     (Context^.ReverbType <> ClampReverbType(ReverbType)) or
-     (Context^.NextIndex <> ObjectInfo^.SampleIndex) then
-    ResetReverbState(Context^, ChannelNum, Audio^.Scene^.SampleRate, ReverbType);
+  if (Length(Context.Channels) <> ChannelNum) or
+     (Context.SampleRate <> Audio^.Scene^.SampleRate) or
+     (Context.ReverbType <> ClampReverbType(ReverbType)) or
+     (Context.NextIndex <> ObjectInfo^.SampleIndex) then
+    ResetReverbState(Context, ChannelNum, Audio^.Scene^.SampleRate, ReverbType);
 end;
 
 function ClampUnit(Value: Single): Single;
@@ -226,7 +219,7 @@ var
   ReverbSample: Single;
   Feedback: Single;
   CombState: ^TReverbCombState;
-  Context: PReverbContext;
+  Context: TReverbContext;
 begin
   Context := CurrentReverbContext;
   if Context = nil then
@@ -243,7 +236,7 @@ begin
 
     for Comb := 0 to REVERB_COMB_COUNT - 1 do
     begin
-      CombState := @Context^.Channels[Channel].Combs[Comb];
+      CombState := @Context.Channels[Channel].Combs[Comb];
       DelayedSample := CombState^.Buffer[CombState^.Position];
       FilteredSample := (DelayedSample * (1.0 - Damping)) + (CombState^.Filter * Damping);
       CombState^.Filter := FilteredSample;
@@ -299,15 +292,11 @@ var
   Damping: Single;
   Dry: Single;
   Wet: Single;
-  Context: PReverbContext;
+  Context: TReverbContext;
 begin
   Result := GReverbUseCheck.Value <> 0;
   if not Result then
-  begin
-    // OFF にした後の音声へ残響が持ち越されないようにする。
-    ClearReverbState;
     Exit;
-  end;
 
   ReverbType := ClampReverbType(GReverbTypeSelect.Value);
   RoomSize := GRoomSizeTrack.Value;
@@ -327,7 +316,7 @@ begin
 
   Context := CurrentReverbContext;
   if Context <> nil then
-    Context^.NextIndex := Audio^.Object_^.SampleIndex + SampleNum;
+    Context.NextIndex := Audio^.Object_^.SampleIndex + SampleNum;
 end;
 
 end.

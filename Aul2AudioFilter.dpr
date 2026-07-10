@@ -29,6 +29,7 @@ uses
   Aul2AudioFilterPluginLimiter in 'Source\Aul2AudioFilterPluginLimiter.pas',
   Aul2AudioFilterPluginChorus in 'Source\Aul2AudioFilterPluginChorus.pas',
   Aul2AudioFilterPluginReverb in 'Source\Aul2AudioFilterPluginReverb.pas',
+  Aul2AudioFilterContextManager in 'Source\Aul2AudioFilterContextManager.pas',
   Aul2AudioFilterAudioTrace in 'Source\Aul2AudioFilterAudioTrace.pas',
   SharedMemoryBase in 'Source\Lib\SharedMemory\SharedMemoryBase.pas',
   Aul2AudioMonitorShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas',

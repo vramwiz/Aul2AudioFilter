@@ -7,7 +7,8 @@ interface
 uses
   System.SysUtils,
   Aul2AudioFilterTypes,
-  Aul2AudioFilterGui;
+  Aul2AudioFilterGui,
+  Aul2AudioFilterContextManager;
 
 procedure AddDelayItems;
 function ProcessDelay(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
@@ -25,15 +26,13 @@ type
     Position: Integer;        // 次に読み書きするリングバッファ位置
   end;
 
-  TDelayContext = record
-    ObjectID       : Int64;                       // 状態を構築した対象オブジェクト
-    EffectID       : Int64;                       // 状態を構築した対象エフェクト
+  TDelayContext = class(TAul2AudioFilterContextItem)
+  public
     Channels       : array of TDelayChannelState; // チャンネル別の遅延状態
     Samples        : Integer;                     // 現在確保している遅延サンプル数
     Mode           : Integer;                     // 状態を構築したときの Stereo Mode
     NextSampleIndex: Int64;                       // 連続処理を判定する次サンプル位置
   end;
-  PDelayContext = ^TDelayContext;
 
 var
   GDelayGroup     : TFILTER_ITEM_GROUP;
@@ -44,41 +43,34 @@ var
   GDryTrack       : TFILTER_ITEM_TRACK;
   GWetTrack       : TFILTER_ITEM_TRACK;
   GFeedbackTrack  : TFILTER_ITEM_TRACK;
-  GDelayContexts  : array of TDelayContext;
-  GDelayContextIndex: Integer;
+  GDelayContexts  : TAul2AudioFilterContextList<TDelayContext>;
+  GDelayContext   : TDelayContext;
 
 procedure ClearDelayState;
 begin
-  SetLength(GDelayContexts, 0);
-  GDelayContextIndex := -1;
+  FreeAndNil(GDelayContexts);
+  GDelayContext := nil;
 end;
 
-function CurrentDelayContext: PDelayContext;
+function DelayContexts: TAul2AudioFilterContextList<TDelayContext>;
 begin
-  Result := nil;
-  if (GDelayContextIndex >= 0) and (GDelayContextIndex < Length(GDelayContexts)) then
-    Result := @GDelayContexts[GDelayContextIndex];
+  if GDelayContexts = nil then
+    GDelayContexts := TAul2AudioFilterContextList<TDelayContext>.Create;
+  Result := GDelayContexts;
 end;
 
-function FindDelayContext(ObjectID, EffectID: Int64): Integer;
-var
-  I: Integer;
+function CurrentDelayContext: TDelayContext;
 begin
-  for I := 0 to High(GDelayContexts) do
-    if (GDelayContexts[I].ObjectID = ObjectID) and (GDelayContexts[I].EffectID = EffectID) then
-      Exit(I);
-
-  Result := Length(GDelayContexts);
-  SetLength(GDelayContexts, Result + 1);
-  GDelayContexts[Result].ObjectID := ObjectID;
-  GDelayContexts[Result].EffectID := EffectID;
-  GDelayContexts[Result].Mode := DELAY_STEREO_NORMAL;
+  Result := GDelayContext;
 end;
 
-procedure ResetDelayState(var Context: TDelayContext; ChannelNum, DelaySamples: Integer);
+procedure ResetDelayState(Context: TDelayContext; ChannelNum, DelaySamples: Integer);
 var
   Channel: Integer;
 begin
+  if Context = nil then
+    Exit;
+
   SetLength(Context.Channels, ChannelNum);
 
   for Channel := 0 to ChannelNum - 1 do
@@ -94,22 +86,22 @@ end;
 procedure EnsureDelayState(Audio: PFILTER_PROC_AUDIO; ChannelNum, DelaySamples, StereoMode: Integer);
 var
   ObjectInfo: POBJECT_INFO;
-  Context: PDelayContext;
+  Context: TDelayContext;
 begin
   ObjectInfo := Audio^.Object_;
-  GDelayContextIndex := FindDelayContext(ObjectInfo^.ID, ObjectInfo^.EffectID);
-  Context := CurrentDelayContext;
+  GDelayContext := DelayContexts.GetContext(Audio);
+  Context := GDelayContext;
   if Context = nil then
     Exit;
 
   // オブジェクトやサンプル位置が飛んだ場合、前回の遅延音を混ぜないよう状態を作り直す。
-  if (Length(Context^.Channels) <> ChannelNum) or
-     (Context^.Samples <> DelaySamples) or
-     (Context^.Mode <> StereoMode) or
-     (Context^.NextSampleIndex <> ObjectInfo^.SampleIndex) then
+  if (Length(Context.Channels) <> ChannelNum) or
+     (Context.Samples <> DelaySamples) or
+     (Context.Mode <> StereoMode) or
+     (Context.NextSampleIndex <> ObjectInfo^.SampleIndex) then
   begin
-    ResetDelayState(Context^, ChannelNum, DelaySamples);
-    Context^.Mode := StereoMode;
+    ResetDelayState(Context, ChannelNum, DelaySamples);
+    Context.Mode := StereoMode;
   end;
 end;
 
@@ -120,13 +112,13 @@ var
   InputSample: Single;
   DelayedSample: Single;
   State: ^TDelayChannelState;
-  Context: PDelayContext;
+  Context: TDelayContext;
 begin
   Context := CurrentDelayContext;
   if Context = nil then
     Exit;
 
-  State := @Context^.Channels[Channel];
+  State := @Context.Channels[Channel];
 
   for I := 0 to SampleNum - 1 do
   begin
@@ -137,7 +129,7 @@ begin
     Buffer[I] := (InputSample * Dry) + (DelayedSample * Wet);
 
     Inc(State^.Position);
-    if State^.Position >= Context^.Samples then
+    if State^.Position >= Context.Samples then
       State^.Position := 0;
   end;
 end;
@@ -152,14 +144,14 @@ var
   DelayedR: Single;
   LeftState: ^TDelayChannelState;
   RightState: ^TDelayChannelState;
-  Context: PDelayContext;
+  Context: TDelayContext;
 begin
   Context := CurrentDelayContext;
   if Context = nil then
     Exit;
 
-  LeftState := @Context^.Channels[0];
-  RightState := @Context^.Channels[1];
+  LeftState := @Context.Channels[0];
+  RightState := @Context.Channels[1];
 
   for I := 0 to SampleNum - 1 do
   begin
@@ -175,11 +167,11 @@ begin
     RightBuffer[I] := (InputR * Dry) + (DelayedR * Wet);
 
     Inc(LeftState^.Position);
-    if LeftState^.Position >= Context^.Samples then
+    if LeftState^.Position >= Context.Samples then
       LeftState^.Position := 0;
 
     Inc(RightState^.Position);
-    if RightState^.Position >= Context^.Samples then
+    if RightState^.Position >= Context.Samples then
       RightState^.Position := 0;
   end;
 end;
@@ -270,15 +262,11 @@ var
   Wet: Single;
   Feedback: Single;
   StereoMode: Integer;
-  Context: PDelayContext;
+  Context: TDelayContext;
 begin
   Result := GDelayUseCheck.Value <> 0;
   if not Result then
-  begin
-    // OFF にした後の音声へ遅延バッファが残らないようにする。
-    ClearDelayState;
     Exit;
-  end;
 
   Dry := GDryTrack.Value;
   Wet := GWetTrack.Value;
@@ -298,7 +286,7 @@ begin
 
   Context := CurrentDelayContext;
   if Context <> nil then
-    Context^.NextSampleIndex := Audio^.Object_^.SampleIndex + SampleNum;
+    Context.NextSampleIndex := Audio^.Object_^.SampleIndex + SampleNum;
 end;
 
 end.
