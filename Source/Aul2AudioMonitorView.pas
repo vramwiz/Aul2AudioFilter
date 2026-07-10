@@ -59,6 +59,7 @@ var
   ClientWindow: HWND;
   MonitorForm : TFormAudioMonitor;
   RootPanel   : TPanel;
+  HeaderPanel : TPanel;
   ToolBar     : TToolBar;
   ButtonWave  : TToolButton;
   ButtonSpectrum: TToolButton;
@@ -100,7 +101,10 @@ begin
     Exit;
 
   LabelWidth := MulDiv(118, MonitorForm.Font.PixelsPerInch, 96);
-  LabelLeft := ToolBar.ClientWidth - LabelWidth - MulDiv(10, MonitorForm.Font.PixelsPerInch, 96);
+  if Assigned(HeaderPanel) then
+    LabelLeft := HeaderPanel.ClientWidth - LabelWidth - MulDiv(10, MonitorForm.Font.PixelsPerInch, 96)
+  else
+    LabelLeft := ToolBar.Left + ToolBar.Width + MulDiv(10, MonitorForm.Font.PixelsPerInch, 96);
   if Assigned(ButtonBase) then
     LabelLeft := Max(LabelLeft, ButtonBase.Left + ButtonBase.Width +
       MulDiv(32, MonitorForm.Font.PixelsPerInch, 96));
@@ -643,9 +647,19 @@ begin
 
   TimerTarget := TMonitorTimerTarget.Create(MonitorForm);
 
+  HeaderPanel := TPanel.Create(MonitorForm);
+  HeaderPanel.Parent := RootPanel;
+  HeaderPanel.Align := alTop;
+  HeaderPanel.Height := MulDiv(28, MonitorForm.Font.PixelsPerInch, 96);
+  HeaderPanel.BevelOuter := bvNone;
+  HeaderPanel.Caption := '';
+  HeaderPanel.Color := RGB(48, 48, 48);
+  HeaderPanel.ParentBackground := False;
+
   ToolBar := TToolBar.Create(MonitorForm);
-  ToolBar.Parent := RootPanel;
-  ToolBar.Align := alTop;
+  ToolBar.Parent := HeaderPanel;
+  ToolBar.Align := alLeft;
+  ToolBar.Width := MulDiv(74 * 3, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.Height := MulDiv(28, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.ButtonWidth := MulDiv(74, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.ButtonHeight := ToolBar.Height;
@@ -653,29 +667,31 @@ begin
   ToolBar.ShowCaptions := True;
   ToolBar.Flat := True;
   ToolBar.List := True;
+  ToolBar.Color := RGB(48, 48, 48);
+  ToolBar.ParentColor := False;
   ToolBar.ParentFont := False;
   ToolBar.Font.Assign(MonitorForm.Font);
 
-  ButtonBase := TToolButton.Create(MonitorForm);
-  ButtonBase.Parent := ToolBar;
-  ButtonBase.Caption := 'View';
-  ButtonBase.Left := ToolBar.ButtonWidth * 2;
-  ButtonBase.Top := 0;
-
-  ButtonSpectrum := TToolButton.Create(MonitorForm);
-  ButtonSpectrum.Parent := ToolBar;
-  ButtonSpectrum.Caption := 'Spectrum';
-  ButtonSpectrum.Left := ToolBar.ButtonWidth;
-  ButtonSpectrum.Top := 0;
-
   ButtonWave := TToolButton.Create(MonitorForm);
-  ButtonWave.Parent := ToolBar;
   ButtonWave.Caption := 'Wave';
   ButtonWave.Left := 0;
   ButtonWave.Top := 0;
+  ButtonWave.Parent := ToolBar;
+
+  ButtonSpectrum := TToolButton.Create(MonitorForm);
+  ButtonSpectrum.Caption := 'Spectrum';
+  ButtonSpectrum.Left := ToolBar.ButtonWidth;
+  ButtonSpectrum.Top := 0;
+  ButtonSpectrum.Parent := ToolBar;
+
+  ButtonBase := TToolButton.Create(MonitorForm);
+  ButtonBase.Caption := 'View';
+  ButtonBase.Left := ToolBar.ButtonWidth * 2;
+  ButtonBase.Top := 0;
+  ButtonBase.Parent := ToolBar;
 
   StateLabel := TLabel.Create(MonitorForm);
-  StateLabel.Parent := ToolBar;
+  StateLabel.Parent := HeaderPanel;
   StateLabel.AutoSize := False;
   StateLabel.Transparent := False;
   StateLabel.Color := RGB(48, 48, 48);
@@ -821,6 +837,7 @@ begin
   FreeAndNil(ToolBarManager);
   FreeAndNil(MonitorForm);
   RootPanel := nil;
+  HeaderPanel := nil;
   ToolBar := nil;
   ButtonWave := nil;
   ButtonSpectrum := nil;

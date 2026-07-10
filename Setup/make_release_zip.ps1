@@ -4,6 +4,8 @@ $projectRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $pluginDir = 'C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter'
 $pluginFile = Join-Path $pluginDir 'Aul2AudioFilter.auf2'
 $monitorPluginFile = Join-Path $pluginDir 'Aul2AudioMonitor.aux2'
+$baseInputPluginFile = Join-Path $pluginDir 'Aul2AudioBaseInput.aui2'
+$viewPluginFile = Join-Path $pluginDir 'Aul2AudioView.auf2'
 $readmeFile = Join-Path $projectRoot 'README.md'
 $tailNoiseName = ([string][char]0x7121) + ([string][char]0x97f3) + '_' +
   ([string][char]0x6975) + ([string][char]0x5c0f) +
@@ -26,6 +28,20 @@ if (-not (Test-Path -LiteralPath $monitorPluginFile)) {
   Write-Host 'Monitor plugin file not found:'
   Write-Host "  $monitorPluginFile"
   Write-Host 'Build the monitor project first, then run this batch again.'
+  exit 1
+}
+
+if (-not (Test-Path -LiteralPath $baseInputPluginFile)) {
+  Write-Host 'Base input plugin file not found:'
+  Write-Host "  $baseInputPluginFile"
+  Write-Host 'Build the base input project first, then run this batch again.'
+  exit 1
+}
+
+if (-not (Test-Path -LiteralPath $viewPluginFile)) {
+  Write-Host 'View plugin file not found:'
+  Write-Host "  $viewPluginFile"
+  Write-Host 'Build the view project first, then run this batch again.'
   exit 1
 }
 
@@ -53,6 +69,8 @@ $sampleDir = Join-Path $workDir 'Sample'
 New-Item -ItemType Directory -Path $sampleDir -Force | Out-Null
 Copy-Item -LiteralPath $pluginFile -Destination (Join-Path $workDir 'Aul2AudioFilter.auf2') -Force
 Copy-Item -LiteralPath $monitorPluginFile -Destination (Join-Path $workDir 'Aul2AudioMonitor.aux2') -Force
+Copy-Item -LiteralPath $baseInputPluginFile -Destination (Join-Path $workDir 'Aul2AudioBaseInput.aui2') -Force
+Copy-Item -LiteralPath $viewPluginFile -Destination (Join-Path $workDir 'Aul2AudioView.auf2') -Force
 Copy-Item -LiteralPath $readmeFile -Destination (Join-Path $workDir 'README.md') -Force
 Copy-Item -LiteralPath $tailNoiseFile -Destination (Join-Path $sampleDir $tailNoiseName) -Force
 
