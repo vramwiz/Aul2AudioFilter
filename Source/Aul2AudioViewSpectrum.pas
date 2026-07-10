@@ -10,7 +10,7 @@ uses
 procedure InitializeViewSpectrum;
 procedure FinalizeViewSpectrum;
 procedure UpdateViewSpectrum(Smooth: Integer; out Bands: TAudioMonitorSpectrumData;
-  out Valid: Boolean; CurrentFrame: Integer);
+  out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single; CurrentFrame: Integer);
 
 implementation
 
@@ -99,13 +99,15 @@ begin
 end;
 
 procedure UpdateViewSpectrum(Smooth: Integer; out Bands: TAudioMonitorSpectrumData;
-  out Valid: Boolean; CurrentFrame: Integer);
+  out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single; CurrentFrame: Integer);
 var
   State: PAul2AudioMonitorSpectrumState;
   Band: Integer;
 begin
   FillChar(Bands, SizeOf(Bands), 0);
   Valid := False;
+  SourceMinHz := 20.0;
+  SourceMaxHz := 20000.0;
 
   if SpectrumMemory = nil then
     InitializeViewSpectrum;
@@ -126,6 +128,9 @@ begin
     DisplayBandsValid := False;
     Exit;
   end;
+
+  SourceMinHz := Max(1.0, State^.MinHz);
+  SourceMaxHz := Max(SourceMinHz + 1.0, State^.MaxHz);
 
   if not DisplayBandsValid then
   begin

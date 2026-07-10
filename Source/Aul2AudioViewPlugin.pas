@@ -28,6 +28,11 @@ var
   GViewDensityTrack: TFILTER_ITEM_TRACK;
   GViewSpacingTrack: TFILTER_ITEM_TRACK;
   GViewThicknessTrack: TFILTER_ITEM_TRACK;
+  GViewSpectrumScaleSelect: TFILTER_ITEM_SELECT;
+  GViewSpectrumScaleList: array[0..2] of TFILTER_ITEM_SELECT_ITEM;
+  GViewSpectrumLowHzTrack: TFILTER_ITEM_TRACK;
+  GViewSpectrumHighHzTrack: TFILTER_ITEM_TRACK;
+  GViewSpectrumHighBoostTrack: TFILTER_ITEM_TRACK;
   GViewColor1Item  : TFILTER_ITEM_COLOR;
   GViewColor2Item  : TFILTER_ITEM_COLOR;
   GViewColor3Item  : TFILTER_ITEM_COLOR;
@@ -54,6 +59,10 @@ begin
     Settings.Spacing := Round(GViewSpacingTrack.Value);
     Settings.Thickness := Round(GViewThicknessTrack.Value);
     Settings.Smooth := Round(GViewSmoothTrack.Value);
+    Settings.SpectrumScale := GViewSpectrumScaleSelect.Value;
+    Settings.SpectrumLowHz := Round(GViewSpectrumLowHzTrack.Value);
+    Settings.SpectrumHighHz := Round(GViewSpectrumHighHzTrack.Value);
+    Settings.SpectrumHighBoost := Round(GViewSpectrumHighBoostTrack.Value);
     Settings.ColorVariation := GViewColorVariationSelect.Value;
     Settings.ColorBlend := GViewColorBlendSelect.Value;
     Settings.Color1R := GViewColor1Item.R;
@@ -104,6 +113,16 @@ begin
     AddTrack(GViewSpacingTrack, 'Spacing', 2, 0, 32, 1);
     AddTrack(GViewThicknessTrack, 'Thickness', 2, 1, 32, 1);
     AddTrack(GViewSmoothTrack, 'Smooth', 50, 0, 100, 1);
+
+    ClearSelectList;
+    AddSelectList(GViewSpectrumScaleList, 'Log', VIEW_SPECTRUM_SCALE_LOG);
+    AddSelectList(GViewSpectrumScaleList, 'Linear', VIEW_SPECTRUM_SCALE_LINEAR);
+    AddSelect(GViewSpectrumScaleSelect, 'Spectrum Scale',
+      VIEW_SPECTRUM_SCALE_LOG, @GViewSpectrumScaleList[0]);
+    AddTrack(GViewSpectrumLowHzTrack, 'Low Hz', 40, 20, 20000, 1);
+    AddTrack(GViewSpectrumHighHzTrack, 'High Hz', 12000, 20, 20000, 1);
+    AddTrack(GViewSpectrumHighBoostTrack, 'High Boost', 0, 0, 100, 1);
+
     AddColor(GViewColor1Item, 'Color 1', 245, 245, 240);
     AddColor(GViewColor2Item, 'Color 2', 60, 180, 220);
     AddColor(GViewColor3Item, 'Color 3', 250, 245, 180);

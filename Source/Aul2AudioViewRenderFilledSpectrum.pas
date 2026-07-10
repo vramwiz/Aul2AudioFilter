@@ -22,28 +22,17 @@ uses
 var
   CurrentBands: TAudioMonitorSpectrumData;
   CurrentBandsValid: Boolean;
+  CurrentSourceMinHz: Single;
+  CurrentSourceMaxHz: Single;
 
 const
   VIEW_MARGIN_X = 0; // Keep as a named value so this can become a setting later.
   VIEW_MARGIN_Y = 0;
 
-function BandValue(Index, Count: Integer): Single;
-var
-  Position: Double;
-  Band0: Integer;
-  Band1: Integer;
-  Frac: Double;
+function BandValue(const Settings: TAul2AudioViewSettings; Index, Count: Integer): Single;
 begin
-  if (not CurrentBandsValid) or (Count <= 1) then
-    Exit(0.0);
-
-  Position := Index * AUDIO_MONITOR_SPECTRUM_BAND_LAST / (Count - 1);
-  Band0 := Max(0, Min(AUDIO_MONITOR_SPECTRUM_BAND_LAST, Floor(Position)));
-  Band1 := Max(0, Min(AUDIO_MONITOR_SPECTRUM_BAND_LAST, Band0 + 1));
-  Frac := Position - Band0;
-
-  Result := CurrentBands[Band0] + ((CurrentBands[Band1] - CurrentBands[Band0]) * Frac);
-  Result := Max(0.0, Min(1.0, Result));
+  Result := GetSpectrumDisplayValue(CurrentBands, CurrentBandsValid,
+    CurrentSourceMinHz, CurrentSourceMaxHz, Settings, Index, Count);
 end;
 
 procedure DrawSolidFilled(Buffer: PPIXEL_RGBA; Width, Height, AreaW, AreaH,
@@ -56,7 +45,7 @@ var
 begin
   for X := 0 to AreaW - 1 do
   begin
-    FillH := Round(AreaH * BandValue(X, AreaW));
+    FillH := Round(AreaH * BandValue(Settings, X, AreaW));
     if FillH <= 0 then
       Continue;
 
@@ -86,7 +75,7 @@ begin
 
   for X := 0 to AreaW - 1 do
   begin
-    FillCount := Round(BlockCount * BandValue(X, AreaW));
+    FillCount := Round(BlockCount * BandValue(Settings, X, AreaW));
     if FillCount <= 0 then
       Continue;
 
@@ -115,7 +104,8 @@ begin
     Exit;
 
   ClearPixels(Buffer, Width, Height);
-  UpdateViewSpectrum(Settings.Smooth, CurrentBands, CurrentBandsValid, CurrentFrame);
+  UpdateViewSpectrum(Settings.Smooth, CurrentBands, CurrentBandsValid,
+    CurrentSourceMinHz, CurrentSourceMaxHz, CurrentFrame);
 
   MarginX := VIEW_MARGIN_X;
   MarginY := VIEW_MARGIN_Y;

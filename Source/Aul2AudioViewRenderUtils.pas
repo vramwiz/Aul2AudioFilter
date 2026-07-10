@@ -5,6 +5,7 @@ unit Aul2AudioViewRenderUtils;
 interface
 
 uses
+  Aul2AudioMonitorSpectrumShared,
   Aul2AudioFilterTypes,
   Aul2AudioViewParams;
 
@@ -17,6 +18,9 @@ procedure FillRect(Buffer: PPIXEL_RGBA; Width, Height, X1, Y1, X2, Y2: Integer;
   R, G, B, A: Byte);
 procedure GetViewColor(const Settings: TAul2AudioViewSettings; Index, Count: Integer;
   out R, G, B: Byte);
+function GetSpectrumDisplayValue(const Bands: TAudioMonitorSpectrumData; Valid: Boolean;
+  SourceMinHz, SourceMaxHz: Single; const Settings: TAul2AudioViewSettings;
+  Index, Count: Integer): Single;
 
 implementation
 
@@ -163,6 +167,87 @@ begin
   R := Color.R;
   G := Color.G;
   B := Color.B;
+end;
+
+function ClampHzRange(const Settings: TAul2AudioViewSettings; SourceMinHz, SourceMaxHz: Single;
+  out LowHz, HighHz: Double): Boolean;
+begin
+  SourceMinHz := Max(1.0, SourceMinHz);
+  SourceMaxHz := Max(SourceMinHz + 1.0, SourceMaxHz);
+  LowHz := Max(SourceMinHz, Min(SourceMaxHz - 1.0, Settings.SpectrumLowHz));
+  HighHz := Max(LowHz + 1.0, Min(SourceMaxHz, Settings.SpectrumHighHz));
+  Result := HighHz > LowHz;
+end;
+
+function DisplayIndexToHz(const Settings: TAul2AudioViewSettings; Index, Count: Integer;
+  LowHz, HighHz: Double): Double;
+var
+  T: Double;
+begin
+  if Count <= 1 then
+    T := 0.0
+  else
+    T := Index / (Count - 1);
+
+  if Settings.SpectrumScale = VIEW_SPECTRUM_SCALE_LINEAR then
+    Result := LowHz + ((HighHz - LowHz) * T)
+  else
+    Result := LowHz * Power(HighHz / LowHz, T);
+end;
+
+function HzToSourceBand(FreqHz, SourceMinHz, SourceMaxHz: Double): Double;
+begin
+  SourceMinHz := Max(1.0, SourceMinHz);
+  SourceMaxHz := Max(SourceMinHz + 1.0, SourceMaxHz);
+  FreqHz := Max(SourceMinHz, Min(SourceMaxHz, FreqHz));
+  Result := Ln(FreqHz / SourceMinHz) / Ln(SourceMaxHz / SourceMinHz);
+  Result := Result * AUDIO_MONITOR_SPECTRUM_BAND_LAST;
+end;
+
+function SampleSpectrumBand(const Bands: TAudioMonitorSpectrumData; Position: Double): Single;
+var
+  Band0: Integer;
+  Band1: Integer;
+  Frac: Double;
+begin
+  Band0 := Max(0, Min(AUDIO_MONITOR_SPECTRUM_BAND_LAST, Floor(Position)));
+  Band1 := Max(0, Min(AUDIO_MONITOR_SPECTRUM_BAND_LAST, Band0 + 1));
+  Frac := Max(0.0, Min(1.0, Position - Band0));
+  Result := Bands[Band0] + ((Bands[Band1] - Bands[Band0]) * Frac);
+end;
+
+function ApplySpectrumHighBoost(Value: Single; const Settings: TAul2AudioViewSettings;
+  Index, Count: Integer): Single;
+var
+  T: Double;
+  Boost: Double;
+begin
+  if Count <= 1 then
+    T := 0.0
+  else
+    T := Index / (Count - 1);
+
+  Boost := Max(0, Min(100, Settings.SpectrumHighBoost)) / 100.0;
+  Result := Max(0.0, Min(1.0, Value * (1.0 + Boost * 2.0 * T)));
+end;
+
+function GetSpectrumDisplayValue(const Bands: TAudioMonitorSpectrumData; Valid: Boolean;
+  SourceMinHz, SourceMaxHz: Single; const Settings: TAul2AudioViewSettings;
+  Index, Count: Integer): Single;
+var
+  LowHz: Double;
+  HighHz: Double;
+  FreqHz: Double;
+  Position: Double;
+begin
+  if (not Valid) or (Count <= 1) or
+     not ClampHzRange(Settings, SourceMinHz, SourceMaxHz, LowHz, HighHz) then
+    Exit(0.0);
+
+  FreqHz := DisplayIndexToHz(Settings, Index, Count, LowHz, HighHz);
+  Position := HzToSourceBand(FreqHz, SourceMinHz, SourceMaxHz);
+  Result := Max(0.0, Min(1.0, SampleSpectrumBand(Bands, Position)));
+  Result := ApplySpectrumHighBoost(Result, Settings, Index, Count);
 end;
 
 end.

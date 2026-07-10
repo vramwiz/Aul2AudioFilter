@@ -42,6 +42,9 @@ const
   VIEW_COLOR_BLEND_HSV_SHORT = 2;
   VIEW_COLOR_BLEND_HSV_LONG  = 3;
 
+  VIEW_SPECTRUM_SCALE_LOG    = 0;
+  VIEW_SPECTRUM_SCALE_LINEAR = 1;
+
 type
   TAul2AudioViewSettings = record
     ViewType: Integer;
@@ -50,6 +53,10 @@ type
     Spacing: Integer;
     Thickness: Integer;
     Smooth: Integer;
+    SpectrumScale: Integer;
+    SpectrumLowHz: Integer;
+    SpectrumHighHz: Integer;
+    SpectrumHighBoost: Integer;
     ColorVariation: Integer;
     ColorBlend: Integer;
     Color1R: Byte;

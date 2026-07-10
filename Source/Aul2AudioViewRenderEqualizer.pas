@@ -24,6 +24,8 @@ uses
 var
   CurrentBands: TAudioMonitorSpectrumData;
   CurrentBandsValid: Boolean;
+  CurrentSourceMinHz: Single;
+  CurrentSourceMaxHz: Single;
 
 const
   VIEW_MARGIN_X = 0; // Keep as a named value so this can become a setting later.
@@ -38,18 +40,6 @@ procedure FinalizeEqualizerBars;
 begin
   FinalizeViewSpectrum;
   CurrentBandsValid := False;
-end;
-
-function BandValue(Index, Count: Integer): Single;
-var
-  Band: Integer;
-begin
-  if (not CurrentBandsValid) or (Count <= 1) then
-    Exit(0.0);
-
-  Band := Round(Index * AUDIO_MONITOR_SPECTRUM_BAND_LAST / (Count - 1));
-  Band := Max(0, Min(AUDIO_MONITOR_SPECTRUM_BAND_LAST, Band));
-  Result := CurrentBands[Band];
 end;
 
 procedure DrawSolidBars(Buffer: PPIXEL_RGBA; Width, Height, AreaW, AreaH, MarginX,
@@ -70,7 +60,8 @@ begin
 
   for I := 0 to Count - 1 do
   begin
-    Value := Max(0.0, Min(1.0, BandValue(I, Count)));
+    Value := Max(0.0, Min(1.0, GetSpectrumDisplayValue(CurrentBands, CurrentBandsValid,
+      CurrentSourceMinHz, CurrentSourceMaxHz, Settings, I, Count)));
     BarH := Round(AreaH * Value);
     if BarH <= 0 then
       Continue;
@@ -105,7 +96,8 @@ begin
 
   for I := 0 to Count - 1 do
   begin
-    Value := Max(0.0, Min(1.0, BandValue(I, Count)));
+    Value := Max(0.0, Min(1.0, GetSpectrumDisplayValue(CurrentBands, CurrentBandsValid,
+      CurrentSourceMinHz, CurrentSourceMaxHz, Settings, I, Count)));
     FillCount := Round(BlockCount * Value);
     if FillCount <= 0 then
       Continue;
@@ -133,7 +125,8 @@ begin
     Exit;
 
   ClearPixels(Buffer, Width, Height);
-  UpdateViewSpectrum(Settings.Smooth, CurrentBands, CurrentBandsValid, CurrentFrame);
+  UpdateViewSpectrum(Settings.Smooth, CurrentBands, CurrentBandsValid,
+    CurrentSourceMinHz, CurrentSourceMaxHz, CurrentFrame);
 
   MarginX := VIEW_MARGIN_X;
   MarginY := VIEW_MARGIN_Y;
