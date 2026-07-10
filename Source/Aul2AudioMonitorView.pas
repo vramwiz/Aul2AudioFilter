@@ -563,7 +563,6 @@ begin
   if Application = nil then
     Application := TApplication.Create(nil);
 
-  Application.Handle := 0;
   Application.Title := MONITOR_WINDOW_NAME;
 
   MonitorForm := TFormAudioMonitor.Create(nil);
@@ -740,26 +739,44 @@ end;
 
 procedure DestroyMonitorView;
 begin
+  if Assigned(ReadTimer) then
+  begin
+    ReadTimer.Enabled := False;
+    ReadTimer.OnTimer := nil;
+  end;
+
+  if Assigned(WavePaintBox) then
+    WavePaintBox.OnPaint := nil;
+
+  if Assigned(SpectrumPaintBox) then
+    SpectrumPaintBox.OnPaint := nil;
+
+  if Assigned(MonitorForm) then
+  begin
+    MonitorForm.Hide;
+    MonitorForm.ParentWindow := 0;
+  end;
+
   FreeAndNil(SharedMemory);
   FreeAndNil(SpectrumMemory);
   FreeAndNil(ViewFrameMemory);
   FreeAndNil(ReadTimer);
   FreeAndNil(ToolBarManager);
-  FreeAndNil(TimerTarget);
-  FreeAndNil(SpectrumPaintBox);
-  FreeAndNil(WavePaintBox);
-  FreeAndNil(InfoLabel);
-  FreeAndNil(BasePanel);
-  FreeAndNil(PanelBase);
-  FreeAndNil(PanelSpectrum);
-  FreeAndNil(PanelWave);
-  FreeAndNil(StateLabel);
-  FreeAndNil(ButtonBase);
-  FreeAndNil(ButtonSpectrum);
-  FreeAndNil(ButtonWave);
-  FreeAndNil(ToolBar);
-  FreeAndNil(RootPanel);
   FreeAndNil(MonitorForm);
+  RootPanel := nil;
+  ToolBar := nil;
+  ButtonWave := nil;
+  ButtonSpectrum := nil;
+  ButtonBase := nil;
+  StateLabel := nil;
+  PanelWave := nil;
+  PanelSpectrum := nil;
+  PanelBase := nil;
+  BasePanel := nil;
+  InfoLabel := nil;
+  WavePaintBox := nil;
+  SpectrumPaintBox := nil;
+  TimerTarget := nil;
   ClientWindow := 0;
   LastViewWidth := 0;
   LastViewHeight := 0;
