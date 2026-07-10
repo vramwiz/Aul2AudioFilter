@@ -99,6 +99,43 @@ begin
     Result := 0;
 end;
 
+function MonitorSignalLevel(State: PAul2AudioMonitorState): Single;
+begin
+  if State = nil then
+    Exit(0.0);
+  Result := Max(Max(Abs(State^.OutputPeakL), Abs(State^.OutputPeakR)),
+    Max(Abs(State^.OutputRmsL), Abs(State^.OutputRmsR)));
+end;
+
+procedure SelectLastMonitorLayer(Root: PAul2AudioMonitorLayeredState;
+  CandidateLayer: Integer);
+var
+  CurrentLayer: Integer;
+  CandidateState: PAul2AudioMonitorState;
+  CurrentState: PAul2AudioMonitorState;
+  CandidateFrame: Integer;
+  CurrentFrame: Integer;
+begin
+  if (Root = nil) or (CandidateLayer < 0) or
+     (CandidateLayer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+
+  CandidateState := @Root^.Slots[CandidateLayer];
+  CurrentLayer := Root^.LastLayer;
+  if (CurrentLayer < 0) or (CurrentLayer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+  begin
+    Root^.LastLayer := CandidateLayer;
+    Exit;
+  end;
+
+  CurrentState := @Root^.Slots[CurrentLayer];
+  CandidateFrame := CandidateState^.SourceFrameS + CandidateState^.SourceFrame;
+  CurrentFrame := CurrentState^.SourceFrameS + CurrentState^.SourceFrame;
+  if (CandidateFrame <> CurrentFrame) or
+     (MonitorSignalLevel(CandidateState) >= MonitorSignalLevel(CurrentState)) then
+    Root^.LastLayer := CandidateLayer;
+end;
+
 procedure ResetInputSnapshot(var Snapshot: TAudioMonitorInputSnapshot);
 begin
   FillChar(Snapshot, SizeOf(Snapshot), 0);
@@ -206,7 +243,6 @@ begin
     end;
 
     Inc(State^.Generation);
-    GetSharedMemory.Root^.LastLayer := Layer;
     Inc(GetSharedMemory.Root^.Generation);
   except
     // Monitor diagnostics must never affect the audio callback.
@@ -453,7 +489,6 @@ begin
       State^.UpdateTick := GetTickCount64;
       State^.SourceLayer := Layer;
       Inc(State^.Generation);
-      GetSharedMemory.Root^.LastLayer := Layer;
       Inc(GetSharedMemory.Root^.Generation);
     end;
 
@@ -529,7 +564,7 @@ begin
     State^.OutputWaveMax := OutputWaveMax;
 
     Inc(State^.Generation);
-    Shared.Root^.LastLayer := Layer;
+    SelectLastMonitorLayer(Shared.Root, Layer);
     PushMonitorHistory(Shared.Root, Layer, State^);
     Inc(Shared.Root^.Generation);
 
@@ -557,7 +592,7 @@ begin
       Inc(SpectrumState^.Generation);
       if SpectrumRoot <> nil then
       begin
-        SpectrumRoot^.LastLayer := Layer;
+        SpectrumRoot^.LastLayer := Shared.Root^.LastLayer;
         PushSpectrumHistory(SpectrumRoot, Layer, SpectrumState^);
         Inc(SpectrumRoot^.Generation);
       end;
