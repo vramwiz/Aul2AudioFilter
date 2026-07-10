@@ -123,7 +123,7 @@ begin
   LabelLeft := ToolBar.ClientWidth - LabelWidth - MulDiv(10, MonitorForm.Font.PixelsPerInch, 96);
   if Assigned(ButtonBase) then
     LabelLeft := Max(LabelLeft, ButtonBase.Left + ButtonBase.Width +
-      MulDiv(18, MonitorForm.Font.PixelsPerInch, 96));
+      MulDiv(32, MonitorForm.Font.PixelsPerInch, 96));
 
   StateLabel.SetBounds(LabelLeft, 0, LabelWidth, ToolBar.Height);
   StateLabel.BringToFront;
@@ -591,26 +591,32 @@ begin
   ToolBar.Parent := RootPanel;
   ToolBar.Align := alTop;
   ToolBar.Height := MulDiv(28, MonitorForm.Font.PixelsPerInch, 96);
+  ToolBar.ButtonWidth := MulDiv(74, MonitorForm.Font.PixelsPerInch, 96);
+  ToolBar.ButtonHeight := ToolBar.Height;
   ToolBar.EdgeBorders := [];
   ToolBar.ShowCaptions := True;
   ToolBar.Flat := True;
+  ToolBar.List := True;
   ToolBar.ParentFont := False;
   ToolBar.Font.Assign(MonitorForm.Font);
+
+  ButtonBase := TToolButton.Create(MonitorForm);
+  ButtonBase.Parent := ToolBar;
+  ButtonBase.Caption := 'View';
+  ButtonBase.Left := ToolBar.ButtonWidth * 2;
+  ButtonBase.Top := 0;
+
+  ButtonSpectrum := TToolButton.Create(MonitorForm);
+  ButtonSpectrum.Parent := ToolBar;
+  ButtonSpectrum.Caption := 'Spectrum';
+  ButtonSpectrum.Left := ToolBar.ButtonWidth;
+  ButtonSpectrum.Top := 0;
 
   ButtonWave := TToolButton.Create(MonitorForm);
   ButtonWave.Parent := ToolBar;
   ButtonWave.Caption := 'Wave';
   ButtonWave.Left := 0;
-
-  ButtonSpectrum := TToolButton.Create(MonitorForm);
-  ButtonSpectrum.Parent := ToolBar;
-  ButtonSpectrum.Caption := 'Spectrum';
-  ButtonSpectrum.Left := ButtonWave.Left + ButtonWave.Width + 1;
-
-  ButtonBase := TToolButton.Create(MonitorForm);
-  ButtonBase.Parent := ToolBar;
-  ButtonBase.Caption := 'Base';
-  ButtonBase.Left := ButtonSpectrum.Left + ButtonSpectrum.Width + 1;
+  ButtonWave.Top := 0;
 
   StateLabel := TLabel.Create(MonitorForm);
   StateLabel.Parent := ToolBar;
@@ -623,6 +629,7 @@ begin
   StateLabel.Alignment := taLeftJustify;
   StateLabel.Caption := 'State: ?';
   StateLabel.Font.Color := RGB(170, 170, 170);
+  StateLabel.Visible := False;
 
   PanelWave := TPanel.Create(MonitorForm);
   PanelWave.Parent := RootPanel;
@@ -690,15 +697,6 @@ begin
   ToolBarManager.AddPanel(PanelWave);
   ToolBarManager.AddPanel(PanelSpectrum);
   ToolBarManager.AddPanel(PanelBase);
-  ToolBarManager.Attach(ToolBar);
-  ToolBarManager.Activate(Ord(ampSpectrum));
-  PositionStateLabel;
-  UpdateStateLabel;
-
-  ReadTimer := TTimer.Create(MonitorForm);
-  ReadTimer.Interval := 50;
-  ReadTimer.OnTimer := TimerTarget.ReadTimerTick;
-  ReadTimer.Enabled := True;
 
   MonitorForm.Show;
   MonitorForm.Visible := True;
@@ -709,6 +707,18 @@ begin
     ResizeMonitorView(480, 260);
 
   SyncMonitorViewBounds;
+  ToolBarManager.Attach(ToolBar);
+  ToolBarManager.Activate(Ord(ampSpectrum));
+  PositionStateLabel;
+  StateLabel.Visible := True;
+  UpdateStateLabel;
+  ToolBar.Invalidate;
+
+  ReadTimer := TTimer.Create(MonitorForm);
+  ReadTimer.Interval := 50;
+  ReadTimer.OnTimer := TimerTarget.ReadTimerTick;
+  ReadTimer.Enabled := True;
+
   InvalidateMonitorView;
 end;
 

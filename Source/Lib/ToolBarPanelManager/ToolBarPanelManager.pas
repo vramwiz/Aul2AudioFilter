@@ -28,7 +28,6 @@ type
 
     procedure UpdatePanels;
     procedure UpdateButtons;
-    procedure UpdateButtonMetrics;
 
     procedure ToolBarCustomDraw(Sender: TToolBar; const ARect: TRect; var DefaultDraw: Boolean);
     procedure ToolBarCustomDrawButton(Sender: TToolBar; Button: TToolButton; State: TCustomDrawState; var DefaultDraw: Boolean);
@@ -63,17 +62,6 @@ type
 implementation
 
 { TToolBarPanelManager }
-
-function ScaleForToolBar(ToolBar: TToolBar; Value: Integer): Integer;
-var
-  PPI: Integer;
-begin
-  PPI := 96;
-  if Assigned(ToolBar) and (ToolBar.Font.PixelsPerInch > 0) then
-    PPI := ToolBar.Font.PixelsPerInch;
-
-  Result := MulDiv(Value, PPI, 96);
-end;
 
 constructor TToolBarPanelManager.Create;
 begin
@@ -115,7 +103,6 @@ begin
   // ToolBar 側の前提設定
   FToolBar.ShowCaptions := True;
   FToolBar.Flat         := True;
-  FToolBar.AutoSize     := False;
 
   // ToolButton 初期化
   for i := 0 to FToolBar.ButtonCount - 1 do
@@ -127,12 +114,9 @@ begin
       Btn.AllowAllUp   := False;
       Btn.Grouped := False;
       Btn.Down    := False;
-      Btn.AutoSize := False;
       Btn.OnClick := ToolButtonClick;
     end;
   end;
-
-  UpdateButtonMetrics;
 
   FAttached := True;
 
@@ -222,46 +206,6 @@ begin
     FToolBar.Buttons[i].Down := (i = FActiveIndex);
 end;
 
-procedure TToolBarPanelManager.UpdateButtonMetrics;
-var
-  i: Integer;
-  Btn: TToolButton;
-  TextW: Integer;
-  ButtonW: Integer;
-  ButtonH: Integer;
-  MaxButtonW: Integer;
-  X: Integer;
-begin
-  if not Assigned(FToolBar) then
-    Exit;
-
-  FToolBar.Canvas.Font.Assign(FToolBar.Font);
-  ButtonH := ScaleForToolBar(FToolBar, 28);
-  MaxButtonW := ScaleForToolBar(FToolBar, 52);
-  X := 0;
-
-  for i := 0 to FToolBar.ButtonCount - 1 do
-  begin
-    Btn := FToolBar.Buttons[i];
-    TextW := FToolBar.Canvas.TextWidth(Btn.Caption);
-    ButtonW := TextW + ScaleForToolBar(FToolBar, 20);
-    if ButtonW > MaxButtonW then
-      MaxButtonW := ButtonW;
-  end;
-
-  FToolBar.ButtonWidth := MaxButtonW;
-  FToolBar.ButtonHeight := ButtonH;
-
-  for i := 0 to FToolBar.ButtonCount - 1 do
-  begin
-    Btn := FToolBar.Buttons[i];
-    Btn.SetBounds(X, 0, MaxButtonW, ButtonH);
-    Inc(X, MaxButtonW);
-  end;
-
-  FToolBar.Height := ButtonH;
-end;
-
 procedure TToolBarPanelManager.ToolBarCustomDraw(Sender: TToolBar;
   const ARect: TRect; var DefaultDraw: Boolean);
 begin
@@ -276,7 +220,6 @@ procedure TToolBarPanelManager.ToolBarCustomDrawButton(Sender: TToolBar;
 var
   R : TRect;
   C : TColor;
-  TextFlags: Cardinal;
 begin
   R := Button.BoundsRect;
 
@@ -294,13 +237,11 @@ begin
 
   Sender.Canvas.Font.Color := FToolBarFontColor;
 
-  InflateRect(R, -ScaleForToolBar(Sender, 5), 0);
-  TextFlags := DT_CENTER or DT_VCENTER or DT_SINGLELINE or DT_END_ELLIPSIS;
   DrawText(Sender.Canvas.Handle,
            PChar(Button.Caption),
            -1,
            R,
-           TextFlags);
+           DT_CENTER or DT_VCENTER or DT_SINGLELINE);
 
   DefaultDraw := False;
 end;
