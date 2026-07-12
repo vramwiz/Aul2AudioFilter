@@ -517,6 +517,9 @@
 
 ## Aul2AudioView / Monitor playback sync completion note
 
+- 2026-07-13、View は正常だが Monitor が約 10 フレーム早く見える実機確認を受け、Monitor の再生時参照フレームだけを ViewFrame より 10 フレーム後方へ補正した。Wave / Spectrum は同じ補正済みフレームから共有メモリ履歴を距離優先で選ぶ。View 側の同期処理と履歴リング構造は変更していない。
+- `Aul2AudioMonitor.dproj` の Debug Win64 ビルドが成功し、`Aul2AudioMonitor.aux2` へ反映した。
+
 - 2026-07-10、再生中の `Aul2AudioView` と `Aul2AudioMonitor` が AviUtl2 の音声先読みで未来側の解析値に引っ張られる問題を解決した。
 - まず `Aul2AudioView` で、共有メモリの最新スロットだけを読む方式では先読み済みの未来フレームが勝つことを確認した。
 - `Local\Aul2AudioMonitorState` と `Local\Aul2AudioMonitorSpectrum` にレイヤー別の履歴リングを追加した。履歴数は各レイヤー 128 件。

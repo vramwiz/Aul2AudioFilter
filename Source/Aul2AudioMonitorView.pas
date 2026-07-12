@@ -36,6 +36,10 @@ uses
   AviUtl2PluginCore,
   ToolBarPanelManager;
 
+const
+  // Monitor はタイマー描画のため View より先行して見える。再生時の履歴参照をこのフレーム数だけ後方へずらす。
+  MONITOR_PLAYBACK_FRAME_DELAY = 10;
+
 type
   TAudioMonitorPage = (
     ampWave,
@@ -236,6 +240,13 @@ end;
 function PlaybackFrameAvailable: Boolean;
 begin
   Result := MonitorFrameValid and (MonitorFrame >= 0);
+end;
+
+function MonitorDisplayFrame: Integer;
+begin
+  Result := MonitorFrame - MONITOR_PLAYBACK_FRAME_DELAY;
+  if Result < 0 then
+    Result := 0;
 end;
 
 function MonitorStateMatchesFrame(const State: TAul2AudioMonitorState; Frame: Integer): Boolean;
@@ -443,6 +454,8 @@ end;
 
 function SelectMonitorSnapshot(Current: PAul2AudioMonitorState;
   out Snapshot: TAul2AudioMonitorState): PAul2AudioMonitorState;
+var
+  DisplayFrame: Integer;
 begin
   Result := Current;
   if not IsPlaybackDisplay then
@@ -450,8 +463,9 @@ begin
   if not PlaybackFrameAvailable then
     Exit;
 
-  Result := FindMonitorHistoryState(MonitorFrame);
-  if (Result <> nil) and (MonitorStateFrameDistance(Result, MonitorFrame) > 1) then
+  DisplayFrame := MonitorDisplayFrame;
+  Result := FindMonitorHistoryState(DisplayFrame);
+  if (Result <> nil) and (MonitorStateFrameDistance(Result, DisplayFrame) > 1) then
     Result := nil;
   if Result = nil then
   begin
@@ -473,6 +487,8 @@ end;
 
 function SelectSpectrumSnapshot(Current: PAul2AudioMonitorSpectrumState;
   out Snapshot: TAul2AudioMonitorSpectrumState): PAul2AudioMonitorSpectrumState;
+var
+  DisplayFrame: Integer;
 begin
   Result := Current;
   if not IsPlaybackDisplay then
@@ -480,8 +496,9 @@ begin
   if not PlaybackFrameAvailable then
     Exit;
 
-  Result := FindSpectrumHistoryState(MonitorFrame);
-  if (Result <> nil) and (SpectrumStateFrameDistance(Result, MonitorFrame) > 1) then
+  DisplayFrame := MonitorDisplayFrame;
+  Result := FindSpectrumHistoryState(DisplayFrame);
+  if (Result <> nil) and (SpectrumStateFrameDistance(Result, DisplayFrame) > 1) then
     Result := nil;
   if Result = nil then
   begin
