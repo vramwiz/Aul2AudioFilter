@@ -9,6 +9,8 @@ uses
 
 procedure AudioTraceInitialize;
 procedure AudioTraceProcAudio(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer);
+procedure AudioTraceMonitorPeaks(Audio: PFILTER_PROC_AUDIO;
+  InputPeakL, InputPeakR, OutputPeakL, OutputPeakR: Single);
 procedure AudioTraceFinalize;
 
 implementation
@@ -65,7 +67,7 @@ begin
   if TraceHeaderWritten then
     Exit;
 
-  AppendTraceLine('tick,count,id,effect_id,layer,index,num,frame,frame_s,frame_e,sample_index,sample_num,sample_total,channel_num,scene_rate');
+  AppendTraceLine('tick,count,id,effect_id,layer,index,num,frame,frame_s,frame_e,sample_index,sample_num,sample_total,channel_num,scene_rate,param_l,param_r,output_l,output_r');
   TraceHeaderWritten := True;
 end;
 
@@ -81,6 +83,12 @@ end;
 procedure AudioTraceProcAudio(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer);
 var
   Obj: POBJECT_INFO;
+  AudioObject: OBJECT_HANDLE;
+  OutputParam: TOBJECT_AUDIO_PARAM;
+  ParamL: Single;
+  ParamR: Single;
+  OutputL: Single;
+  OutputR: Single;
   SceneRate: Integer;
 begin
   try
@@ -100,8 +108,29 @@ begin
     EnsureTraceHeader;
 
     Obj := nil;
+    ParamL := -999;
+    ParamR := -999;
+    OutputL := -999;
+    OutputR := -999;
     if (Audio <> nil) and (Audio^.Object_ <> nil) then
       Obj := Audio^.Object_;
+    if (Audio <> nil) and (Audio^.Param <> nil) then
+    begin
+      ParamL := Audio^.Param^.VolL;
+      ParamR := Audio^.Param^.VolR;
+    end;
+    if (Audio <> nil) and (Obj <> nil) and Assigned(Audio^.GetAudioObject) and
+       Assigned(Audio^.GetOutputAudioParam) then
+    begin
+      AudioObject := Audio^.GetAudioObject(Obj^.Layer, 0);
+      OutputParam := Default(TOBJECT_AUDIO_PARAM);
+      if (AudioObject <> nil) and
+         (Audio^.GetOutputAudioParam(AudioObject, 0, @OutputParam, SizeOf(OutputParam)) <> 0) then
+      begin
+        OutputL := OutputParam.VolL;
+        OutputR := OutputParam.VolR;
+      end;
+    end;
 
     SceneRate := 0;
     if (Audio <> nil) and (Audio^.Scene <> nil) then
@@ -111,7 +140,7 @@ begin
       AppendTraceLine(Format('%d,%d,nil,nil,nil,nil,nil,nil,nil,nil,nil,%d,nil,%d,%d',
         [GetTickCount64, TraceLineCount + 1, SampleNum, ChannelNum, SceneRate]))
     else
-      AppendTraceLine(Format('%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d',
+      AppendTraceLine(Format('%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.6f,%.6f,%.6f,%.6f',
         [
           GetTickCount64,
           TraceLineCount + 1,
@@ -127,7 +156,11 @@ begin
           SampleNum,
           Obj^.SampleTotal,
           ChannelNum,
-          SceneRate
+          SceneRate,
+          ParamL,
+          ParamR,
+          OutputL,
+          OutputR
         ]));
 
     Inc(TraceLineCount);
@@ -139,6 +172,24 @@ end;
 procedure AudioTraceFinalize;
 begin
   TraceEnabled := False;
+end;
+
+procedure AudioTraceMonitorPeaks(Audio: PFILTER_PROC_AUDIO;
+  InputPeakL, InputPeakR, OutputPeakL, OutputPeakR: Single);
+var
+  Obj: POBJECT_INFO;
+begin
+  try
+    if not RefreshTraceEnabled or (Audio = nil) or (Audio^.Object_ = nil) then
+      Exit;
+
+    Obj := Audio^.Object_;
+    AppendTraceLine(Format('peaks,%d,%d,%d,%d,%.6f,%.6f,%.6f,%.6f',
+      [Obj^.ID, Obj^.EffectID, Obj^.Layer, Obj^.Frame,
+       InputPeakL, InputPeakR, OutputPeakL, OutputPeakR]));
+  except
+    // 診断ログは音声処理へ影響させない。
+  end;
 end;
 
 end.

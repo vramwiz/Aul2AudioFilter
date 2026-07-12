@@ -200,6 +200,8 @@ begin
 
   if not (SpectrumStateUsable(Result) and StateMatchesFrame(Result, CurrentFrame)) then
     Result := nil;
+  if (Result <> nil) and (StateFrameDistance(Result, CurrentFrame) > 1) then
+    Result := nil;
 end;
 
 procedure UpdateViewSpectrum(Smooth: Integer; out Bands: TAudioMonitorSpectrumData;

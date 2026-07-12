@@ -451,6 +451,8 @@ begin
     Exit;
 
   Result := FindMonitorHistoryState(MonitorFrame);
+  if (Result <> nil) and (MonitorStateFrameDistance(Result, MonitorFrame) > 1) then
+    Result := nil;
   if Result = nil then
   begin
     if not PlaybackMonitorSnapshotValid then
@@ -479,6 +481,8 @@ begin
     Exit;
 
   Result := FindSpectrumHistoryState(MonitorFrame);
+  if (Result <> nil) and (SpectrumStateFrameDistance(Result, MonitorFrame) > 1) then
+    Result := nil;
   if Result = nil then
   begin
     if not PlaybackSpectrumSnapshotValid then

@@ -412,8 +412,13 @@ procedure DrawVerticalPeakBar(Canvas: TCanvas; const TrackRect: TRect; Peak: Sin
 var
   FillRect: TRect;
   ClipY: Integer;
+  MeterLevel: Single;
 begin
   Peak := Min(1.25, Max(0.0, Peak));
+  if Peak <= 0.001 then
+    MeterLevel := 0
+  else
+    MeterLevel := EnsureRange((20.0 * Log10(Peak) + 60.0) / 60.0, 0.0, 1.0);
 
   Canvas.Pen.Color := RGB(68, 68, 68);
   Canvas.Brush.Color := RGB(44, 44, 44);
@@ -422,12 +427,12 @@ begin
   FillRect := TrackRect;
   InflateRect(FillRect, -1, -1);
   FillRect.Top := FillRect.Bottom - Round((FillRect.Bottom - FillRect.Top) *
-    Min(1.0, Peak));
+    MeterLevel);
   Canvas.Brush.Color := Color;
   Canvas.Pen.Color := Color;
   Canvas.FillRect(FillRect);
 
-  ClipY := TrackRect.Bottom - MulDiv(100, TrackRect.Bottom - TrackRect.Top, 125);
+  ClipY := TrackRect.Top + 1;
   Canvas.Pen.Color := RGB(210, 92, 76);
   Canvas.MoveTo(TrackRect.Left, ClipY);
   Canvas.LineTo(TrackRect.Right, ClipY);

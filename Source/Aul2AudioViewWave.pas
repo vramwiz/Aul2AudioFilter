@@ -179,6 +179,8 @@ begin
 
   if not (WaveStateUsable(Result) and StateMatchesFrame(Result, CurrentFrame)) then
     Result := nil;
+  if (Result <> nil) and (StateFrameDistance(Result, CurrentFrame) > 1) then
+    Result := nil;
 end;
 
 procedure SmoothPoint(var DisplayValue: Single; NewValue: Single; Smooth: Integer);

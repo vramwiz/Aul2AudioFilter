@@ -19,6 +19,7 @@ uses
   Winapi.Windows,
   System.Math,
   System.SysUtils,
+  Aul2AudioFilterAudioTrace,
   Aul2AudioMonitorShared,
   Aul2AudioMonitorSpectrumShared;
 
@@ -372,14 +373,39 @@ end;
 procedure ApplyAudioOutputLevel(Audio: PFILTER_PROC_AUDIO;
   var PeakL, PeakR, RmsL, RmsR: Single);
 var
+  AudioObject: OBJECT_HANDLE;
+  OutputParam: TOBJECT_AUDIO_PARAM;
   LevelL: Single;
   LevelR: Single;
 begin
-  if (Audio = nil) or (Audio^.Param = nil) then
+  if Audio = nil then
     Exit;
 
-  LevelL := Abs(Audio^.Param^.VolL);
-  LevelR := Abs(Audio^.Param^.VolR);
+  LevelL := 1;
+  LevelR := 1;
+  OutputParam := Default(TOBJECT_AUDIO_PARAM);
+  if Assigned(Audio^.GetAudioObject) and Assigned(Audio^.GetOutputAudioParam) and
+     (Audio^.Object_ <> nil) then
+  begin
+    AudioObject := Audio^.GetAudioObject(Audio^.Object_^.Layer, 0);
+    if (AudioObject <> nil) and
+       (Audio^.GetOutputAudioParam(AudioObject, 0, @OutputParam, SizeOf(OutputParam)) <> 0) then
+    begin
+      LevelL := Abs(OutputParam.VolL);
+      LevelR := Abs(OutputParam.VolR);
+    end
+    else if Audio^.Param <> nil then
+    begin
+      LevelL := Abs(Audio^.Param^.VolL);
+      LevelR := Abs(Audio^.Param^.VolR);
+    end;
+  end
+  else if Audio^.Param <> nil then
+  begin
+    LevelL := Abs(Audio^.Param^.VolL);
+    LevelR := Abs(Audio^.Param^.VolR);
+  end;
+
   PeakL := PeakL * LevelL;
   PeakR := PeakR * LevelR;
   RmsL := RmsL * LevelL;
@@ -555,6 +581,8 @@ begin
     InputSnapshot := LastInputSnapshots[Layer];
     ApplyAudioOutputLevel(Audio, InputSnapshot.PeakL, InputSnapshot.PeakR,
       InputSnapshot.RmsL, InputSnapshot.RmsR);
+    AudioTraceMonitorPeaks(Audio, InputSnapshot.PeakL, InputSnapshot.PeakR,
+      OutputPeakL, OutputPeakR);
     State^.Magic := AUDIO_MONITOR_SHARED_MAGIC;
     State^.Version := AUDIO_MONITOR_SHARED_VERSION;
     State^.UpdateTick := GetTickCount64;
