@@ -111,9 +111,8 @@ begin
     LabelLeft := HeaderPanel.ClientWidth - LabelWidth - MulDiv(10, MonitorForm.Font.PixelsPerInch, 96)
   else
     LabelLeft := ToolBar.Left + ToolBar.Width + MulDiv(10, MonitorForm.Font.PixelsPerInch, 96);
-  if Assigned(ButtonBase) then
-    LabelLeft := Max(LabelLeft, ButtonBase.Left + ButtonBase.Width +
-      MulDiv(32, MonitorForm.Font.PixelsPerInch, 96));
+  LabelLeft := Max(LabelLeft, ToolBar.Left + ToolBar.Width +
+    MulDiv(10, MonitorForm.Font.PixelsPerInch, 96));
 
   StateLabel.SetBounds(LabelLeft, 0, LabelWidth, ToolBar.Height);
   StateLabel.BringToFront;
@@ -525,6 +524,8 @@ begin
 end;
 
 procedure ResizeMonitorView(Width, Height: Integer);
+var
+  ToolButtonWidth: Integer;
 begin
   if (Width <= 0) or (Height <= 0) then
     Exit;
@@ -546,6 +547,17 @@ begin
   begin
     RootPanel.SetBounds(0, 0, Width, Height);
     RootPanel.Realign;
+  end;
+
+  if Assigned(ToolBar) then
+  begin
+    ToolButtonWidth := MulDiv(74, MonitorForm.Font.PixelsPerInch, 96);
+    ToolBar.ButtonWidth := ToolButtonWidth;
+    ToolBar.ButtonHeight := MulDiv(28, MonitorForm.Font.PixelsPerInch, 96);
+    ToolBar.Width := ToolButtonWidth * 3;
+    ToolBar.Height := ToolBar.ButtonHeight;
+    ToolBar.Realign;
+    ToolBar.Invalidate;
   end;
 
   if Assigned(InfoLabel) then
@@ -664,7 +676,8 @@ begin
   DrawBuffered(PaintBox,
     procedure(Canvas: TCanvas; Rect: TRect)
     begin
-      DrawAudioSpectrumCanvas(Canvas, Rect, DisplaySpectrumState, DisplayMonitorState, True);
+      DrawAudioSpectrumCanvas(Canvas, Rect, DisplaySpectrumState, DisplayMonitorState,
+        True, IsPlaybackDisplay);
     end);
 end;
 

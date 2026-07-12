@@ -16,7 +16,7 @@ procedure DrawAudioMonitorPlaceholder(Canvas: TCanvas; const ClientRect: TRect;
   const Text: string);
 procedure DrawAudioSpectrumCanvas(Canvas: TCanvas; const ClientRect: TRect;
   SpectrumState: PAul2AudioMonitorSpectrumState; MonitorState: PAul2AudioMonitorState;
-  AllowDataUpdate: Boolean);
+  AllowDataUpdate, DecayPeaks: Boolean);
 procedure ClearAudioMonitorDisplay;
 
 implementation
@@ -107,23 +107,34 @@ begin
   Result := Max(-1.0, Min(1.0, (RmsR - RmsL) / Total));
 end;
 
-procedure UpdateDisplayPeaks(State: PAul2AudioMonitorState; AllowDataUpdate: Boolean);
+procedure UpdateDisplayPeaks(State: PAul2AudioMonitorState;
+  AllowDataUpdate, DecayPeaks: Boolean);
 const
   PEAK_DECAY = 0.84;
 begin
   if AllowDataUpdate and MonitorStateFresh(State) then
   begin
-    DisplayPeakInputL := Max(State^.InputPeakL, DisplayPeakInputL * PEAK_DECAY);
-    DisplayPeakInputR := Max(State^.InputPeakR, DisplayPeakInputR * PEAK_DECAY);
-    DisplayPeakOutputL := Max(State^.OutputPeakL, DisplayPeakOutputL * PEAK_DECAY);
-    DisplayPeakOutputR := Max(State^.OutputPeakR, DisplayPeakOutputR * PEAK_DECAY);
+    if DecayPeaks then
+    begin
+      DisplayPeakInputL := Max(State^.InputPeakL, DisplayPeakInputL * PEAK_DECAY);
+      DisplayPeakInputR := Max(State^.InputPeakR, DisplayPeakInputR * PEAK_DECAY);
+      DisplayPeakOutputL := Max(State^.OutputPeakL, DisplayPeakOutputL * PEAK_DECAY);
+      DisplayPeakOutputR := Max(State^.OutputPeakR, DisplayPeakOutputR * PEAK_DECAY);
+    end
+    else
+    begin
+      DisplayPeakInputL := State^.InputPeakL;
+      DisplayPeakInputR := State^.InputPeakR;
+      DisplayPeakOutputL := State^.OutputPeakL;
+      DisplayPeakOutputR := State^.OutputPeakR;
+    end;
     DisplayInputBalance := CalcStereoBalance(State^.InputRmsL, State^.InputRmsR);
     DisplayOutputBalance := CalcStereoBalance(State^.OutputRmsL, State^.OutputRmsR);
     DisplayPeakValid := True;
     Exit;
   end;
 
-  if DisplayPeakValid then
+  if DecayPeaks and DisplayPeakValid then
   begin
     DisplayPeakInputL := DisplayPeakInputL * PEAK_DECAY;
     DisplayPeakInputR := DisplayPeakInputR * PEAK_DECAY;
@@ -467,7 +478,7 @@ begin
 end;
 
 procedure DrawPeakMeters(Canvas: TCanvas; const MeterRect: TRect;
-  State: PAul2AudioMonitorState; AllowDataUpdate: Boolean);
+  State: PAul2AudioMonitorState; AllowDataUpdate, DecayPeaks: Boolean);
 var
   BarRect: TRect;
   BalanceRect: TRect;
@@ -482,7 +493,7 @@ begin
   if (MeterRect.Right <= MeterRect.Left) or (MeterRect.Bottom <= MeterRect.Top) then
     Exit;
 
-  UpdateDisplayPeaks(State, AllowDataUpdate);
+  UpdateDisplayPeaks(State, AllowDataUpdate, DecayPeaks);
 
   Canvas.Pen.Color := RGB(56, 56, 56);
   Canvas.Brush.Style := bsClear;
@@ -549,7 +560,7 @@ end;
 
 procedure DrawAudioSpectrumCanvas(Canvas: TCanvas; const ClientRect: TRect;
   SpectrumState: PAul2AudioMonitorSpectrumState; MonitorState: PAul2AudioMonitorState;
-  AllowDataUpdate: Boolean);
+  AllowDataUpdate, DecayPeaks: Boolean);
 var
   PlotRect: TRect;
   MeterRect: TRect;
@@ -579,7 +590,7 @@ begin
       DisplaySpectrumValid := False;
       Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8,
         'Spectrum - waiting audio data');
-      DrawPeakMeters(Canvas, MeterRect, MonitorState, AllowDataUpdate);
+      DrawPeakMeters(Canvas, MeterRect, MonitorState, AllowDataUpdate, DecayPeaks);
       Exit;
     end;
 
@@ -617,7 +628,7 @@ begin
       1, BarWidth);
 
     DrawLegend(Canvas, ClientRect.Left + 12, ClientRect.Top + 26);
-    DrawPeakMeters(Canvas, MeterRect, MonitorState, AllowDataUpdate);
+    DrawPeakMeters(Canvas, MeterRect, MonitorState, AllowDataUpdate, DecayPeaks);
   except
     Canvas.Font.Color := RGB(220, 220, 220);
     Canvas.TextOut(ClientRect.Left + 12, ClientRect.Top + 8,

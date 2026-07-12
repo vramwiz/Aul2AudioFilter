@@ -369,6 +369,23 @@ begin
   end;
 end;
 
+procedure ApplyAudioOutputLevel(Audio: PFILTER_PROC_AUDIO;
+  var PeakL, PeakR, RmsL, RmsR: Single);
+var
+  LevelL: Single;
+  LevelR: Single;
+begin
+  if (Audio = nil) or (Audio^.Param = nil) then
+    Exit;
+
+  LevelL := Abs(Audio^.Param^.VolL);
+  LevelR := Abs(Audio^.Param^.VolR);
+  PeakL := PeakL * LevelL;
+  PeakR := PeakR * LevelR;
+  RmsL := RmsL * LevelL;
+  RmsR := RmsR * LevelR;
+end;
+
 procedure EnsureSpectrumTable(SampleRate, TableSize: Integer);
 var
   Band: Integer;
@@ -527,6 +544,7 @@ begin
 
     CaptureWave(Audio, SampleNum, ChannelNum, OutputWave, OutputWaveMin, OutputWaveMax,
       OutputPeakL, OutputPeakR, OutputRmsL, OutputRmsR);
+    ApplyAudioOutputLevel(Audio, OutputPeakL, OutputPeakR, OutputRmsL, OutputRmsR);
     CaptureSpectrum(Audio, SampleNum, ChannelNum, OutputSpectrum);
 
     Shared := GetSharedMemory;
@@ -535,6 +553,8 @@ begin
       Exit;
 
     InputSnapshot := LastInputSnapshots[Layer];
+    ApplyAudioOutputLevel(Audio, InputSnapshot.PeakL, InputSnapshot.PeakR,
+      InputSnapshot.RmsL, InputSnapshot.RmsR);
     State^.Magic := AUDIO_MONITOR_SHARED_MAGIC;
     State^.Version := AUDIO_MONITOR_SHARED_VERSION;
     State^.UpdateTick := GetTickCount64;
