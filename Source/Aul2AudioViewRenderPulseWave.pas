@@ -1,6 +1,6 @@
 ﻿unit Aul2AudioViewRenderPulseWave;
 
-// Draws the Pulse Wave view type.
+// 時間波形の絶対振幅を中央線から上下へ伸びるパルスへ変換し、Pulse Wave を描画する。
 
 interface
 
@@ -8,6 +8,7 @@ uses
   Aul2AudioFilterTypes,
   Aul2AudioViewParams;
 
+// 現在フレームの波形振幅を上下対称のパルスとして透明 RGBA バッファへ描画する。
 procedure DrawPulseWave(Buffer: PPIXEL_RGBA; Width, Height: Integer;
   const Settings: TAul2AudioViewSettings; CurrentFrame: Integer);
 
@@ -20,9 +21,9 @@ uses
   Aul2AudioViewWave;
 
 var
-  CurrentWave: TAudioMonitorWaveData;
-  CurrentWaveMin: TAudioMonitorWaveData;
-  CurrentWaveMax: TAudioMonitorWaveData;
+  CurrentWave     : TAudioMonitorWaveData;
+  CurrentWaveMin  : TAudioMonitorWaveData;
+  CurrentWaveMax  : TAudioMonitorWaveData;
   CurrentWaveValid: Boolean;
 
 function InterpolateWaveAbs(const WaveA, WaveB: TAudioMonitorWaveData;
@@ -45,6 +46,7 @@ begin
 
   ValueA := WaveA[Point0] + ((WaveA[Point1] - WaveA[Point0]) * Frac);
   ValueB := WaveB[Point0] + ((WaveB[Point1] - WaveB[Point0]) * Frac);
+  // 正負どちらのピークも同じ高さへ反映するため、2系列の絶対値の大きい側を採用する。
   Result := Max(Abs(ValueA), Abs(ValueB));
   Result := Max(0.0, Min(1.0, Result));
 end;
@@ -98,6 +100,7 @@ begin
   if not CurrentWaveValid then
     Exit;
 
+  // パルスは幅を持つため、過密にならないよう Density の2倍を上限256本へ制限する。
   PulseCount := Max(4, Min(256, Settings.Density * 2));
   if Width < PulseCount then
     PulseCount := Width;
@@ -108,10 +111,13 @@ begin
       Continue;
 
     X := Round(I * Max(0, Width - 1) / Max(1, PulseCount - 1));
+    // Blocks は min/max 包絡線、Solid は中心波形からパルス高を求める。
     if Settings.Style = VIEW_STYLE_BLOCKS then
-      PulseH := Round(HalfHeight * ApplyViewGain(InterpolateWaveAbs(CurrentWaveMin, CurrentWaveMax, I, PulseCount), Settings))
+      PulseH := Round(HalfHeight * ApplyViewGain(
+        InterpolateWaveAbs(CurrentWaveMin, CurrentWaveMax, I, PulseCount), Settings))
     else
-      PulseH := Round(HalfHeight * ApplyViewGain(InterpolateWaveAbs(CurrentWave, CurrentWave, I, PulseCount), Settings));
+      PulseH := Round(HalfHeight * ApplyViewGain(
+        InterpolateWaveAbs(CurrentWave, CurrentWave, I, PulseCount), Settings));
 
     if PulseH <= 0 then
       Continue;

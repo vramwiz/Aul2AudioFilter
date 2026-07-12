@@ -1,6 +1,6 @@
 ﻿unit Aul2AudioViewRenderWaveLine;
 
-// Draws the Wave Line view type.
+// 時間波形を中央線基準の連続線と min/max 包絡線へ変換し、Wave Line を描画する。
 
 interface
 
@@ -8,6 +8,7 @@ uses
   Aul2AudioFilterTypes,
   Aul2AudioViewParams;
 
+// 現在フレームの波形を中央線基準の線として透明 RGBA バッファへ描画する。
 procedure DrawWaveLine(Buffer: PPIXEL_RGBA; Width, Height: Integer;
   const Settings: TAul2AudioViewSettings; CurrentFrame: Integer);
 
@@ -20,9 +21,9 @@ uses
   Aul2AudioViewWave;
 
 var
-  CurrentWave: TAudioMonitorWaveData;
-  CurrentWaveMin: TAudioMonitorWaveData;
-  CurrentWaveMax: TAudioMonitorWaveData;
+  CurrentWave     : TAudioMonitorWaveData;
+  CurrentWaveMin  : TAudioMonitorWaveData;
+  CurrentWaveMax  : TAudioMonitorWaveData;
   CurrentWaveValid: Boolean;
 
 function WaveValue(X, Width: Integer): Single;
@@ -40,6 +41,7 @@ begin
   Point1 := Max(0, Min(AUDIO_MONITOR_WAVE_POINT_LAST, Point0 + 1));
   Frac := Position - Point0;
 
+  // 共有波形の点数と出力幅が異なっても段差が出ないよう、隣接点を線形補間する。
   Result := CurrentWave[Point0] + ((CurrentWave[Point1] - CurrentWave[Point0]) * Frac);
   Result := Max(-1.0, Min(1.0, Result));
 end;
@@ -112,6 +114,7 @@ var
   R, G, B: Byte;
   Thickness: Integer;
 begin
+  // Style=Blocks のときだけ min/max 包絡線を薄く重ね、瞬間的なピーク幅を残す。
   if Settings.Style <> VIEW_STYLE_BLOCKS then
     Exit;
 
@@ -156,6 +159,7 @@ begin
   Thickness := Max(1, Min(32, Settings.Thickness));
 
   GetViewColor(Settings, 0, Max(1, Width), R, G, B);
+  // 無音時にも振幅ゼロの位置が分かるよう、暗い基準線を常時描画する。
   DrawLine(Buffer, Width, Height, 0, CenterY, Width - 1, CenterY,
     Max(1, Thickness div 2), R div 3, G div 3, B div 3, 255);
 

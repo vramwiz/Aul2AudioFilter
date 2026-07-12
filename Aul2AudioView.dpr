@@ -1,6 +1,6 @@
 library Aul2AudioView;
 
-// Defines the export boundary for the AviUtl2 view filter DLL.
+// Aul2AudioView の DLL エントリポイントを公開し、プラグイン本体の初期化と終了処理へ中継する。
 
 {$ALIGN 8}
 
@@ -31,6 +31,7 @@ uses
 
 function InitializePlugin(Version: DWORD): Byte; cdecl;
 begin
+  // Version は AviUtl2 側との将来の互換性確認用に受け取る。現行版では初期化処理だけを行う。
   InitializeViewPlugin;
   Result := 1;
 end;
@@ -42,6 +43,7 @@ end;
 
 function GetFilterPluginTable: PFILTER_PLUGIN_TABLE; cdecl;
 begin
+  // 登録テーブルの構築責務は Plugin ユニットへ集約し、DLL 境界ではポインターだけを返す。
   Result := GetViewFilterTable;
 end;
 

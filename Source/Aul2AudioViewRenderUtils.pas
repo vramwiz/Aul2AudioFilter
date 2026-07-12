@@ -1,6 +1,6 @@
 ﻿unit Aul2AudioViewRenderUtils;
 
-// Small pixel drawing helpers shared by Aul2AudioView render units.
+// Aul2Audio View の各描画タイプで共有する画素操作、配色、スペクトラム再標本化を担当する。
 
 interface
 
@@ -10,15 +10,21 @@ uses
   Aul2AudioViewParams;
 
 type
+  // 動的な RGBA バッファを境界検査付きの配列ポインターとして扱うための型。
   TPixelArray = array[0..0] of TPIXEL_RGBA;
   PPixelArray = ^TPixelArray;
 
+// RGBA バッファの全画素を透明に初期化する。
 procedure ClearPixels(Buffer: PPIXEL_RGBA; Width, Height: Integer);
+// 指定矩形を画像範囲内へ切り詰め、同じ RGBA 値で塗りつぶす。
 procedure FillRect(Buffer: PPIXEL_RGBA; Width, Height, X1, Y1, X2, Y2: Integer;
   R, G, B, A: Byte);
+// Settings の配色と要素位置から描画に使う RGB 値を返す。
 procedure GetViewColor(const Settings: TAul2AudioViewSettings; Index, Count: Integer;
   out R, G, B: Byte);
+// View Gain を描画値だけに適用し、結果を -1～1 に制限する。
 function ApplyViewGain(Value: Single; const Settings: TAul2AudioViewSettings): Single;
+// 指定した表示位置に対応する周波数バンドを補間し、高域強調と View Gain を適用して返す。
 function GetSpectrumDisplayValue(const Bands: TAudioMonitorSpectrumData; Valid: Boolean;
   SourceMinHz, SourceMaxHz: Single; const Settings: TAul2AudioViewSettings;
   Index, Count: Integer): Single;
@@ -41,6 +47,7 @@ begin
   if BufferSize > NativeUInt(High(NativeInt)) then
     Exit;
 
+  // 未描画領域を透明にする。各 View Type は描画前に必ずこの初期化を行う。
   FillChar(Buffer^, NativeInt(BufferSize), 0);
 end;
 
@@ -100,6 +107,7 @@ function ToColorPalette(ColorVariation: Integer): TAul2ColorPalette;
 var
   PaletteValue: Integer;
 begin
+  // 1～3 色のユーザー指定値を除いた GUI 番号をパレット列挙値へ詰め直す。
   PaletteValue := ColorVariation - 1;
   if (PaletteValue >= Ord(Low(TAul2ColorPalette))) and
      (PaletteValue <= Ord(High(TAul2ColorPalette))) then
@@ -167,6 +175,7 @@ end;
 
 function ApplyViewGain(Value: Single; const Settings: TAul2AudioViewSettings): Single;
 begin
+  // 音声や共有解析値は変更せず、描画に使う振幅だけを調整する。
   Result := Value * Max(10, Min(500, Settings.ViewGain)) / 100.0;
   Result := Max(-1.0, Min(1.0, Result));
 end;
@@ -191,6 +200,7 @@ begin
   else
     T := Index / (Count - 1);
 
+  // Log は低域の表示密度を確保し、Linear は周波数を等間隔に配置する。
   if Settings.SpectrumScale = VIEW_SPECTRUM_SCALE_LINEAR then
     Result := LowHz + ((HighHz - LowHz) * T)
   else
@@ -215,6 +225,7 @@ begin
   Band0 := Max(0, Min(AUDIO_MONITOR_SPECTRUM_BAND_LAST, Floor(Position)));
   Band1 := Max(0, Min(AUDIO_MONITOR_SPECTRUM_BAND_LAST, Band0 + 1));
   Frac := Max(0.0, Min(1.0, Position - Band0));
+  // 表示位置が元バンドの中間でも段差が出ないよう、隣接バンドを線形補間する。
   Result := Bands[Band0] + ((Bands[Band1] - Bands[Band0]) * Frac);
 end;
 

@@ -1,11 +1,14 @@
 ﻿unit Aul2ColorPalette;
 
+// Aul2Audio View の組み込み配色と、色停止点間の補間処理を提供する。
+
 interface
 
 uses
   Aul2ColorUtils;
 
 type
+  // GUI の Color Variation に対応する組み込みパレット。
   TAul2ColorPalette = (
     cpTwoColor,
     cpThreeColor,
@@ -30,17 +33,21 @@ type
     cpRetroGame
   );
 
+// パレットの色相変化が不自然になりにくい既定の補間方式を返す。
 function GetPaletteDefaultBlendMode(Palette: TAul2ColorPalette): TAul2ColorBlendMode;
+// パレット上の位置 T にある色を、指定した補間方式で計算して返す。
 function GetPaletteColor(Palette: TAul2ColorPalette; T: Double;
   BlendMode: TAul2ColorBlendMode): TAul2RGBColor;
+// パレット列挙値に対応する GUI 表示名を返す。
 function GetPaletteName(Palette: TAul2ColorPalette): string;
 
 implementation
 
 type
+  // パレット内の正規化位置と、その位置での色を表す停止点。
   TAul2PaletteStop = record
-    Pos: Double;
-    Color: TAul2RGBColor;
+    Pos  : Double;         // パレット内の位置。0が始端、1が終端。
+    Color: TAul2RGBColor; // 位置 Pos での RGB 色。
   end;
 
   TAul2PaletteStops = array of TAul2PaletteStop;
@@ -150,6 +157,7 @@ begin
   if T <= Stops[0].Pos then
     Exit(Stops[0].Color);
 
+  // T を挟む2つの停止点を探し、その区間内の相対位置へ変換して補間する。
   for I := 1 to High(Stops) do
   begin
     if T <= Stops[I].Pos then

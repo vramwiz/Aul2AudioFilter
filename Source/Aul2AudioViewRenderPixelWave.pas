@@ -1,6 +1,6 @@
 ﻿unit Aul2AudioViewRenderPixelWave;
 
-// Draws the Pixel Wave view type.
+// 時間波形を離散的な点へ変換し、Pixel Wave を描画する。
 
 interface
 
@@ -8,6 +8,7 @@ uses
   Aul2AudioFilterTypes,
   Aul2AudioViewParams;
 
+// 現在フレームの波形を点の並びとして透明 RGBA バッファへ描画する。
 procedure DrawPixelWave(Buffer: PPIXEL_RGBA; Width, Height: Integer;
   const Settings: TAul2AudioViewSettings; CurrentFrame: Integer);
 
@@ -20,9 +21,9 @@ uses
   Aul2AudioViewWave;
 
 var
-  CurrentWave: TAudioMonitorWaveData;
-  CurrentWaveMin: TAudioMonitorWaveData;
-  CurrentWaveMax: TAudioMonitorWaveData;
+  CurrentWave     : TAudioMonitorWaveData;
+  CurrentWaveMin  : TAudioMonitorWaveData;
+  CurrentWaveMax  : TAudioMonitorWaveData;
   CurrentWaveValid: Boolean;
 
 function InterpolateWave(const Wave: TAudioMonitorWaveData; Index, Count: Integer): Single;
@@ -40,6 +41,7 @@ begin
   Point1 := Max(0, Min(AUDIO_MONITOR_WAVE_POINT_LAST, Point0 + 1));
   Frac := Position - Point0;
 
+  // 点数と共有波形の解像度が異なっても段差が出ないよう、隣接点を線形補間する。
   Result := Wave[Point0] + ((Wave[Point1] - Wave[Point0]) * Frac);
   Result := Max(-1.0, Min(1.0, Result));
 end;
@@ -102,6 +104,7 @@ begin
   if not CurrentWaveValid then
     Exit;
 
+  // Density は他タイプと尺度を合わせつつ、点表示では4倍して輪郭を読み取れる密度を確保する。
   PointCount := Max(8, Min(512, Settings.Density * 4));
   if Width < PointCount then
     PointCount := Width;
@@ -113,8 +116,11 @@ begin
 
     if Settings.Style = VIEW_STYLE_BLOCKS then
     begin
-      YMin := CenterY - Round(ApplyViewGain(InterpolateWave(CurrentWaveMin, I, PointCount), Settings) * HalfHeight);
-      YMax := CenterY - Round(ApplyViewGain(InterpolateWave(CurrentWaveMax, I, PointCount), Settings) * HalfHeight);
+      // Blocks は min/max 包絡線の範囲を点で埋め、短時間ピークの幅を可視化する。
+      YMin := CenterY - Round(
+        ApplyViewGain(InterpolateWave(CurrentWaveMin, I, PointCount), Settings) * HalfHeight);
+      YMax := CenterY - Round(
+        ApplyViewGain(InterpolateWave(CurrentWaveMax, I, PointCount), Settings) * HalfHeight);
       if YMin > YMax then
       begin
         Y := YMin;

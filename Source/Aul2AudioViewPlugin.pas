@@ -1,14 +1,17 @@
 ﻿unit Aul2AudioViewPlugin;
 
-// Provides the entry point for the view filter placed on Aul2AudioBaseInput.
+// Aul2Audio View の GUI 項目登録、設定値の収集、映像処理コールバックを担当する。
 
 interface
 
 uses
   Aul2AudioFilterTypes;
 
+// AviUtl2 へ登録する View フィルターテーブルを初回呼び出し時に構築して返す。
 function GetViewFilterTable: PFILTER_PLUGIN_TABLE;
+// View が共有する解析メモリと表示履歴を利用可能な状態にする。
 procedure InitializeViewPlugin;
+// View が保持する共有メモリと表示履歴を解放する。
 procedure FinalizeViewPlugin;
 
 implementation
@@ -63,6 +66,7 @@ procedure ApplyViewDefaults(Edit: PEDIT_SECTION); cdecl;
 var
   Obj: OBJECT_HANDLE;
 begin
+  // ボタンを押したフィルターだけを初期化し、ほかの Aul2Audio View の設定には触れない。
   if (Edit = nil) or not Assigned(Edit^.GetFocusObject) then
     Exit;
 
@@ -87,6 +91,7 @@ end;
 
 procedure InitializeViewPlugin;
 begin
+  // 状態を持つ描画系ユニットは DLL 終了時と対称になる順序で初期化する。
   InitializeEqualizerBars;
   InitializeViewWave;
 end;
@@ -96,6 +101,7 @@ var
   Settings: TAul2AudioViewSettings;
 begin
   try
+    // GUI のグローバル項目をフレーム単位の値へ写し、描画側へ不変の設定として渡す。
     Settings.ViewType := GViewTypeSelect.Value;
     Settings.Style := GViewStyleSelect.Value;
     Settings.Density := Round(GViewDensityTrack.Value);
@@ -122,6 +128,7 @@ begin
     Settings.Color3B := GViewColor3Item.B;
     RenderView(Video, Settings);
   except
+    // Delphi 例外を AviUtl2 のコールバック境界より外へ漏らさない。
     Result := 0;
     Exit;
   end;
@@ -133,6 +140,7 @@ function GetViewFilterTable: PFILTER_PLUGIN_TABLE;
 var
   Layer: Integer;
 begin
+  // GTable はプロセス中に一度だけ構築し、選択肢の文字列領域をグローバルで保持する。
   if GTable.Name = nil then
   begin
     SetupPluginTable(
@@ -229,6 +237,7 @@ end;
 
 procedure FinalizeViewPlugin;
 begin
+  // 共有メモリや表示履歴を初期化時と逆順に解放する。
   FinalizeViewWave;
   FinalizeEqualizerBars;
 end;

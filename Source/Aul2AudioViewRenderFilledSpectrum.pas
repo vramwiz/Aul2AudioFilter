@@ -1,6 +1,6 @@
 ﻿unit Aul2AudioViewRenderFilledSpectrum;
 
-// Draws the Filled Spectrum view type.
+// スペクトラム値を下端から連続して塗り、Filled Spectrum を描画する。
 
 interface
 
@@ -8,6 +8,7 @@ uses
   Aul2AudioFilterTypes,
   Aul2AudioViewParams;
 
+// 現在フレームのスペクトラムを下端から塗り、透明 RGBA バッファへ描画する。
 procedure DrawFilledSpectrum(Buffer: PPIXEL_RGBA; Width, Height: Integer;
   const Settings: TAul2AudioViewSettings; CurrentFrame: Integer);
 
@@ -20,14 +21,14 @@ uses
   Aul2AudioViewSpectrum;
 
 var
-  CurrentBands: TAudioMonitorSpectrumData;
-  CurrentBandsValid: Boolean;
+  CurrentBands      : TAudioMonitorSpectrumData;
+  CurrentBandsValid : Boolean;
   CurrentSourceMinHz: Single;
   CurrentSourceMaxHz: Single;
 
 const
-  VIEW_MARGIN_X = 0; // Keep as a named value so this can become a setting later.
-  VIEW_MARGIN_Y = 0;
+  VIEW_MARGIN_X = 0; // 将来 GUI 設定へ昇格できるよう、描画領域の左右余白を名前付きで保持する。
+  VIEW_MARGIN_Y = 0; // 将来 GUI 設定へ昇格できるよう、描画領域の上下余白を名前付きで保持する。
 
 function BandValue(const Settings: TAul2AudioViewSettings; Index, Count: Integer): Single;
 begin
@@ -52,6 +53,7 @@ begin
     GetViewColor(Settings, X, AreaW, R, G, B);
 
     TopY := BaseY - FillH + 1;
+    // 上端の白線は周波数ごとの振幅輪郭を背景色から分離する。
     FillRect(Buffer, Width, Height, MarginX + X, TopY, MarginX + X, BaseY, R, G, B, 255);
     FillRect(Buffer, Width, Height, MarginX + X, TopY, MarginX + X, TopY + 1, 255, 255, 255, 255);
   end;
@@ -86,6 +88,7 @@ begin
       FillRect(Buffer, Width, Height, MarginX + X, Y2 - BlockH + 1, MarginX + X, Y2, R, G, B, 255);
     end;
 
+    // ブロック表示でも最上段へ輪郭線を置き、Solid と同じ振幅位置を読み取れるようにする。
     Y2 := BaseY - FillCount * (BlockH + Gap) + Gap;
     FillRect(Buffer, Width, Height, MarginX + X, Y2, MarginX + X, Y2 + 1, 255, 255, 255, 255);
   end;

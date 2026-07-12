@@ -8,26 +8,35 @@ uses
   System.SysUtils,
   Aul2AudioFilterTypes;
 
+// フィルター基本情報と映像・音声コールバックを GTable へ設定する。
 procedure SetupPluginTable(Flag: Integer; Name, Label_, Information: PWideChar;
   VideoProc: TFuncProcVideo; AudioProc: TFuncProcAudio);
+// 後続項目をまとめる折りたたみ可能な GUI グループを登録する。
 procedure AddGroup(var Item: TFILTER_ITEM_GROUP; Name: PWideChar;
   DefaultVisible: Integer);
+// ON/OFF 値を保持するチェック項目を登録する。
 procedure AddCheck(var Item: TFILTER_ITEM_CHECK; Name: PWideChar; Value: Integer);
+// RGBA 初期値を持つ色選択項目を登録する。
 procedure AddColor(var Item: TFILTER_ITEM_COLOR; Name: PWideChar; R, G, B: Byte;
   Alpha: Byte = 255);
+// 初期値、範囲、刻み、表示倍率を持つ数値トラックを登録する。
 procedure AddTrack(var Item: TFILTER_ITEM_TRACK; Name: PWideChar;
   Value, S, E, Step: Double; ZeroDisplay: PWideChar = nil;
   SliderRatio: Double = 1.0);
+// nil 終端された選択肢配列を参照する選択項目を登録する。
 procedure AddSelect(var Item: TFILTER_ITEM_SELECT; Name: PWideChar; Value: Integer;
   List: Pointer);
+// AviUtl2 の編集コールバックを呼び出すボタン項目を登録する。
 procedure AddButton(var Item: TFILTER_ITEM_BUTTON; Name: PWideChar;
   Callback: TFilterItemButtonCallback);
+// 次に作る選択肢配列へ影響しないよう、選択リスト作成位置を初期化する。
 procedure ClearSelectList;
+// 選択肢配列の次の空き位置へ表示名と値を追加し、後続要素を nil 終端する。
 procedure AddSelectList(var List: array of TFILTER_ITEM_SELECT_ITEM; Name: PWideChar;
   Value: Integer);
 
 var
-  GTable: TFILTER_PLUGIN_TABLE; // AviUtl2 へ返すフィルターテーブル
+  GTable: TFILTER_PLUGIN_TABLE; // AviUtl2 へ返すプロセス共通のフィルターテーブル。
 
 implementation
 

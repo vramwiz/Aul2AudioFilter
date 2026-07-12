@@ -1,14 +1,17 @@
 ﻿unit Aul2AudioViewSpectrum;
 
-// Reads and smooths spectrum values for Aul2AudioView render units.
+// 共有メモリ履歴から描画フレームに対応するスペクトラムを選び、表示用に平滑化して返す。
 
 interface
 
 uses
   Aul2AudioMonitorSpectrumShared;
 
+// スペクトラム共有メモリを開き、描画値を取得できる状態にする。
 procedure InitializeViewSpectrum;
+// スペクトラム共有メモリと ViewFrame 共有メモリを解放し、平滑化履歴を無効にする。
 procedure FinalizeViewSpectrum;
+// 指定フレームとレイヤーに最も近いスペクトラムを取得し、平滑化した表示値と周波数範囲を返す。
 procedure UpdateViewSpectrum(Smooth: Integer; out Bands: TAudioMonitorSpectrumData;
   out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single;
   CurrentFrame, SourceLayer: Integer);
@@ -23,9 +26,9 @@ uses
   Aul2AudioViewFrameShared;
 
 var
-  SpectrumMemory: TAul2AudioMonitorSpectrumSharedMemory;
-  ViewFrameMemory: TAul2AudioViewFrameSharedMemory;
-  DisplayBands: TAudioMonitorSpectrumData;
+  SpectrumMemory  : TAul2AudioMonitorSpectrumSharedMemory;
+  ViewFrameMemory : TAul2AudioViewFrameSharedMemory;
+  DisplayBands    : TAudioMonitorSpectrumData;
   DisplayBandsValid: Boolean;
 
 procedure InitializeViewSpectrum;
@@ -51,6 +54,7 @@ procedure UpdateViewFrame(CurrentFrame: Integer);
 var
   State: PAul2AudioViewFrameState;
 begin
+  // Monitor が同じ描画時刻を選べるよう、実際に View が処理した編集全体のフレームを通知する。
   try
     if ViewFrameMemory = nil then
       ViewFrameMemory := TAul2AudioViewFrameSharedMemory.Create;
@@ -75,6 +79,7 @@ var
 begin
   NewValue := Max(0.0, Min(1.0, NewValue));
   SmoothRate := Max(0, Min(100, Smooth)) / 100.0;
+  // 立ち上がりを速く、減衰を遅くして、音への反応と表示の安定性を両立する。
   if NewValue > DisplayValue then
     Alpha := 0.85 - (SmoothRate * 0.65)
   else
@@ -102,6 +107,7 @@ end;
 
 function ResolveSourceLayer(SourceLayer: Integer): Integer;
 begin
+  // GUI は 1-based、共有メモリのレイヤースロットは 0-based で保持する。
   if SourceLayer <= 0 then
     Exit(AUDIO_MONITOR_LAYER_AUTO);
 
@@ -142,6 +148,7 @@ begin
 
   CandidateDistance := StateFrameDistance(Candidate, CurrentFrame);
   CurrentDistance := StateFrameDistance(Current, CurrentFrame);
+  // 音声先読みによる未来側の値を避けるため、更新時刻よりフレーム距離を優先する。
   if CandidateDistance <> CurrentDistance then
     Exit(CandidateDistance < CurrentDistance);
 
@@ -185,6 +192,7 @@ end;
 
 function SelectSpectrumState(CurrentFrame, InternalLayer: Integer): PAul2AudioMonitorSpectrumState;
 begin
+  // Auto は全レイヤーから最も近い履歴を選び、個別指定時は対象レイヤーだけを調べる。
   if InternalLayer = AUDIO_MONITOR_LAYER_AUTO then
   begin
     Result := FindBestSpectrumHistory(CurrentFrame);
@@ -200,6 +208,7 @@ begin
 
   if not (SpectrumStateUsable(Result) and StateMatchesFrame(Result, CurrentFrame)) then
     Result := nil;
+  // 近傍履歴がない場合は別時刻のスペクトラムを表示せず、呼び出し側へ無効として返す。
   if (Result <> nil) and (StateFrameDistance(Result, CurrentFrame) > 1) then
     Result := nil;
 end;

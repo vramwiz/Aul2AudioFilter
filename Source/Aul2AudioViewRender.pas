@@ -1,6 +1,6 @@
 ﻿unit Aul2AudioViewRender;
 
-// Builds the first visible frame for Aul2AudioView and sends it to AviUtl2.
+// 表示タイプ別の描画を振り分け、生成した RGBA 画像を AviUtl2 へ出力する。
 
 interface
 
@@ -8,6 +8,7 @@ uses
   Aul2AudioFilterTypes,
   Aul2AudioViewParams;
 
+// Settings に対応する透明 RGBA 画像を生成し、Video の映像出力として AviUtl2 へ渡す。
 procedure RenderView(Video: PFILTER_PROC_VIDEO; const Settings: TAul2AudioViewSettings);
 
 implementation
@@ -24,7 +25,7 @@ uses
   Aul2AudioViewRenderWaveLine;
 
 const
-  GPU_TEXTURE_OUT_STAGE1 = False;
+  GPU_TEXTURE_OUT_STAGE1 = False; // GPU 出力は検証用。通常は安定している SetImageData を使う。
 
 procedure OutputImageData(Video: PFILTER_PROC_VIDEO; Buffer: Pointer; Width, Height: Integer);
 begin
@@ -48,12 +49,14 @@ begin
     Exit;
 
   ObjectInfo := Video^.Object_;
+  // 共有メモリ履歴との同期に使うため、オブジェクト内ではなく編集全体のフレームへ正規化する。
   Result := ObjectInfo^.FrameS + ObjectInfo^.Frame;
 end;
 
 procedure DrawViewType(Buffer: PPIXEL_RGBA; Width, Height: Integer;
   const Settings: TAul2AudioViewSettings; CurrentFrame: Integer);
 begin
+  // 未知の値は Equalizer Bars へ戻し、破損した設定でも透明な未初期化バッファを出力しない。
   case Settings.ViewType of
     VIEW_TYPE_EQUALIZER_BARS: DrawEqualizerBars(Buffer, Width, Height, Settings, CurrentFrame);
     VIEW_TYPE_WAVE_LINE: DrawWaveLine(Buffer, Width, Height, Settings, CurrentFrame);
@@ -88,6 +91,7 @@ begin
   BufferSize := NativeUInt(Width) * NativeUInt(Height) * SizeOf(TPIXEL_RGBA);
   GetMem(Buffer, BufferSize);
   try
+    // 描画ユニットが全画素を初期化してから、同じ寿命内に AviUtl2 へコピーする。
     DrawViewType(Buffer, Width, Height, Settings, CurrentFrame);
     OutputImageData(Video, Buffer, Width, Height);
   finally

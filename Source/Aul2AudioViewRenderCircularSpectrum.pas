@@ -1,6 +1,6 @@
 ﻿unit Aul2AudioViewRenderCircularSpectrum;
 
-// Draws the Circular Spectrum view type.
+// スペクトラム値を中心から外側へ伸びる放射状バーへ変換し、Circular Spectrum を描画する。
 
 interface
 
@@ -8,6 +8,7 @@ uses
   Aul2AudioFilterTypes,
   Aul2AudioViewParams;
 
+// 現在フレームのスペクトラムを円周上へ配置し、透明 RGBA バッファへ描画する。
 procedure DrawCircularSpectrum(Buffer: PPIXEL_RGBA; Width, Height: Integer;
   const Settings: TAul2AudioViewSettings; CurrentFrame: Integer);
 
@@ -20,17 +21,18 @@ uses
   Aul2AudioViewSpectrum;
 
 var
-  CurrentBands: TAudioMonitorSpectrumData;
-  CurrentBandsValid: Boolean;
+  CurrentBands      : TAudioMonitorSpectrumData;
+  CurrentBandsValid : Boolean;
   CurrentSourceMinHz: Single;
   CurrentSourceMaxHz: Single;
 
 type
+  // 動的な RGBA バッファを座標から直接参照するための配列ポインター型。
   TPixelArray = array[0..0] of TPIXEL_RGBA;
   PPixelArray = ^TPixelArray;
 
 const
-  START_ANGLE = -Pi / 2.0;
+  START_ANGLE = -Pi / 2.0; // 最低周波数のバーを円の上端から開始する角度。
 
 procedure PutPixel(Buffer: PPixelArray; Width, Height, X, Y: Integer; R, G, B, A: Byte);
 var
@@ -82,6 +84,7 @@ begin
     Exit;
 
   Pixels := PPixelArray(Buffer);
+  // 長辺の画素数で補間し、角度に依存する線の途切れを防ぐ。
   Steps := Ceil(Max(Abs(X2 - X1), Abs(Y2 - Y1)));
   Radius := Max(0, Thickness div 2);
   if Steps <= 0 then
@@ -209,6 +212,7 @@ begin
   CX := (Width - 1) / 2.0;
   CY := (Height - 1) / 2.0;
   MaxRadius := Max(1.0, Min(Width, Height) / 2.0 - Max(1, Settings.Thickness));
+  // 外周へ描画可能な長さを残すため、開始半径は最大半径の 92% までに制限する。
   RadiusRatio := Max(0.0, Min(0.92, Settings.BaseRadius / 100.0));
   InnerRadius := Max(0.0, MaxRadius * RadiusRatio);
   OuterRadius := MaxRadius;

@@ -1,6 +1,6 @@
-unit Aul2AudioViewRenderMirrorBars;
+﻿unit Aul2AudioViewRenderMirrorBars;
 
-// Draws the Mirror Bars view type.
+// スペクトラム値を画面中央から上下対称に伸びるバーへ変換し、Mirror Bars を描画する。
 
 interface
 
@@ -8,6 +8,7 @@ uses
   Aul2AudioFilterTypes,
   Aul2AudioViewParams;
 
+// 現在フレームのスペクトラムを上下対称のバーとして透明 RGBA バッファへ描画する。
 procedure DrawMirrorBars(Buffer: PPIXEL_RGBA; Width, Height: Integer;
   const Settings: TAul2AudioViewSettings; CurrentFrame: Integer);
 
@@ -20,8 +21,8 @@ uses
   Aul2AudioViewSpectrum;
 
 var
-  CurrentBands: TAudioMonitorSpectrumData;
-  CurrentBandsValid: Boolean;
+  CurrentBands      : TAudioMonitorSpectrumData;
+  CurrentBandsValid : Boolean;
   CurrentSourceMinHz: Single;
   CurrentSourceMaxHz: Single;
 
@@ -54,6 +55,7 @@ begin
 
     X := I * BarW;
     GetViewColor(Settings, I, Count, R, G, B);
+    // 中央線を空けて上下を分離し、対称形の基準位置を見失わないようにする。
     FillRect(Buffer, Width, Height, X, CenterY - BarH, X + BarW - 1, CenterY - 1, R, G, B, 255);
     FillRect(Buffer, Width, Height, X, CenterY + 1, X + BarW - 1, CenterY + BarH, R, G, B, 255);
   end;
@@ -113,6 +115,7 @@ begin
     CurrentSourceMinHz, CurrentSourceMaxHz, CurrentFrame, Settings.SourceLayer);
 
   CenterY := Height div 2;
+  // 奇数・偶数どちらの高さでも上下が画像範囲へ収まる短い側を描画半径にする。
   HalfH := Max(1, Min(CenterY, Height - CenterY - 1));
   if Settings.Style = VIEW_STYLE_BLOCKS then
     DrawBlockMirror(Buffer, Width, Height, Width, HalfH, CenterY, Settings)

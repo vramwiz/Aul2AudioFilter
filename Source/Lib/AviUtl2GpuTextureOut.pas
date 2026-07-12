@@ -1,6 +1,6 @@
 ﻿unit AviUtl2GpuTextureOut;
 
-// Optional D3D11 texture output path for AviUtl2 video filters.
+// RGBA バッファを D3D11 テクスチャ経由で AviUtl2 へ渡す任意の高速出力経路を提供する。
 
 interface
 
@@ -8,7 +8,9 @@ uses
   Winapi.Windows,
   Aul2AudioFilterTypes;
 
+// Buffer を一時 D3D11 テクスチャへ転送し、AviUtl2 の出力先へコピーできた場合 True を返す。
 function TryOutputBufferAsTexture(Video: PFILTER_PROC_VIDEO; Buffer: Pointer; Width, Height: Integer): Boolean;
+// 直近の GPU 出力試行結果を診断用文字列として返す。
 function LastGpuTextureOutStatus: string;
 
 implementation
@@ -176,7 +178,8 @@ begin
 
       if (Desc.Width <> LongWord(Width)) or (Desc.Height <> LongWord(Height)) then
       begin
-        SetStatus(Format('framebuffer size mismatch: %dx%d <> %dx%d', [Desc.Width, Desc.Height, Width, Height]));
+        SetStatus(Format('framebuffer size mismatch: %dx%d <> %dx%d',
+          [Desc.Width, Desc.Height, Width, Height]));
         Exit;
       end;
 

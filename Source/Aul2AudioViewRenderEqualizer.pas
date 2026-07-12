@@ -1,6 +1,6 @@
 ﻿unit Aul2AudioViewRenderEqualizer;
 
-// Draws the Equalizer Bars view type.
+// スペクトラム値を下端基準の縦バーへ変換し、Equalizer Bars を描画する。
 
 interface
 
@@ -8,8 +8,11 @@ uses
   Aul2AudioFilterTypes,
   Aul2AudioViewParams;
 
+// Equalizer Bars が使うスペクトラム共有メモリを初期化する。
 procedure InitializeEqualizerBars;
+// Equalizer Bars の共有メモリと表示履歴を解放する。
 procedure FinalizeEqualizerBars;
+// 現在フレームのスペクトラムを縦バーへ変換し、透明 RGBA バッファへ描画する。
 procedure DrawEqualizerBars(Buffer: PPIXEL_RGBA; Width, Height: Integer;
   const Settings: TAul2AudioViewSettings; CurrentFrame: Integer);
 
@@ -22,14 +25,14 @@ uses
   Aul2AudioViewSpectrum;
 
 var
-  CurrentBands: TAudioMonitorSpectrumData;
-  CurrentBandsValid: Boolean;
+  CurrentBands      : TAudioMonitorSpectrumData;
+  CurrentBandsValid : Boolean;
   CurrentSourceMinHz: Single;
   CurrentSourceMaxHz: Single;
 
 const
-  VIEW_MARGIN_X = 0; // Keep as a named value so this can become a setting later.
-  VIEW_MARGIN_Y = 0;
+  VIEW_MARGIN_X = 0; // 将来 GUI 設定へ昇格できるよう、描画領域の左右余白を名前付きで保持する。
+  VIEW_MARGIN_Y = 0; // 将来 GUI 設定へ昇格できるよう、描画領域の上下余白を名前付きで保持する。
 
 procedure InitializeEqualizerBars;
 begin
@@ -55,6 +58,7 @@ var
   R, G, B: Byte;
 begin
   Count := Max(4, Min(128, Settings.Density));
+  // Solid は隣接バーを密着させ、連続したスペクトラム面として見せる。
   Gap := 0;
   BarW := Max(1, AreaW div Count);
 
@@ -91,6 +95,7 @@ begin
   Count := Max(4, Min(128, Settings.Density));
   Gap := Max(0, Min(32, Settings.Spacing));
   BarW := Max(1, (AreaW - (Gap * (Count - 1))) div Count);
+  // ブロック高さをバー幅に追従させ、解像度や Density が変わっても縦横比を保つ。
   BlockH := Max(1, Round(BarW * 0.62));
   BlockCount := Max(1, (AreaH + Gap) div Max(1, BlockH + Gap));
 

@@ -20,37 +20,40 @@ const
 type
   TAudioMonitorSpectrumData = array[0..AUDIO_MONITOR_SPECTRUM_BAND_LAST] of Single;
 
+  // 1レイヤー、1解析時点の周波数バンドと音声位置を保持する共有状態。
   PAul2AudioMonitorSpectrumState = ^TAul2AudioMonitorSpectrumState;
   TAul2AudioMonitorSpectrumState = record
-    Magic       : Cardinal;
-    Version     : Cardinal;
-    Generation  : Int64;
-    UpdateTick  : UInt64;
-    SampleRate  : Integer;
-    SampleNum   : Integer;
-    ChannelNum  : Integer;
-    SourceFrame : Integer;
-    SourceFrameS: Integer;
-    SourceFrameE: Integer;
-    SourceLayer : Integer;
-    SourceIndex : Integer;
-    SampleIndex : Int64;
-    BandCount   : Integer;
-    MinHz       : Single;
-    MaxHz       : Single;
-    InputBands  : TAudioMonitorSpectrumData;
-    OutputBands : TAudioMonitorSpectrumData;
+    Magic       : Cardinal;                  // AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC。
+    Version     : Cardinal;                  // AUDIO_MONITOR_SPECTRUM_SHARED_VERSION。
+    Generation  : Int64;                     // 書き込み世代を識別する単調増加値。
+    UpdateTick  : UInt64;                    // 更新の鮮度を判定する GetTickCount64 値。
+    SampleRate  : Integer;                   // 元音声のサンプリング周波数。
+    SampleNum   : Integer;                   // 今回解析した1チャンネル当たりのサンプル数。
+    ChannelNum  : Integer;                   // 元音声のチャンネル数。
+    SourceFrame : Integer;                   // 音声オブジェクト内の相対フレーム。
+    SourceFrameS: Integer;                   // 音声オブジェクトの開始フレーム。
+    SourceFrameE: Integer;                   // 音声オブジェクトの終了フレーム。
+    SourceLayer : Integer;                   // 解析元の内部0-basedレイヤー。
+    SourceIndex : Integer;                   // 音声処理コールバック内のブロック位置。
+    SampleIndex : Int64;                     // 音声オブジェクト内の先頭サンプル位置。
+    BandCount   : Integer;                   // InputBands / OutputBands の有効バンド数。
+    MinHz       : Single;                    // 最初のバンドが表す周波数。
+    MaxHz       : Single;                    // 最後のバンドが表す周波数。
+    InputBands  : TAudioMonitorSpectrumData; // 処理前の正規化スペクトラム。
+    OutputBands : TAudioMonitorSpectrumData; // 処理後の正規化スペクトラム。
   end;
 
+  // 最新スペクトラムとフレーム同期用履歴をレイヤーごとに保持するルート。
   PAul2AudioMonitorLayeredSpectrumState = ^TAul2AudioMonitorLayeredSpectrumState;
   TAul2AudioMonitorLayeredSpectrumState = record
-    Magic     : Cardinal;
-    Version   : Cardinal;
-    Generation: Int64;
-    LastLayer : Integer;
-    HistoryIndex: array[0..AUDIO_MONITOR_LAYER_SLOT_LAST] of Integer;
-    Slots     : array[0..AUDIO_MONITOR_LAYER_SLOT_LAST] of TAul2AudioMonitorSpectrumState;
-    History   : array[0..AUDIO_MONITOR_LAYER_SLOT_LAST, 0..AUDIO_MONITOR_SPECTRUM_HISTORY_LAST] of TAul2AudioMonitorSpectrumState;
+    Magic       : Cardinal; // AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC。
+    Version     : Cardinal; // AUDIO_MONITOR_SPECTRUM_SHARED_VERSION。
+    Generation  : Int64;    // ルート全体の初期化世代。
+    LastLayer   : Integer;  // 最後に更新された内部レイヤー。
+    HistoryIndex: array[0..AUDIO_MONITOR_LAYER_SLOT_LAST] of Integer; // 次に書く履歴位置。
+    Slots       : array[0..AUDIO_MONITOR_LAYER_SLOT_LAST] of TAul2AudioMonitorSpectrumState; // 最新値。
+    History     : array[0..AUDIO_MONITOR_LAYER_SLOT_LAST,
+      0..AUDIO_MONITOR_SPECTRUM_HISTORY_LAST] of TAul2AudioMonitorSpectrumState; // 同期用リング。
   end;
 
   TAul2AudioMonitorSpectrumSharedMemory = class(TSharedMemoryBase)
@@ -58,11 +61,14 @@ type
     function GetRoot: PAul2AudioMonitorLayeredSpectrumState;
     function GetState: PAul2AudioMonitorSpectrumState;
   public
+    // スペクトラム用マップを開き、初回作成または版不一致時にルートを初期化する。
     constructor Create; reintroduce;
+    // 指定した内部0-basedレイヤーの最新状態を返し、範囲外なら nil を返す。
     function GetStateForLayer(Layer: Integer): PAul2AudioMonitorSpectrumState;
+    // 指定レイヤーとリング添字の履歴状態を返し、範囲外なら nil を返す。
     function GetHistoryStateForLayer(Layer, Index: Integer): PAul2AudioMonitorSpectrumState;
-    property Root: PAul2AudioMonitorLayeredSpectrumState read GetRoot;
-    property State: PAul2AudioMonitorSpectrumState read GetState;
+    property Root: PAul2AudioMonitorLayeredSpectrumState read GetRoot; // 共有メモリのルート。
+    property State: PAul2AudioMonitorSpectrumState read GetState;      // 最終更新レイヤーの最新値。
   end;
 
 implementation

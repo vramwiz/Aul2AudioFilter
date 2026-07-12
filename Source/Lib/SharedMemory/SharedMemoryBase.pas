@@ -50,73 +50,80 @@
 }
 unit SharedMemoryBase;
 
+// Windows の名前付き共有メモリと、固定長共有文字列リストの基本操作を提供する。
+
 interface
 
 uses
   Windows, SysUtils, Math;
 
 type
-  { 汎用共有メモリ管理クラス }
+  // 名前付きメモリマップの生成、参照、解放を所有する基底クラス。
   TSharedMemoryBase = class
   private
-    FHandle: THandle;   // CreateFileMapping のハンドル
-    FView: Pointer;     // MapViewOfFile の結果（マップ先アドレス）
-    FSize: Integer;     // 確保サイズ（バイト）
-    FName: string;      // 共有メモリ名（例："Local\SharedMemTest"）
-    FIsOwner: Boolean;  // 初回生成フラグ（既存なら False）
+    FHandle : THandle;  // CreateFileMapping が返したマッピングハンドル。
+    FView   : Pointer;  // MapViewOfFile が返した共有領域の先頭アドレス。
+    FSize   : Integer;  // 共有領域のバイト数。
+    FName   : string;   // Local\ を含む名前付きマップ名。
+    FIsOwner: Boolean;  // このインスタンスが共有領域を初回作成した場合 True。
 
     function GetIsOpened: Boolean;
   protected
-    { 内部ユーティリティ：基本型アクセス（再利用用） }
+    // 共有領域へ Integer を書き込む。Dest=nil の場合は何もしない。
     procedure WriteInt(Dest: PInteger; const Value: Integer);
+    // 共有領域から Integer を読み、Src=nil の場合は 0 を返す。
     function  ReadInt(Src: PInteger): Integer;
 
+    // 固定長 WideChar 領域へ終端を保証して文字列を書き込む。
     procedure WriteString(Dest: PWideChar; MaxLen: Integer; const Value: string);
+    // 固定長 WideChar 領域から最大 MaxLen 文字を文字列として読み取る。
     function  ReadString(Src: PWideChar; MaxLen: Integer): string;
 
+    // 指定した共有領域をゼロで初期化する。
     procedure ClearBuffer(Dest: Pointer; Size: Integer);
 
-    { マッピング操作（派生側でフック可能） }
+    // 名前付き共有メモリを作成または開き、現在のプロセスへマップする。
     function Map: Boolean; virtual;
+    // 現在のビューとマッピングハンドルを安全に解放する。
     procedure Unmap; virtual;
   public
+    // AName と ASize で共有領域を開き、既存領域か初回作成かを IsOwner に保持する。
     constructor Create(const AName: string; ASize: Integer); virtual;
+    // マップ済みビューとハンドルを解放する。
     destructor Destroy; override;
 
-    { 状態確認 }
-    property Handle: THandle read FHandle;
-    property View: Pointer read FView;
-    property Size: Integer read FSize;
-    property Name: string read FName;
-    property IsOpened: Boolean read GetIsOpened;
-    property IsOwner: Boolean read FIsOwner;
+    property Handle  : THandle read FHandle;       // マッピングハンドル。
+    property View    : Pointer read FView;         // 共有領域の先頭アドレス。
+    property Size    : Integer read FSize;         // 共有領域のバイト数。
+    property Name    : string read FName;          // 名前付きマップ名。
+    property IsOpened: Boolean read GetIsOpened;   // View が有効な場合 True。
+    property IsOwner : Boolean read FIsOwner;      // 初回作成した場合 True。
   end;
 
-  { 固定スロット方式の共有文字列リストクラス      }
-
+  // 共有領域上に行数と固定長 WideChar スロットを並べる文字列リスト。
   TSharedMemoryStringList = class(TSharedMemoryBase)
   private
-    FMaxLines: Integer;  // 最大行数
-    FMaxLen: Integer;    // 1行あたり最大文字数（WideChar単位）
+    FMaxLines: Integer; // 格納可能な最大行数。
+    FMaxLen  : Integer; // 1行の最大文字数。終端を含む WideChar 単位。
 
     function GetCount: Integer;
     procedure SetCount(Value: Integer);
     function GetString(Index: Integer): string;
     procedure SetString(Index: Integer; const Value: string);
   public
-    { 生成時に上限を指定して確保サイズを自動算出 }
+    // 行数と文字数から必要サイズを計算し、固定スロット式の共有リストを開く。
     constructor Create(const AName: string; AMaxLines, AMaxLen: Integer); reintroduce; virtual;
 
-    function Add(const S: string): Boolean;      // 行追加 True:成功
-    function IndexOf(const S: string): Integer;  // 文字列検索
+    // 末尾へ文字列を追加し、容量不足なら False を返す。
+    function Add(const S: string): Boolean;
+    // 完全一致する最初の行番号を返し、見つからなければ -1 を返す。
+    function IndexOf(const S: string): Integer;
 
-    { 行数と個別アクセス }
-    property Count: Integer read GetCount write SetCount;
+    property Count: Integer read GetCount write SetCount; // 現在の有効行数。
     property Strings[Index: Integer]: string read GetString write SetString; default;
 
-    { パラメータ確認用 }
-    property MaxLines: Integer read FMaxLines;
-    property MaxLen: Integer read FMaxLen;
+    property MaxLines: Integer read FMaxLines; // 格納可能な最大行数。
+    property MaxLen  : Integer read FMaxLen;   // 1行の最大 WideChar 数。
   end;
 
 implementation

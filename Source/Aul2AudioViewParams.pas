@@ -1,21 +1,24 @@
 ﻿unit Aul2AudioViewParams;
 
-// Shared parameter definitions for Aul2AudioView render units.
+// Aul2Audio View の GUI と各描画ユニットが共有する設定値、選択値、設定レコードを定義する。
 
 interface
 
 const
-  VIEW_TYPE_EQUALIZER_BARS  = 0;
-  VIEW_TYPE_WAVE_LINE       = 1;
-  VIEW_TYPE_PIXEL_WAVE      = 2;
-  VIEW_TYPE_FILLED_SPECTRUM = 3;
-  VIEW_TYPE_PULSE_WAVE      = 4;
+  // GUI の Type 選択値と描画分岐で共用するため、既存値の番号は変更しない。
+  VIEW_TYPE_EQUALIZER_BARS    = 0;
+  VIEW_TYPE_WAVE_LINE         = 1;
+  VIEW_TYPE_PIXEL_WAVE        = 2;
+  VIEW_TYPE_FILLED_SPECTRUM   = 3;
+  VIEW_TYPE_PULSE_WAVE        = 4;
   VIEW_TYPE_CIRCULAR_SPECTRUM = 5;
-  VIEW_TYPE_MIRROR_BARS     = 6;
+  VIEW_TYPE_MIRROR_BARS       = 6;
 
+  // 描画タイプが対応する場合だけ Blocks を使い、それ以外は Solid と同じ連続描画にする。
   VIEW_STYLE_SOLID  = 0;
   VIEW_STYLE_BLOCKS = 1;
 
+  // 保存済みプロジェクトとの互換性があるため、色バリエーションは末尾へ追加する。
   VIEW_COLOR_VARIATION_ONE_COLOR  = 0;
   VIEW_COLOR_VARIATION_TWO_COLOR  = 1;
   VIEW_COLOR_VARIATION_THREE_COLOR = 2;
@@ -48,31 +51,32 @@ const
   VIEW_SPECTRUM_SCALE_LINEAR = 1;
 
 type
+  // 1 回の映像コールバックで使う GUI 設定のスナップショット。
   TAul2AudioViewSettings = record
-    ViewType: Integer;
-    Style: Integer;
-    Density: Integer;
-    Spacing: Integer;
-    Thickness: Integer;
-    BaseRadius: Integer;
-    Smooth: Integer;
-    ViewGain: Integer;
-    SourceLayer: Integer;
-    SpectrumScale: Integer;
-    SpectrumLowHz: Integer;
-    SpectrumHighHz: Integer;
-    SpectrumHighBoost: Integer;
-    ColorVariation: Integer;
-    ColorBlend: Integer;
-    Color1R: Byte;
-    Color1G: Byte;
-    Color1B: Byte;
-    Color2R: Byte;
-    Color2G: Byte;
-    Color2B: Byte;
-    Color3R: Byte;
-    Color3G: Byte;
-    Color3B: Byte;
+    ViewType         : Integer; // 描画タイプを選ぶ VIEW_TYPE_* の値。
+    Style            : Integer; // 連続描画またはブロック描画を選ぶ VIEW_STYLE_* の値。
+    Density          : Integer; // バー、点、パルスなどを横方向へ配置する基準数。
+    Spacing          : Integer; // 隣接する描画要素の間隔をピクセル単位で指定する。
+    Thickness        : Integer; // 線幅、点サイズ、バー幅など描画要素の太さ。
+    BaseRadius       : Integer; // 円形表示が描画を開始する半径の割合。
+    Smooth           : Integer; // 解析値の時間方向の平滑化率。
+    ViewGain         : Integer; // 描画振幅だけに適用する倍率をパーセントで指定する。
+    SourceLayer      : Integer; // 解析元レイヤー。0 は Auto、1..64 は表示レイヤー番号。
+    SpectrumScale    : Integer; // 周波数軸を選ぶ VIEW_SPECTRUM_SCALE_* の値。
+    SpectrumLowHz    : Integer; // スペクトラム表示に含める下限周波数。
+    SpectrumHighHz   : Integer; // スペクトラム表示に含める上限周波数。
+    SpectrumHighBoost: Integer; // 高域側の表示値へ加える強調率。
+    ColorVariation   : Integer; // 配色を選ぶ VIEW_COLOR_VARIATION_* の値。
+    ColorBlend       : Integer; // 色補間方式を選ぶ VIEW_COLOR_BLEND_* の値。
+    Color1R          : Byte;    // Color 1 の赤成分。
+    Color1G          : Byte;    // Color 1 の緑成分。
+    Color1B          : Byte;    // Color 1 の青成分。
+    Color2R          : Byte;    // Color 2 の赤成分。
+    Color2G          : Byte;    // Color 2 の緑成分。
+    Color2B          : Byte;    // Color 2 の青成分。
+    Color3R          : Byte;    // Color 3 の赤成分。
+    Color3G          : Byte;    // Color 3 の緑成分。
+    Color3B          : Byte;    // Color 3 の青成分。
   end;
 
 implementation
