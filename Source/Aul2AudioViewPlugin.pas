@@ -47,6 +47,43 @@ var
   GViewColorBlendList  : array[0..4] of TFILTER_ITEM_SELECT_ITEM;
   GViewSmoothTrack : TFILTER_ITEM_TRACK;
   GViewGainTrack   : TFILTER_ITEM_TRACK;
+  GViewResetButton : TFILTER_ITEM_BUTTON;
+
+function SetViewObjectItem(Edit: PEDIT_SECTION; Obj: OBJECT_HANDLE;
+  Item: PWideChar; const Value: UTF8String): Boolean;
+begin
+  Result := False;
+  if (Edit = nil) or (Obj = nil) or not Assigned(Edit^.SetObjectItemValue) then
+    Exit;
+
+  Result := Edit^.SetObjectItemValue(Obj, 'Aul2Audio View', Item, PAnsiChar(Value)) <> 0;
+end;
+
+procedure ApplyViewDefaults(Edit: PEDIT_SECTION); cdecl;
+var
+  Obj: OBJECT_HANDLE;
+begin
+  if (Edit = nil) or not Assigned(Edit^.GetFocusObject) then
+    Exit;
+
+  Obj := Edit^.GetFocusObject;
+  if Obj = nil then
+    Exit;
+
+  SetViewObjectItem(Edit, Obj, 'Source Layer', UTF8String('0'));
+  SetViewObjectItem(Edit, Obj, 'Type', UTF8String('0'));
+  SetViewObjectItem(Edit, Obj, 'Style', UTF8String('1'));
+  SetViewObjectItem(Edit, Obj, 'Density', UTF8String('32'));
+  SetViewObjectItem(Edit, Obj, 'Spacing', UTF8String('2'));
+  SetViewObjectItem(Edit, Obj, 'Thickness', UTF8String('2'));
+  SetViewObjectItem(Edit, Obj, 'Base Radius', UTF8String('24'));
+  SetViewObjectItem(Edit, Obj, 'Smooth', UTF8String('50'));
+  SetViewObjectItem(Edit, Obj, 'View Gain(%)', UTF8String('100'));
+  SetViewObjectItem(Edit, Obj, 'Spectrum Scale', UTF8String('0'));
+  SetViewObjectItem(Edit, Obj, 'Low Hz', UTF8String('40'));
+  SetViewObjectItem(Edit, Obj, 'High Hz', UTF8String('12000'));
+  SetViewObjectItem(Edit, Obj, 'High Boost', UTF8String('0'));
+end;
 
 procedure InitializeViewPlugin;
 begin
@@ -115,6 +152,7 @@ begin
       AddSelectList(GViewSourceLayerList, PWideChar(GViewSourceLayerNames[Layer]), Layer);
     end;
     AddSelect(GViewSourceLayerSelect, 'Source Layer', 0, @GViewSourceLayerList[0]);
+    AddButton(GViewResetButton, #$521D#$671F#$5024#$306B#$623B#$3059, ApplyViewDefaults);
 
     ClearSelectList;
     AddSelectList(GViewTypeList, 'Equalizer Bars', VIEW_TYPE_EQUALIZER_BARS);

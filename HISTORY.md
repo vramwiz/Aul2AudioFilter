@@ -4,6 +4,12 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-11 Aul2AudioView reset button
+
+- `Aul2Audio View` の最上段へ `初期値に戻す` ボタンを追加した。
+- ボタンを押すと、`Source Layer`、View Type、Style、描画量、周波数範囲など、色以外の View パラメーターを登録時の初期値へ戻す。配色は表示設定とは分けて保持する仕様とした。
+- パラメーターが多い View を最初から調整し直せるようにするための機能として、`README.md` の View Parameters に利用方法を追加した。
+
 ## 2026-07-10 Aul2AudioView Circular Spectrum
 
 - `Aul2Audio View` の新しい View Type として `Circular Spectrum` を追加した。
