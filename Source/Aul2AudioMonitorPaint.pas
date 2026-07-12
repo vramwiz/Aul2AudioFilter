@@ -212,6 +212,8 @@ end;
 
 procedure DrawWaveEnvelope(Canvas: TCanvas; const PlotRect: TRect;
   const WaveMin, WaveMax: TAudioMonitorWaveData; Color: TColor);
+const
+  WAVE_VIEW_GAIN = 2.5;
 var
   Point: Integer;
   X: Integer;
@@ -221,6 +223,9 @@ var
   HalfHeight: Integer;
   MinValue: Single;
   MaxValue: Single;
+  PreviousX: Integer;
+  PreviousYMin: Integer;
+  PreviousYMax: Integer;
 begin
   if (PlotRect.Right <= PlotRect.Left) or (PlotRect.Bottom <= PlotRect.Top) then
     Exit;
@@ -233,8 +238,8 @@ begin
 
   for Point := 0 to AUDIO_MONITOR_WAVE_POINT_LAST do
   begin
-    MinValue := Max(-1.0, Min(1.0, WaveMin[Point]));
-    MaxValue := Max(-1.0, Min(1.0, WaveMax[Point]));
+    MinValue := Max(-1.0, Min(1.0, WaveMin[Point] * WAVE_VIEW_GAIN));
+    MaxValue := Max(-1.0, Min(1.0, WaveMax[Point] * WAVE_VIEW_GAIN));
     X := PlotRect.Left + MulDiv(Point, Max(1, PlotRect.Right - PlotRect.Left - 1),
       AUDIO_MONITOR_WAVE_POINT_LAST);
     YMin := CenterY - Round(MinValue * HalfHeight);
@@ -242,6 +247,18 @@ begin
 
     Canvas.MoveTo(X, YMin);
     Canvas.LineTo(X, YMax);
+
+    if Point > 0 then
+    begin
+      Canvas.MoveTo(PreviousX, PreviousYMin);
+      Canvas.LineTo(X, YMin);
+      Canvas.MoveTo(PreviousX, PreviousYMax);
+      Canvas.LineTo(X, YMax);
+    end;
+
+    PreviousX := X;
+    PreviousYMin := YMin;
+    PreviousYMax := YMax;
   end;
 end;
 
@@ -417,15 +434,12 @@ begin
   if (BalanceRect.Right <= BalanceRect.Left) or (BalanceRect.Bottom <= BalanceRect.Top) then
     Exit;
 
-  if (BalanceRect.Bottom - BalanceRect.Top) < 34 then
+  if (BalanceRect.Bottom - BalanceRect.Top) < 40 then
     Exit;
 
   Canvas.Brush.Style := bsClear;
-  Canvas.Font.Color := RGB(220, 220, 220);
-  Canvas.TextOut(BalanceRect.Left, BalanceRect.Top, 'Stereo');
-
-  TrackTop := BalanceRect.Top + 22;
-  TrackBottom := BalanceRect.Bottom - 8;
+  TrackTop := BalanceRect.Bottom - 14 + (Canvas.TextHeight('L') div 2);
+  TrackBottom := TrackTop;
   CenterX := (BalanceRect.Left + BalanceRect.Right) div 2;
 
   Canvas.Pen.Color := RGB(68, 68, 68);
@@ -442,13 +456,13 @@ begin
   Canvas.Ellipse(InputX - 3, TrackTop - 4, InputX + 4, TrackTop + 3);
 
   Canvas.Pen.Color := RGB(224, 176, 72);
-  Canvas.Brush.Color := RGB(224, 176, 72);
-  Canvas.Ellipse(OutputX - 3, TrackTop + 5, OutputX + 4, TrackTop + 12);
+  Canvas.Brush.Style := bsClear;
+  Canvas.Ellipse(OutputX - 5, TrackTop - 5, OutputX + 6, TrackTop + 6);
 
   Canvas.Brush.Style := bsClear;
   Canvas.Font.Color := RGB(150, 150, 150);
-  Canvas.TextOut(BalanceRect.Left + 2, BalanceRect.Bottom - 10, 'L');
-  Canvas.TextOut(BalanceRect.Right - 10, BalanceRect.Bottom - 10, 'R');
+  Canvas.TextOut(BalanceRect.Left + 2, BalanceRect.Bottom - 14, 'L');
+  Canvas.TextOut(BalanceRect.Right - 10, BalanceRect.Bottom - 14, 'R');
   Canvas.Brush.Style := bsSolid;
 end;
 
@@ -462,6 +476,8 @@ var
   BarWidth: Integer;
   Gap: Integer;
   X: Integer;
+  InputCenter: Integer;
+  OutputCenter: Integer;
 begin
   if (MeterRect.Right <= MeterRect.Left) or (MeterRect.Bottom <= MeterRect.Top) then
     Exit;
@@ -483,17 +499,12 @@ begin
   end;
 
   BarTop := MeterRect.Top + 38;
-  BarBottom := MeterRect.Bottom - 64;
-  if BarBottom < BarTop + 24 then
-    BarBottom := BarTop + 24;
+  BarBottom := MeterRect.Bottom - 60;
+  if BarBottom < BarTop + 16 then
+    BarBottom := BarTop + 16;
   BarWidth := Max(6, (MeterRect.Right - MeterRect.Left - 18) div 4);
   Gap := Max(2, (MeterRect.Right - MeterRect.Left - (BarWidth * 4)) div 5);
   X := MeterRect.Left + Gap;
-
-  Canvas.Font.Color := RGB(92, 190, 122);
-  Canvas.TextOut(MeterRect.Left + 2, MeterRect.Top + 18, 'In');
-  Canvas.Font.Color := RGB(224, 176, 72);
-  Canvas.TextOut(MeterRect.Left + 32, MeterRect.Top + 18, 'Out');
 
   BarRect := Rect(X, BarTop, X + BarWidth, BarBottom);
   DrawVerticalPeakBar(Canvas, BarRect, DisplayPeakInputL, RGB(92, 190, 122));
@@ -522,7 +533,15 @@ begin
   Canvas.Font.Color := RGB(150, 150, 150);
   Canvas.TextOut(BarRect.Left + 1, BarBottom + 2, 'R');
 
-  BalanceRect := Rect(MeterRect.Left + 2, BarBottom + 22, MeterRect.Right - 2,
+  InputCenter := MeterRect.Left + Gap + BarWidth + (Gap div 2);
+  OutputCenter := MeterRect.Left + (Gap * 3) + (BarWidth * 3) + (Gap div 2);
+  Canvas.Brush.Style := bsClear;
+  Canvas.Font.Color := RGB(92, 190, 122);
+  Canvas.TextOut(InputCenter - (Canvas.TextWidth('In') div 2), MeterRect.Top + 18, 'In');
+  Canvas.Font.Color := RGB(224, 176, 72);
+  Canvas.TextOut(OutputCenter - (Canvas.TextWidth('Out') div 2), MeterRect.Top + 18, 'Out');
+
+  BalanceRect := Rect(MeterRect.Left + 4, BarBottom + 16, MeterRect.Right - 4,
     MeterRect.Bottom - 2);
   DrawStereoBalance(Canvas, BalanceRect, DisplayInputBalance, DisplayOutputBalance);
   Canvas.Brush.Style := bsSolid;
@@ -546,7 +565,7 @@ begin
   InflateRect(PlotRect, -12, -12);
   PlotRect.Top := PlotRect.Top + 22;
   MeterRect := PlotRect;
-  MeterRect.Left := Max(PlotRect.Left + 60, PlotRect.Right - 72);
+  MeterRect.Left := Max(PlotRect.Left + 80, PlotRect.Right - 96);
   PlotRect.Right := MeterRect.Left - 12;
 
   Canvas.Font.Name := 'Segoe UI';

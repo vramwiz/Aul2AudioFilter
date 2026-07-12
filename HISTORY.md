@@ -10,6 +10,7 @@
 - AudioTraceで、元WAVと後続WAVが同じ `EffectID` / Layerを持つ別Objectとして、前後順に `FilterProcAudio` へ来ることを確認した。
 - 同じ `EffectID`、同じ内部レイヤーで、前の音声から1～2フレーム以内に次の音声が `SampleIndex = 0` で開始した場合、Delayリング状態を後続Objectへ引き継ぐ。
 - 無音判定には依存しないため、`Sample\無音_極小ノイズ_ループ推奨.wav` を残響テール用素材として利用できる。
+- 後続ObjectのContextは再生後も残るため、未初期化時だけでなく、後続Objectが `SampleIndex = 0` から再生されるたびに直前Objectの最新Delay状態で更新する。これにより2回目以降の再生でも残響を正しく引き継ぐ。
 - 重なっている音声、離れた位置の音声、別EffectのContextは従来どおり分離する。実機再生で元WAV終了後もエコーが続くことを確認済み。
 
 ## 2026-07-11 Aul2AudioView reset button

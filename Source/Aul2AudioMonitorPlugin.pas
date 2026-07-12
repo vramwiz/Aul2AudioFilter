@@ -1,4 +1,4 @@
-unit Aul2AudioMonitorPlugin;
+﻿unit Aul2AudioMonitorPlugin;
 
 // AviUtl2 への Aul2AudioMonitor 登録とクライアントウィンドウ管理を担当する。
 

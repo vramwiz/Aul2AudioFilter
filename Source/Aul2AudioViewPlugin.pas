@@ -1,4 +1,4 @@
-unit Aul2AudioViewPlugin;
+﻿unit Aul2AudioViewPlugin;
 
 // Provides the entry point for the view filter placed on Aul2AudioBaseInput.
 
@@ -138,8 +138,8 @@ begin
     SetupPluginTable(
       FILTER_FLAG_VIDEO or FILTER_FLAG_FILTER,       // モード指定
       'Aul2Audio View',                              // 名称
-      'Video Effects',                               // グループ
-      'Aul2AudioView for AviUtl ExEdit2',            // 詳細
+      'Effects',                                     // グループ
+      'オーディオエフェクター',                      // 詳細
       ViewProcVideo,
       nil
     );
