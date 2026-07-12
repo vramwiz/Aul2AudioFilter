@@ -1,4 +1,4 @@
-unit Aul2AudioFilterMonitorBridge;
+﻿unit Aul2AudioFilterMonitorBridge;
 
 // 音声フィルター処理から Aul2AudioMonitor 用共有メモリへ軽量な解析値を書き出す。
 

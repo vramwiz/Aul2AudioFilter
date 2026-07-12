@@ -1,4 +1,4 @@
-unit Aul2AudioFilterPluginEq;
+﻿unit Aul2AudioFilterPluginEq;
 
 // EQ 系の GUI 項目、状態管理、音声処理を担当する。
 

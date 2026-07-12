@@ -32,6 +32,8 @@ type
     Samples        : Integer;                     // 現在確保している遅延サンプル数
     Mode           : Integer;                     // 状態を構築したときの Stereo Mode
     NextSampleIndex: Int64;                       // 連続処理を判定する次サンプル位置
+    LastFrame      : Integer;                     // 最後に処理したシーン上の絶対フレーム
+    SourceLayer    : Integer;                     // 隣接クリップへの残響引き継ぎ判定用レイヤー
   end;
 
 var
@@ -64,6 +66,55 @@ begin
   Result := GDelayContext;
 end;
 
+procedure CopyDelayState(Source, Target: TDelayContext);
+var
+  Channel: Integer;
+begin
+  SetLength(Target.Channels, Length(Source.Channels));
+  for Channel := 0 to High(Source.Channels) do
+  begin
+    Target.Channels[Channel].Buffer := Copy(Source.Channels[Channel].Buffer);
+    Target.Channels[Channel].Position := Source.Channels[Channel].Position;
+  end;
+  Target.Samples := Source.Samples;
+  Target.Mode := Source.Mode;
+end;
+
+procedure TryInheritAdjacentDelay(Audio: PFILTER_PROC_AUDIO; Context: TDelayContext);
+var
+  Candidate: TDelayContext;
+  Source: TDelayContext;
+  Index: Integer;
+  CurrentFrame: Integer;
+  FrameGap: Integer;
+begin
+  if (Context = nil) or (Length(Context.Channels) <> 0) or
+     (Audio^.Object_^.SampleIndex <> 0) then
+    Exit;
+
+  Source := nil;
+  CurrentFrame := Audio^.Object_^.FrameS + Audio^.Object_^.Frame;
+  for Index := 0 to DelayContexts.Count - 1 do
+  begin
+    Candidate := DelayContexts[Index];
+    if (Candidate = Context) or (Candidate.EffectID <> Context.EffectID) or
+       (Candidate.SourceLayer <> Audio^.Object_^.Layer) or
+       (Length(Candidate.Channels) = 0) then
+      Continue;
+
+    FrameGap := CurrentFrame - Candidate.LastFrame;
+    if (FrameGap >= 1) and (FrameGap <= 2) and
+       ((Source = nil) or (Candidate.LastFrame > Source.LastFrame)) then
+      Source := Candidate;
+  end;
+
+  if Source = nil then
+    Exit;
+
+  CopyDelayState(Source, Context);
+  Context.NextSampleIndex := Audio^.Object_^.SampleIndex;
+end;
+
 procedure ResetDelayState(Context: TDelayContext; ChannelNum, DelaySamples: Integer);
 var
   Channel: Integer;
@@ -93,6 +144,8 @@ begin
   Context := GDelayContext;
   if Context = nil then
     Exit;
+
+  TryInheritAdjacentDelay(Audio, Context);
 
   // オブジェクトやサンプル位置が飛んだ場合、前回の遅延音を混ぜないよう状態を作り直す。
   if (Length(Context.Channels) <> ChannelNum) or
@@ -286,7 +339,11 @@ begin
 
   Context := CurrentDelayContext;
   if Context <> nil then
+  begin
     Context.NextSampleIndex := Audio^.Object_^.SampleIndex + SampleNum;
+    Context.LastFrame := Audio^.Object_^.FrameS + Audio^.Object_^.Frame;
+    Context.SourceLayer := Audio^.Object_^.Layer;
+  end;
 end;
 
 end.
