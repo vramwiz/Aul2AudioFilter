@@ -88,8 +88,7 @@ var
   CurrentFrame: Integer;
   FrameGap: Integer;
 begin
-  if (Context = nil) or (Length(Context.Channels) <> 0) or
-     (Audio^.Object_^.SampleIndex <> 0) then
+  if (Context = nil) or (Audio^.Object_^.SampleIndex <> 0) then
     Exit;
 
   Source := nil;

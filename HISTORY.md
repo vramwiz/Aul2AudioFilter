@@ -4,6 +4,14 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-12 Delay tail handoff between adjacent audio clips
+
+- AviUtl2では音声WAVの末尾を伸ばせないため、元WAVの直後へ無音または極小ノイズWAVを配置し、`グループ制御（音声）` のDelay残響を継続できるようにした。
+- AudioTraceで、元WAVと後続WAVが同じ `EffectID` / Layerを持つ別Objectとして、前後順に `FilterProcAudio` へ来ることを確認した。
+- 同じ `EffectID`、同じ内部レイヤーで、前の音声から1～2フレーム以内に次の音声が `SampleIndex = 0` で開始した場合、Delayリング状態を後続Objectへ引き継ぐ。
+- 無音判定には依存しないため、`Sample\無音_極小ノイズ_ループ推奨.wav` を残響テール用素材として利用できる。
+- 重なっている音声、離れた位置の音声、別EffectのContextは従来どおり分離する。実機再生で元WAV終了後もエコーが続くことを確認済み。
+
 ## 2026-07-11 Aul2AudioView reset button
 
 - `Aul2Audio View` の最上段へ `初期値に戻す` ボタンを追加した。
