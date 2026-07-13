@@ -10,13 +10,17 @@ uses
   Aul2AudioMonitorShared,
   Aul2AudioMonitorSpectrumShared;
 
+// 波形、Peak、Stereo Balanceを描画し、AllowDataUpdate時だけ表示用平滑化状態を更新する。
 procedure DrawAudioMonitorCanvas(Canvas: TCanvas; const ClientRect: TRect;
   State: PAul2AudioMonitorState; AllowDataUpdate: Boolean);
+// 有効な解析値がない場合の案内文字列をダーク背景へ描画する。
 procedure DrawAudioMonitorPlaceholder(Canvas: TCanvas; const ClientRect: TRect;
   const Text: string);
+// 入出力スペクトラムとメーターを描画し、必要に応じてピークを減衰させる。
 procedure DrawAudioSpectrumCanvas(Canvas: TCanvas; const ClientRect: TRect;
   SpectrumState: PAul2AudioMonitorSpectrumState; MonitorState: PAul2AudioMonitorState;
   AllowDataUpdate, DecayPeaks: Boolean);
+// Wave/Spectrum/Peakの表示用平滑化履歴をすべて無効化する。
 procedure ClearAudioMonitorDisplay;
 
 implementation
@@ -27,20 +31,20 @@ uses
   System.Types;
 
 var
-  DisplayPeakInputL : Single;
-  DisplayPeakInputR : Single;
-  DisplayPeakOutputL: Single;
-  DisplayPeakOutputR: Single;
+  DisplayPeakInputL   : Single;
+  DisplayPeakInputR   : Single;
+  DisplayPeakOutputL  : Single;
+  DisplayPeakOutputR  : Single;
   DisplayInputBalance : Single;
   DisplayOutputBalance: Single;
-  DisplayPeakValid  : Boolean;
+  DisplayPeakValid    : Boolean;
   DisplayInputWaveMin : TAudioMonitorWaveData;
   DisplayInputWaveMax : TAudioMonitorWaveData;
   DisplayOutputWaveMin: TAudioMonitorWaveData;
   DisplayOutputWaveMax: TAudioMonitorWaveData;
   DisplayWaveValid    : Boolean;
-  DisplayInputBands : TAudioMonitorSpectrumData;
-  DisplayOutputBands: TAudioMonitorSpectrumData;
+  DisplayInputBands   : TAudioMonitorSpectrumData;
+  DisplayOutputBands  : TAudioMonitorSpectrumData;
   DisplaySpectrumValid: Boolean;
 
 procedure ClearAudioMonitorDisplay;
@@ -224,7 +228,7 @@ end;
 procedure DrawWaveEnvelope(Canvas: TCanvas; const PlotRect: TRect;
   const WaveMin, WaveMax: TAudioMonitorWaveData; Color: TColor);
 const
-  WAVE_VIEW_GAIN = 2.5;
+  WAVE_VIEW_GAIN = 5.0; // 音声値は変更せず、AviUtl2の素材波形に近い大きさへ表示だけを拡大する。
 var
   Point: Integer;
   X: Integer;
@@ -246,6 +250,9 @@ begin
 
   Canvas.Pen.Color := Color;
   Canvas.Pen.Width := 2;
+  PreviousX := 0;
+  PreviousYMin := CenterY;
+  PreviousYMax := CenterY;
 
   for Point := 0 to AUDIO_MONITOR_WAVE_POINT_LAST do
   begin

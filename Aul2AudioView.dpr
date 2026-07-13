@@ -1,4 +1,4 @@
-library Aul2AudioView;
+﻿library Aul2AudioView;
 
 // Aul2AudioView の DLL エントリポイントを公開し、プラグイン本体の初期化と終了処理へ中継する。
 

@@ -2,6 +2,8 @@
 
 {$WARN IMPLICIT_STRING_CAST OFF}
 
+// MonitorのBaseページで映像仕様と配置レイヤーを入力し、作成またはD&Dを開始するUIを提供する。
+
 interface
 
 uses
@@ -13,6 +15,7 @@ uses
   Aul2AudioBaseAlias;
 
 type
+  // Base素材の設定、レイヤー選択、直接作成、エイリアスD&Dをまとめるパネル。
   TAul2AudioBasePanel = class(TPanel)
   private
     FDrag: TDragShellFile;
@@ -45,11 +48,16 @@ type
     function ReadParams: TAul2AudioBaseAliasParams;
     procedure SetStatus(const Text: string);
   protected
+    // DPIと現在サイズに合わせ、設定欄、レイヤー欄、作成ボタンを再配置する。
     procedure Resize; override;
   public
+    // ダークテーマ用のパネル状態を初期化する。子コントロールはInitializeで遅延生成する。
     constructor Create(AOwner: TComponent); override;
+    // D&Dエージェントを子コントロールより先に解放する。
     destructor Destroy; override;
+    // 子コントロールとD&Dを一度だけ作成し、レイヤー一覧を初期化する。
     procedure Initialize;
+    // AviUtl2の表示レイヤー番号に合わせて選択一覧を作り直す。
     procedure ReloadLayers;
   end;
 
@@ -62,11 +70,11 @@ uses
   Aul2AudioBaseCreate;
 
 const
-  UI_BACKGROUND = TColor($00242424);
-  UI_PANEL      = TColor($00303030);
-  UI_EDIT       = TColor($00202020);
-  UI_TEXT       = TColor($00E6E6E6);
-  UI_MUTED      = TColor($00B8B8B8);
+  UI_BACKGROUND = TColor($00242424); // Baseページ全体の背景色。
+  UI_PANEL      = TColor($00303030); // 設定グループの背景色。
+  UI_EDIT       = TColor($00202020); // 入力欄と一覧の背景色。
+  UI_TEXT       = TColor($00E6E6E6); // 通常文字色。
+  UI_MUTED      = TColor($00B8B8B8); // 状態メッセージの補助文字色。
 
 function ParsePositiveInt(const Text: string; DefaultValue: Integer): Integer;
 begin
@@ -128,6 +136,7 @@ end;
 
 procedure TAul2AudioBasePanel.EnsureDragInitialized;
 begin
+  // COMを使うD&Dはパネル構築完了後、実際の対象ListBoxへ一度だけ関連付ける。
   if FDragInitialized then
     Exit;
 
@@ -293,6 +302,7 @@ begin
   if not FInitialized then
     Exit;
 
+  // 50msタイマーから呼ばれても同じサイズならVCLの再配置と再描画を発生させない。
   if (Width = FLastLayoutWidth) and (Height = FLastLayoutHeight) then
     Exit;
   FLastLayoutWidth := Width;
@@ -313,7 +323,8 @@ begin
   DisableAlign;
   try
     SetBoundsIfChanged(FSettingsPanel, Margin, Margin, SettingsW, PanelH);
-    SetBoundsIfChanged(FLayerPanel, FSettingsPanel.Left + FSettingsPanel.Width + Margin, Margin, LayerW, PanelH);
+    SetBoundsIfChanged(FLayerPanel, FSettingsPanel.Left + FSettingsPanel.Width + Margin,
+      Margin, LayerW, PanelH);
 
     X := ScalePx(8);
     Row1 := ScalePx(7);
@@ -339,12 +350,14 @@ begin
     Inc(X, LabelW);
     SetBoundsIfChanged(FFpsEdit, X, Row2, EditW, ScalePx(24));
 
-    SetBoundsIfChanged(FCreateButton, FLayerPanel.Left + FLayerPanel.Width + Margin, Margin, SendW, ScalePx(32));
+    SetBoundsIfChanged(FCreateButton, FLayerPanel.Left + FLayerPanel.Width + Margin,
+      Margin, SendW, ScalePx(32));
 
     StatusW := Width - FCreateButton.Left - FCreateButton.Width - Margin * 2;
     if StatusW < ScalePx(120) then
       StatusW := ScalePx(120);
-    SetBoundsIfChanged(FStatusLabel, FCreateButton.Left + FCreateButton.Width + Margin, Margin, StatusW, PanelH);
+    SetBoundsIfChanged(FStatusLabel, FCreateButton.Left + FCreateButton.Width + Margin,
+      Margin, StatusW, PanelH);
 
     SetBoundsIfChanged(FLayerLabel, 0, 0, 1, 1);
     SetBoundsIfChanged(FLayerList, 0, 0, FLayerPanel.Width, FLayerPanel.Height);

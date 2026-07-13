@@ -1,15 +1,17 @@
 unit ToolBarPanelManager;
 
+// ToolBarのボタン順とPanelの登録順を対応させ、単一ページの表示と選択色を管理する。
+
 interface
 
 uses
-  Winapi.Windows,System.SysUtils,System.Classes,System.Types,System.Generics.Collections,Vcl.ComCtrls,Vcl.Graphics,
-  Vcl.Controls,Vcl.ExtCtrls;
+  Winapi.Windows, System.SysUtils, System.Classes, System.Types, System.Generics.Collections,
+  Vcl.ComCtrls, Vcl.Graphics, Vcl.Controls, Vcl.ExtCtrls;
 
 type
   TToolBarPanelChangeEvent = procedure(Sender: TObject; Index: Integer) of object;
 type
-  // ToolBar と Panel を連動させる管理クラス（Attach 方式）
+  // ToolBarとPanelをAttach方式で連動させる管理クラス。
   TToolBarPanelManager = class
   private
     FToolBar     : TToolBar;
@@ -30,22 +32,26 @@ type
     procedure UpdateButtons;
 
     procedure ToolBarCustomDraw(Sender: TToolBar; const ARect: TRect; var DefaultDraw: Boolean);
-    procedure ToolBarCustomDrawButton(Sender: TToolBar; Button: TToolButton; State: TCustomDrawState; var DefaultDraw: Boolean);
+    procedure ToolBarCustomDrawButton(Sender: TToolBar; Button: TToolButton;
+      State: TCustomDrawState; var DefaultDraw: Boolean);
   public
+    // Panelを所有しない一覧と既定のVCL配色を初期化する。
     constructor Create;
+    // イベント関連付けを解除し、Panel一覧を破棄する。
     destructor Destroy; override;
 
-    // 描画後に ToolBar を関連付ける
+    // 描画後のToolBarを関連付け、各ボタンを排他的な選択ボタンとして初期化する。
     procedure Attach(AToolBar: TToolBar);
 
-    // ToolButton の並び順に対応する Panel を追加（0 起点）
+    // ToolButtonの並び順に対応するPanelを0-based順で追加する。Panelの所有権は取得しない。
     procedure AddPanel(Panel: TPanel);
 
-    // すべて解除
+    // Panel対応と現在選択を解除する。登録済みPanel自体は解放しない。
     procedure Clear;
 
-    // 表示切替
+    // 指定ページだけを表示して対応ボタンを押下状態にし、OnChangeを通知する。
     procedure Activate(Index: Integer);
+    // 現在ページを再適用し、未選択なら先頭ページを選ぶ。
     procedure RefreshActive;
 
     property ActiveIndex: Integer read FActiveIndex write SetActiveIndex;

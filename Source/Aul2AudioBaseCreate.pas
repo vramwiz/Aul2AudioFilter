@@ -1,13 +1,18 @@
 ﻿unit Aul2AudioBaseCreate;
 
+// MonitorのBaseページからAviUtl2編集領域へエイリアスObjectを安全に作成する。
+
 interface
 
 uses
   Aul2AudioBaseAlias,
   AviUtl2PluginTypes;
 
+// 指定レイヤーの現在フレームへBaseエイリアスObjectを作り、作成ハンドルを返す。
 function CreateBaseAliasObject(Layer: Integer; const Params: TAul2AudioBaseAliasParams): TObjectHandle;
+// AviUtl2編集領域の現在フレームを返し、取得できない場合は0を返す。
 function GetCurrentEditFrame: Integer;
+// 編集領域の最大レイヤー数を返し、取得できない場合はDefaultValueを返す。
 function GetEditLayerMax(DefaultValue: Integer = 100): Integer;
 
 implementation
@@ -16,13 +21,14 @@ uses
   AviUtl2PluginCore;
 
 type
+  // CallEditSectionParamを介して編集スレッドへ渡す入出力コンテキスト。
   PBaseCreateContext = ^TBaseCreateContext;
   TBaseCreateContext = record
-    Params: TAul2AudioBaseAliasParams;
-    AliasUtf8: UTF8String;
-    ObjectHandle: TObjectHandle;
-    Frame: Integer;
-    LayerMax: Integer;
+    Params      : TAul2AudioBaseAliasParams; // 作成するBase素材の設定。
+    AliasUtf8   : UTF8String;                // SDKへ渡すUTF-8エイリアス本文。
+    ObjectHandle: TObjectHandle;             // SDKが返した作成済みObject。
+    Frame       : Integer;                   // 編集領域の現在フレーム。
+    LayerMax    : Integer;                   // 編集領域の最大レイヤー数。
   end;
 
 procedure QueryEditInfo(Param: Pointer; Edit: PEditSection); cdecl;
@@ -101,6 +107,7 @@ begin
   Context.Frame := 0;
   Context.LayerMax := 0;
 
+  // Object操作はAviUtl2が保証する編集セクション内だけで実行する。
   if EditHandle^.CallEditSectionParam(@Context, @CreateObjectParam) then
     Result := Context.ObjectHandle;
 end;

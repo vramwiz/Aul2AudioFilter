@@ -8,11 +8,15 @@ uses
   Winapi.Windows;
 
 const
-  MONITOR_WINDOW_NAME = 'Aul2AudioMonitor';
+  MONITOR_WINDOW_NAME = 'Aul2AudioMonitor'; // フォームとクライアントで共有する表示名。
 
+// Monitorフォームを生成し、ParentWindowの子としてWave/Spectrum/Baseページを構築する。
 procedure CreateMonitorView(ParentWindow: HWND);
+// タイマー、共有メモリ、フォームを停止・解放し、表示用履歴を破棄する。
 procedure DestroyMonitorView;
+// 作成済みMonitorフォームを表示して前面へ移す。
 procedure ShowMonitorView;
+// 親クライアントの現在サイズへMonitorフォームを追従させる。
 procedure SyncMonitorViewBounds;
 
 implementation
@@ -633,6 +637,7 @@ end;
 
 procedure TMonitorTimerTarget.ReadTimerTick(Sender: TObject);
 begin
+  // 50msごとに再生状態と基準フレームを一度更新し、表示中のページだけを再描画する。
   RefreshEditState;
   RefreshMonitorFrame;
   SyncMonitorViewBounds;

@@ -479,6 +479,9 @@
 
 ## Aul2AudioMonitor Peak Meter note
 
+- 2026-07-13、MonitorのWaveがAviUtl2の素材波形より小さく見える確認を受け、解析値は変更せず表示専用の `WAVE_VIEW_GAIN` を `2.5` から `5.0` へ上げた。入力・出力波形の表示振幅だけが約2倍になり、音声処理、共有メモリ、Peak/RMSには影響しない。
+- `DrawWaveEnvelope` の前回座標を描画前に初期化し、Delphiの未初期化可能性警告3件を解消した。
+
 - 優先順位 1 の `Level / Peak Meter` として、`Spectrum` 画面右側に小型の縦 Peak Meter を追加した。
 - 既存の `Local\Aul2AudioMonitorState` にある `InputPeakL/R` と `OutputPeakL/R` を利用し、`.auf2` 側の共有メモリ構造は変更しない。
 - 表示は入力をグリーン、出力をアンバーにし、Input L/R と Output L/R の細い縦バーと 1.0 位置のクリップ目安線を出す。

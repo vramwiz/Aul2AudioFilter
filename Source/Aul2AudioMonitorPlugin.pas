@@ -8,7 +8,9 @@ uses
   Winapi.Windows,
   AviUtl2PluginTypes;
 
+// AviUtl2 の編集メニューとクライアントウィンドウへ Monitor を登録する。
 procedure RegisterMonitorPlugin(Host: PHostAppTable);
+// Monitor のフォーム、クライアントウィンドウ、ウィンドウクラスを登録と逆順に解放する。
 procedure UninitializeMonitorPlugin;
 
 implementation
@@ -19,12 +21,12 @@ uses
   Aul2AudioMonitorView;
 
 const
-  MONITOR_WINDOW_CLASS_NAME = 'Aul2AudioMonitorClient';
-  MONITOR_MENU_NAME         = 'Aul2AudioMonitor';
+  MONITOR_WINDOW_CLASS_NAME = 'Aul2AudioMonitorClient'; // AviUtl2へ登録する子ウィンドウクラス名。
+  MONITOR_MENU_NAME         = 'Aul2AudioMonitor';       // 編集メニューとクライアントの表示名。
 
 var
-  ClientWindow: HWND;
-  WindowBrush : HBRUSH;
+  ClientWindow: HWND;   // AviUtl2が親として管理するMonitorクライアントウィンドウ。
+  WindowBrush : HBRUSH; // クライアント背景を塗るダークテーマ用ブラシ。
 
 procedure PaintMonitorWindow(hWnd: HWND);
 var
@@ -45,6 +47,7 @@ end;
 function MonitorWndProc(hWnd: HWND; uMsg: UINT; wParam: WPARAM;
   lParam: LPARAM): LRESULT; stdcall;
 begin
+  // VCLフォームはクライアントの生成・サイズ変更・破棄通知に合わせて管理する。
   case uMsg of
     WM_SIZE:
       begin

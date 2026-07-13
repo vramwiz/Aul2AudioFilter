@@ -2,28 +2,36 @@ unit Aul2AudioBaseAlias;
 
 {$WARN IMPLICIT_STRING_CAST OFF}
 
+// Base素材の仮想ファイル名と、動画ファイル・映像再生・Viewを含むエイリアスを生成する。
+
 interface
 
 uses
   System.SysUtils;
 
 type
+  // Base素材と配置先を再現するためにエイリアスへ埋め込む設定。
   TAul2AudioBaseAliasParams = record
-    Caption: string;
-    Width: Integer;
-    Height: Integer;
-    MaxSec: Integer;
-    Rate: Integer;
-    Scale: Integer;
-    Layer: Integer;
-    FrameStart: Integer;
-    FrameLength: Integer;
+    Caption    : string;  // 仮想ファイル名の先頭へ使う素材名。
+    Width      : Integer; // Base映像の幅。
+    Height     : Integer; // Base映像の高さ。
+    MaxSec     : Integer; // Base映像の最大秒数。
+    Rate       : Integer; // フレームレートの分子。
+    Scale      : Integer; // フレームレートの分母。
+    Layer      : Integer; // 配置先の内部0-basedレイヤー。
+    FrameStart : Integer; // 配置先の開始フレーム。
+    FrameLength: Integer; // 配置する総フレーム数。
   end;
 
+// 一般的な1920x1080、30秒、30fpsの初期設定を返す。
 function DefaultBaseAliasParams: TAul2AudioBaseAliasParams;
+// 入力プラグインが解析できる Width_Height_MaxSec_Rate_Scale 形式の仮想名を返す。
 function BuildBaseVirtualFileName(const Params: TAul2AudioBaseAliasParams): string;
+// AviUtl2の.object形式でBase素材とViewフィルターを構成する文字列を返す。
 function BuildBaseAliasText(const Params: TAul2AudioBaseAliasParams): string;
+// D&D用エイリアスを一時フォルダーへUTF-8で保存し、絶対パスを返す。
 function SaveBaseAliasFile(const Params: TAul2AudioBaseAliasParams): string;
+// 不正または不足した設定値を安全な既定値へ補正して返す。
 function NormalizeBaseAliasParams(const Params: TAul2AudioBaseAliasParams): TAul2AudioBaseAliasParams;
 
 implementation
@@ -33,9 +41,9 @@ uses
   System.IOUtils;
 
 const
-  BASE_ALIAS_TEMP_DIR = 'Aul2AudioFilter';
-  BASE_ALIAS_FILE_NAME = 'Aul2AudioBase.object';
-  VIEW_FILTER_NAME = 'Aul2Audio View';
+  BASE_ALIAS_TEMP_DIR  = 'Aul2AudioFilter';      // D&D用ファイルを置く一時サブフォルダー。
+  BASE_ALIAS_FILE_NAME = 'Aul2AudioBase.object'; // D&Dで渡す固定エイリアス名。
+  VIEW_FILTER_NAME     = 'Aul2Audio View';       // エイリアスへ追加する表示フィルター名。
 
 function DefaultBaseAliasParams: TAul2AudioBaseAliasParams;
 begin
@@ -118,6 +126,7 @@ var
   P: TAul2AudioBaseAliasParams;
   Strings: TStringList;
 begin
+  // フィルター順は動画ファイル、映像再生、Aul2Audio Viewから変更しない。
   P := NormalizeBaseAliasParams(Params);
   Strings := TStringList.Create;
   try

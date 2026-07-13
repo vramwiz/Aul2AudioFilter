@@ -24,11 +24,13 @@ uses
 
 function InitializePlugin(Version: DWORD): BOOL; cdecl;
 begin
+  // 実際のUI登録は Host を受け取れる RegisterPlugin で行う。
   Result := True;
 end;
 
 procedure UninitializePlugin; cdecl;
 begin
+  // AviUtl2 のSDKポインターより先に、参照中のウィンドウとタイマーを破棄する。
   UninitializeMonitorPlugin;
   EditHandle := nil;
   ProjectFile := nil;
@@ -38,6 +40,7 @@ end;
 procedure RegisterPlugin(Host: PHostAppTable); cdecl;
 begin
   try
+    // SDK境界から例外を漏らさず、登録途中の失敗時はグローバル参照を無効化する。
     GAviUtl2Plugin := True;
 
     if Host = nil then
