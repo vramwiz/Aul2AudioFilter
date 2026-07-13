@@ -12,6 +12,7 @@ uses
   Vcl.ExtCtrls,
   Vcl.StdCtrls,
   DragAgent,
+  ListBoxEdit,
   Aul2AudioPresetModel;
 
 type
@@ -19,12 +20,13 @@ type
   TAul2AudioPresetPanel = class(TPanel)
   private
     FDrag       : TDragShellFile;
-    FPresetList : TListBox;
+    FPresetList : TListBoxEdit;
     FSaveButton : TButton;
     FInitialized: Boolean;
     FPresets    : TAul2AudioUserPresetList;
     procedure CreateControls;
     procedure PresetListDblClick(Sender: TObject);
+    procedure PresetListEdited(Sender: TObject; Index: Integer; var NewText: string);
     procedure SaveButtonClick(Sender: TObject);
     procedure DragRequest(Sender: TObject; FileNames: TStringList);
     procedure LoadPresets;
@@ -137,13 +139,14 @@ end;
 
 procedure TAul2AudioPresetPanel.CreateControls;
 begin
-  FPresetList := TListBox.Create(Self);
+  FPresetList := TListBoxEdit.Create(Self);
   FPresetList.Parent := Self;
   FPresetList.Align := alNone;
   FPresetList.Color := RGB(32, 32, 32);
   FPresetList.Font.Color := RGB(230, 230, 230);
   FPresetList.ItemHeight := 24;
   FPresetList.OnDblClick := PresetListDblClick;
+  FPresetList.OnEdited := PresetListEdited;
   FSaveButton := TButton.Create(Self);
   FSaveButton.Parent := Self;
   FSaveButton.Caption := '保存';
@@ -198,25 +201,26 @@ end;
 
 procedure TAul2AudioPresetPanel.PresetListDblClick(Sender: TObject);
 var
-  Index     : Integer;
-  PresetName: string;
+  Index: Integer;
 begin
   Index := FPresetList.ItemIndex;
   if (Index < 0) or (Index >= FPresets.Count) then
     Exit;
 
-  PresetName := FPresets[Index].Name;
-  if not InputQuery('プリセット名の変更', 'プリセット名', PresetName) then
-    Exit;
-  PresetName := Trim(PresetName);
-  if PresetName = '' then
+  FPresetList.BeginEdit(Index);
+end;
+
+procedure TAul2AudioPresetPanel.PresetListEdited(Sender: TObject; Index: Integer; var NewText: string);
+begin
+  if (Index < 0) or (Index >= FPresets.Count) then
     Exit;
 
-  FPresets[Index].Name := PresetName;
-  FPresets[Index].Preview := PRESET_PREVIEW_PREFIX + PresetName;
+  NewText := Trim(NewText);
+  if NewText = '' then
+    NewText := FPresets[Index].Name;
+  FPresets[Index].Name := NewText;
+  FPresets[Index].Preview := PRESET_PREVIEW_PREFIX + NewText;
   SavePresets;
-  RefreshPresetList;
-  FPresetList.ItemIndex := Index;
 end;
 
 function TAul2AudioPresetPanel.CaptureSelectedObjectAlias(out AliasText: string): Boolean;

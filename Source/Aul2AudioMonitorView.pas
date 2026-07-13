@@ -581,10 +581,15 @@ begin
 
   if Assigned(ToolBar) then
   begin
-    ToolButtonWidth := MulDiv(74, MonitorForm.Font.PixelsPerInch, 96);
+    // 全ボタンで共通となる幅は、最長の Caption に左右の余白を加えて決める。
+    MonitorForm.Canvas.Font.Assign(ToolBar.Font);
+    ToolButtonWidth := Max(MonitorForm.Canvas.TextWidth(ButtonSpectrum.Caption),
+      MonitorForm.Canvas.TextWidth(ButtonPreset.Caption)) +
+      MulDiv(24, MonitorForm.Font.PixelsPerInch, 96);
     ToolBar.ButtonWidth := ToolButtonWidth;
     ToolBar.ButtonHeight := MulDiv(28, MonitorForm.Font.PixelsPerInch, 96);
-    ToolBar.Width := ToolButtonWidth * 3;
+    // 4個目の Preset を含む全ボタンと、ツールバー右端の内部余白を確保する。
+    ToolBar.Width := ToolButtonWidth * 4 + MulDiv(4, MonitorForm.Font.PixelsPerInch, 96);
     ToolBar.Height := ToolBar.ButtonHeight;
     ToolBar.Realign;
     ToolBar.Invalidate;
@@ -759,10 +764,11 @@ begin
   ToolBar := TToolBar.Create(MonitorForm);
   ToolBar.Parent := HeaderPanel;
   ToolBar.Align := alLeft;
-  ToolBar.Width := MulDiv(74 * 4, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.Height := MulDiv(28, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.ButtonWidth := MulDiv(74, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.ButtonHeight := ToolBar.Height;
+  // TToolBar内部の右端余白を含め、最後のPresetボタンがDPI環境で切れない幅を確保する。
+  ToolBar.Width := ToolBar.ButtonWidth * 4 + MulDiv(12, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.EdgeBorders := [];
   ToolBar.ShowCaptions := True;
   ToolBar.Flat := True;

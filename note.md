@@ -55,6 +55,8 @@
 - `Aul2AudioView.dproj`: 表示用フィルタープラグインの Delphi Win64 Debug / Release ビルド設定。出力先は `Aul2AudioFilter` と同じ配布フォルダ。
 - `Source\Aul2AudioMonitorPlugin.pas`: `Aul2AudioMonitor` の拡張メニュー登録、AviUtl2 クライアントウィンドウ登録、フォーム表示管理。
 - `Source\Aul2AudioBasePanel.pas`: `Aul2AudioMonitor` の `Base` ページ UI。解像度設定、レイヤーリスト、選択レイヤー生成ボタン、D&D エイリアス生成を担当する。
+- `Source\Aul2AudioPresetPanel.pas`: Monitorの `Preset` ページUI。選択Objectの保存、一覧の名前編集、グループ制御（音声）のD&D生成を担当する。
+- `Source\Aul2AudioPresetModel.pas`: ユーザープリセットとエイリアス要素のRTTIモデル、二重セクションINIの保存と読み込みを担当する。
 - `Source\Aul2AudioBaseAlias.pas`: `.aul2base` 仮想ファイル名と AviUtl2 エイリアス文字列/一時 `.object` ファイル生成。
 - `Source\Aul2AudioBaseCreate.pas`: `CreateObjectFromAlias` による選択レイヤーへの直接配置。
 - `Source\Aul2AudioBaseInputPlugin.pas`: `.aul2base` 入力プラグイン本体。ファイル名内の `Width_Height_MaxSec_Rate_Scale` から動画情報を作る。
@@ -81,6 +83,8 @@
 - `Source\Lib\AviUtl2Plugin`: Syncroh2 から UTF-8 でコピーした AviUtl2 汎用プラグイン SDK 型定義と共有状態。
 - `Source\Lib\AviUtl2Input`: AviUtl2 入力プラグイン SDK 型定義。
 - `Source\Lib\DragAgent`: Syncroh2 からコピーした D&D 送信用ライブラリ。Base ページのレイヤーリスト D&D に使う。Delphi 37.0 向けに uses の名前空間を調整済み。
+- `Source\Lib\ListBoxEdit`: Syncroh2からコピーしたインライン編集対応ListBox。Preset一覧のダブルクリック名前編集に使う。
+- `Source\Lib\PresetSupport\Serialization\Section`: ユーザープリセットINIの二重セクション管理に使う。
 - `Source\Lib\SharedMemory`: Syncroh2 から UTF-8 でコピーした共有メモリ基礎ライブラリ。
 - `Source\Lib\AudioMonitor`: `Aul2AudioFilter` と `Aul2AudioMonitor` で共有するモニター用共有メモリ構造体。
 - `Source\Legacy`: 現在のビルドでは使わない旧コピーの退避場所。
@@ -128,7 +132,7 @@
 - `無線` と `劣化` は `Noise` を外した状態で運用中。`Noise` の無音化や例外原因は別途調査候補とする。
 - `Pitch` は簡易方式のため、声素材で `男性` / `女性` のぶつ切れや不自然さを継続確認する。
 - `風邪`、`遠く` は専用プリセットとしては未追加。必要になったら既存エフェクトの組み合わせで検討する。
-- 外部 AI からの提案として、ユーザー調整値を `ユーザープリセット1` のように保存/書き出しできるカスタムプリセット機能を検討候補にする。シリーズ動画で同じ音作りを再利用する用途を想定する。
+- ユーザープリセットは `Aul2AudioMonitor` の `Preset` ページへ実装済み。選択中の `グループ制御（音声）` を保存し、一覧からタイムラインへD&Dして再利用する。選択中Objectへ設定を読み込む機能は実装しない。
 - 外部 AI からの提案として、`Wobble` / `Pitch` のランダム性を強める方向を検討候補にする。周期 LFO だけでなく、古いテープのワウ・フラッターのような不規則なピッチ揺れを想定する。
 - 外部 AI からの提案として、Lo-Fi 系の質感強化を検討候補にする。`BitCrusher` に加えて、8kHz / 11kHz 相当へ落とすダウンサンプリング的な音を想定する。
 - 外部 AI からの提案として、複数レイヤー/グループ制御時の負荷と競合を継続確認する。`Source Layer` の個別指定で干渉回避できるが、`Auto` の安定性と多重トラック時の軽量化は確認候補に残す。
@@ -194,12 +198,15 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 
 - `Aul2AudioMonitor.aux2` は `Aul2AudioFilter.auf2` と同時配布する表示用拡張プラグイン。
 - `.auf2` 側は共有メモリへ表示用データを常時書き出し、`.aux2` 側は描画/UI だけを担当する。
-- 表示は `Wave` / `Spectrum` / `View` のツールバー構成。初期表示は `Spectrum`。
+- 表示は `Wave` / `Spectrum` / `View` / `Preset` のツールバー構成。初期表示は `Spectrum`。
 - `Wave` は 256 点程度の時間波形表示。`Spectrum` は 64 バンドの周波数表示で、入力はグリーン、出力はアンバー。
 - `Spectrum` 右側には Peak Meter と Stereo Balance を表示する。
 - 共有メモリは基本状態/時間波形用の `Local\Aul2AudioMonitorState` と、スペクトラム用の `Local\Aul2AudioMonitorSpectrum` に分ける。
 - 生の音声サンプル全体は共有メモリに載せない。Wave、Spectrum、Meter、Stereo は表示用に軽量集計した値だけを使う。
 - 再生中の Monitor は共有メモリ履歴リングから現在フレームに最も近い解析値を選び、十分に同期が取れている。詳細な同期調査履歴は `HISTORY.md` を参照する。
+- `Preset` は `グループ制御（音声）` 専用のユーザープリセット機能。保存、起動時読込、名前のインライン編集、タイムラインへのD&Dを提供する。
+- 保存先はドキュメントの `Aul2AudioFilter\UserPresets.ini`。エイリアスをRTTIモデルへ分解し、二重セクション形式の可読なINIとして管理する。
+- 音声Objectへ直接フィルターを適用する機会は少なく、D&Dで目的を満たせるため、選択中Objectへ反映する読み込み機能は持たせない。
 
 ## Aul2AudioBaseInput / Base 現状
 
