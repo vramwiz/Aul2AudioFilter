@@ -62,6 +62,9 @@ begin
     State := ViewFrameMemory.State;
     if State = nil then
       Exit;
+    // EditState=2ではMonitorが表示を停止するため、同期専用通知を省略する。
+    if State^.EditState = 2 then
+      Exit;
 
     State^.Magic := AUDIO_VIEW_FRAME_SHARED_MAGIC;
     State^.Version := AUDIO_VIEW_FRAME_SHARED_VERSION;

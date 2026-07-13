@@ -13,6 +13,7 @@ uses
   Vcl.StdCtrls,
   DragAgent,
   ListBoxEdit,
+  ShortcutAction,
   Aul2AudioPresetModel;
 
 type
@@ -22,16 +23,23 @@ type
     FDrag       : TDragShellFile;
     FPresetList : TListBoxEdit;
     FSaveButton : TButton;
+    FDeleteButton: TButton;
+    FStatusLabel : TLabel;
+    FShortcuts  : TShortcutAction;
     FInitialized: Boolean;
     FPresets    : TAul2AudioUserPresetList;
     procedure CreateControls;
     procedure PresetListDblClick(Sender: TObject);
     procedure PresetListEdited(Sender: TObject; Index: Integer; var NewText: string);
+    procedure PresetListKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure MoveSelectedPreset(Offset: Integer);
     procedure SaveButtonClick(Sender: TObject);
+    procedure DeleteButtonClick(Sender: TObject);
     procedure DragRequest(Sender: TObject; FileNames: TStringList);
     procedure LoadPresets;
     procedure SavePresets;
     procedure RefreshPresetList;
+    function NewPresetName: string;
     function CaptureSelectedObjectAlias(out AliasText: string): Boolean;
     function PresetFileName: string;
     function SaveSelectedPresetAlias: string;
@@ -54,9 +62,7 @@ uses
   System.IOUtils,
   System.Math,
   System.SysUtils,
-  System.UITypes,
   Vcl.Graphics,
-  Vcl.Dialogs,
   AviUtl2PluginCore,
   AviUtl2PluginTypes;
 
@@ -113,12 +119,24 @@ begin
   Font.Size := 9;
   Font.Color := RGB(230, 230, 230);
   FPresets := TAul2AudioUserPresetList.Create(True);
+  FShortcuts := TShortcutAction.Create;
+  FShortcuts.Add(VK_UP, [ssCtrl],
+    procedure
+    begin
+      MoveSelectedPreset(-1);
+    end);
+  FShortcuts.Add(VK_DOWN, [ssCtrl],
+    procedure
+    begin
+      MoveSelectedPreset(1);
+    end);
   FInitialized := False;
 end;
 
 destructor TAul2AudioPresetPanel.Destroy;
 begin
   FDrag.Free;
+  FShortcuts.Free;
   FPresets.Free;
   inherited;
 end;
@@ -147,11 +165,46 @@ begin
   FPresetList.ItemHeight := 24;
   FPresetList.OnDblClick := PresetListDblClick;
   FPresetList.OnEdited := PresetListEdited;
+  FPresetList.OnKeyDown := PresetListKeyDown;
   FSaveButton := TButton.Create(Self);
   FSaveButton.Parent := Self;
   FSaveButton.Caption := '保存';
   FSaveButton.OnClick := SaveButtonClick;
+  FDeleteButton := TButton.Create(Self);
+  FDeleteButton.Parent := Self;
+  FDeleteButton.Caption := '削除';
+  FDeleteButton.OnClick := DeleteButtonClick;
+  FStatusLabel := TLabel.Create(Self);
+  FStatusLabel.Parent := Self;
+  FStatusLabel.AutoSize := False;
+  FStatusLabel.WordWrap := True;
+  FStatusLabel.Font.Color := RGB(255, 160, 96);
+  FStatusLabel.Caption := '';
   Resize;
+end;
+
+procedure TAul2AudioPresetPanel.PresetListKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  if FPresetList.IsEditing then
+    Exit;
+  FShortcuts.KeyDown(Key, Shift);
+end;
+
+procedure TAul2AudioPresetPanel.MoveSelectedPreset(Offset: Integer);
+var
+  Index   : Integer;
+  NewIndex: Integer;
+begin
+  Index := FPresetList.ItemIndex;
+  NewIndex := Index + Offset;
+  if (Index < 0) or (Index >= FPresets.Count) or
+     (NewIndex < 0) or (NewIndex >= FPresets.Count) then
+    Exit;
+
+  FPresets.Exchange(Index, NewIndex);
+  SavePresets;
+  RefreshPresetList;
+  FPresetList.ItemIndex := NewIndex;
 end;
 
 procedure TAul2AudioPresetPanel.Resize;
@@ -161,7 +214,8 @@ var
   ButtonLeft: Integer;
 begin
   inherited;
-  if (FPresetList = nil) or (FSaveButton = nil) then
+  if (FPresetList = nil) or (FSaveButton = nil) or
+     (FDeleteButton = nil) or (FStatusLabel = nil) then
     Exit;
 
   // 左側を一覧、右側を操作ボタン用の固定幅領域として使う。
@@ -174,6 +228,12 @@ begin
   FSaveButton.SetBounds(ButtonLeft, ListTop, 92, 30);
   FSaveButton.Visible := True;
   FSaveButton.BringToFront;
+  FDeleteButton.SetBounds(ButtonLeft, ListTop + 38, 92, 30);
+  FDeleteButton.Visible := True;
+  FDeleteButton.BringToFront;
+  FStatusLabel.SetBounds(ButtonLeft, ListTop + 76, 92, Max(1, ListHeight - 76));
+  FStatusLabel.Visible := True;
+  FStatusLabel.BringToFront;
 end;
 
 procedure TAul2AudioPresetPanel.SaveButtonClick(Sender: TObject);
@@ -184,11 +244,12 @@ var
 begin
   if not CaptureSelectedObjectAlias(AliasText) then
   begin
-    MessageDlg('保存するObjectを選択してください。', mtInformation, [mbOK], 0);
+    FStatusLabel.Caption := '保存するObjectを選択してください。';
     Exit;
   end;
 
-  PresetName := '新しいプリセット ' + IntToStr(FPresets.Count + 1);
+  FStatusLabel.Caption := '';
+  PresetName := NewPresetName;
   Preset := FPresets.AddNew;
   Preset.Name := PresetName;
   Preset.Effect := PRESET_EFFECT_NAME;
@@ -197,6 +258,51 @@ begin
   SavePresets;
   RefreshPresetList;
   FPresetList.ItemIndex := FPresetList.Items.Count - 1;
+end;
+
+procedure TAul2AudioPresetPanel.DeleteButtonClick(Sender: TObject);
+var
+  Index   : Integer;
+  NewIndex: Integer;
+begin
+  FStatusLabel.Caption := '';
+  Index := FPresetList.ItemIndex;
+  if (Index < 0) or (Index >= FPresets.Count) then
+  begin
+    FStatusLabel.Caption := '削除するプリセットを選択してください。';
+    Exit;
+  end;
+
+  FPresets.Delete(Index);
+  SavePresets;
+  RefreshPresetList;
+  if FPresets.Count = 0 then
+    NewIndex := -1
+  else
+    NewIndex := Min(Index, FPresets.Count - 1);
+  FPresetList.ItemIndex := NewIndex;
+end;
+
+function TAul2AudioPresetPanel.NewPresetName: string;
+var
+  Index    : Integer;
+  Number   : Integer;
+  Candidate: string;
+  Exists   : Boolean;
+begin
+  Number := 1;
+  repeat
+    Candidate := '新しいプリセット ' + IntToStr(Number);
+    Exists := False;
+    for Index := 0 to FPresets.Count - 1 do
+      if SameText(FPresets[Index].Name, Candidate) then
+      begin
+        Exists := True;
+        Break;
+      end;
+    Inc(Number);
+  until not Exists;
+  Result := Candidate;
 end;
 
 procedure TAul2AudioPresetPanel.PresetListDblClick(Sender: TObject);

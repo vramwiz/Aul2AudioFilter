@@ -239,7 +239,7 @@ begin
 
   FCreateButton := TPanel.Create(Self);
   FCreateButton.Parent := Self;
-  FCreateButton.Caption := '選択レイヤーへ作成';
+  FCreateButton.Caption := 'Send';
   FCreateButton.BevelOuter := bvLowered;
   FCreateButton.Cursor := crHandPoint;
   FCreateButton.Alignment := taCenter;
@@ -312,8 +312,8 @@ begin
   LabelW := ScalePx(58);
   EditW := ScalePx(66);
   SettingsW := ScalePx(320);
-  LayerW := ScalePx(170);
-  SendW := ScalePx(180);
+  LayerW := ScalePx(120);
+  SendW := ScalePx(64);
   PanelH := Height - Margin * 2;
   if PanelH < ScalePx(60) then
     PanelH := ScalePx(60);

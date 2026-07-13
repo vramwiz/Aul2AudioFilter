@@ -13,6 +13,7 @@ uses
   ToolBarPanelManager in 'Source\Lib\ToolBarPanelManager\ToolBarPanelManager.pas',
   DragAgent in 'Source\Lib\DragAgent\DragAgent.pas',
   ListBoxEdit in 'Source\Lib\ListBoxEdit\ListBoxEdit.pas',
+  ShortcutAction in 'Source\Lib\ShortcutAction\ShortcutAction.pas',
   Aul2AudioMonitorShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas',
   Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
   Aul2AudioViewFrameShared in 'Source\Lib\AudioMonitor\Aul2AudioViewFrameShared.pas',

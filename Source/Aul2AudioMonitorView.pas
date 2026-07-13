@@ -105,6 +105,8 @@ var
   PlaybackMonitorSnapshotValid: Boolean;
   PlaybackSpectrumSnapshotValid: Boolean;
 
+procedure InvalidateMonitorView; forward;
+
 procedure ClearPlaybackHistory;
 begin
   PlaybackMonitorSnapshotValid := False;
@@ -152,7 +154,7 @@ begin
       end;
     aesSave:
       begin
-        StateLabel.Caption := 'State: Save';
+        StateLabel.Caption := 'State: Encode';
         StateLabel.Font.Color := RGB(210, 92, 76);
       end;
   else
@@ -182,15 +184,20 @@ begin
   try
     NewEditState := AviUtl2GetEditState;
     if LastMonitorEditStateValid and
-       (LastMonitorEditState = aesEdit) and
-       (NewEditState = aesPlay) then
+       (LastMonitorEditState <> NewEditState) and
+       ((NewEditState = aesPlay) or (NewEditState = aesSave)) then
     begin
       ClearPlaybackHistory;
       ClearAudioMonitorDisplay;
+      InvalidateMonitorView;
     end;
 
     MonitorEditState := NewEditState;
     MonitorEditStateValid := True;
+    if ViewFrameMemory = nil then
+      ViewFrameMemory := TAul2AudioViewFrameSharedMemory.Create;
+    if ViewFrameMemory.State <> nil then
+      ViewFrameMemory.State^.EditState := Ord(MonitorEditState);
     LastMonitorEditState := MonitorEditState;
     LastMonitorEditStateValid := True;
   except
@@ -244,6 +251,11 @@ end;
 function IsPlaybackDisplay: Boolean;
 begin
   Result := MonitorEditStateValid and (MonitorEditState = aesPlay);
+end;
+
+function IsEncodingDisplay: Boolean;
+begin
+  Result := MonitorEditStateValid and (MonitorEditState = aesSave);
 end;
 
 function PlaybackFrameAvailable: Boolean;
@@ -649,8 +661,10 @@ procedure TMonitorTimerTarget.ReadTimerTick(Sender: TObject);
 begin
   // 50msごとに再生状態と基準フレームを一度更新し、表示中のページだけを再描画する。
   RefreshEditState;
-  RefreshMonitorFrame;
   SyncMonitorViewBounds;
+  if IsEncodingDisplay then
+    Exit;
+  RefreshMonitorFrame;
   InvalidateMonitorView;
 end;
 
@@ -665,6 +679,13 @@ begin
     Exit;
 
   PaintBox := TPaintBox(Sender);
+
+  if IsEncodingDisplay then
+  begin
+    PaintBox.Canvas.Brush.Color := RGB(36, 36, 36);
+    PaintBox.Canvas.FillRect(PaintBox.ClientRect);
+    Exit;
+  end;
 
   try
     State := GetMonitorSharedMemory.State;
@@ -694,6 +715,13 @@ begin
     Exit;
 
   PaintBox := TPaintBox(Sender);
+
+  if IsEncodingDisplay then
+  begin
+    PaintBox.Canvas.Brush.Color := RGB(36, 36, 36);
+    PaintBox.Canvas.FillRect(PaintBox.ClientRect);
+    Exit;
+  end;
 
   try
     SpectrumState := GetSpectrumSharedMemory.State;

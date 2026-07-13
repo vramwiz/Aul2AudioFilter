@@ -10,7 +10,7 @@ uses
 const
   AUDIO_VIEW_FRAME_SHARED_NAME    = 'Local\Aul2AudioViewFrame'; // View と Monitor が開くマップ名。
   AUDIO_VIEW_FRAME_SHARED_MAGIC   = $41564652;                   // 構造判定用の識別値 AVFR。
-  AUDIO_VIEW_FRAME_SHARED_VERSION = 1;                           // レコード配置を変更したら更新する。
+  AUDIO_VIEW_FRAME_SHARED_VERSION = 2;                           // レコード配置を変更したら更新する。
 
 type
   // View が最後に描画した編集全体のフレームを Monitor へ通知する状態。
@@ -20,6 +20,7 @@ type
     Version   : Cardinal; // AUDIO_VIEW_FRAME_SHARED_VERSION。
     UpdateTick: UInt64;   // 更新の鮮度を判定する GetTickCount64 値。
     Frame     : Integer;  // View が実際に処理した編集全体のフレーム番号。
+    EditState : Integer;  // Monitorが通知する編集状態。0=Edit、1=Play、2=Encode。
   end;
 
   // ViewFrame 状態を固定サイズの名前付き共有メモリとして公開する。
@@ -46,6 +47,7 @@ begin
     begin
       State^.UpdateTick := 0;
       State^.Frame := -1;
+      State^.EditState := 0;
     end;
   end;
 end;
