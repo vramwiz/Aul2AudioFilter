@@ -1,4 +1,6 @@
-unit Aul2AudioBaseInputPlugin;
+﻿unit Aul2AudioBaseInputPlugin;
+
+// .aul2base のファイル名から映像仕様を復元し、透明な空フレームを返す入力処理を担当する。
 
 interface
 
@@ -6,10 +8,15 @@ uses
   Winapi.Windows,
   AviUtl2InputTypes;
 
+// 仮想ファイル名を解析して入力コンテキストを作り、失敗時は nil を返す。
 function BaseInputOpen(FileName: LPCWSTR): INPUT_HANDLE;
+// BaseInputOpen が確保した入力コンテキストを解放する。
 function BaseInputClose(Ih: INPUT_HANDLE): BOOL;
+// 解像度、フレームレート、総フレーム数、32bit映像形式を AviUtl2 へ返す。
 function BaseInputGetInfo(Ih: INPUT_HANDLE; Info: PInputInfo): BOOL;
+// 指定フレーム用の32bit映像バッファを透明な黒で初期化し、書き込みバイト数を返す。
 function BaseInputReadVideo(Ih: INPUT_HANDLE; Frame: Integer; Buf: Pointer): Integer;
+// 入力プラグインの簡易情報ダイアログを表示する。
 function BaseInputConfig(Hwnd: HWND; Hinst: HINST): BOOL;
 
 implementation
@@ -19,14 +26,15 @@ uses
   System.SysUtils;
 
 type
+  // 1つの .aul2base 素材を開いている間だけ保持する映像仕様。
   PBaseInputContext = ^TBaseInputContext;
   TBaseInputContext = record
-    Width: Integer;
-    Height: Integer;
-    MaxSec: Double;
-    Rate: Integer;
-    Scale: Integer;
-    Info: BITMAPINFOHEADER;
+    Width : Integer;          // 出力映像の幅。
+    Height: Integer;          // 出力映像の高さ。
+    MaxSec: Double;           // 素材の最大秒数。
+    Rate  : Integer;          // フレームレートの分子。
+    Scale : Integer;          // フレームレートの分母。
+    Info  : BITMAPINFOHEADER; // AviUtl2へ返す32bit BI_RGB形式情報。
   end;
 
 procedure ParseBaseFileName(
@@ -41,6 +49,7 @@ var
   Fps: Double;
   P: Integer;
 begin
+  // 不完全なファイル名でも開けるよう、各値は一般的な映像仕様を既定値にする。
   Width := 1920;
   Height := 1080;
   MaxSec := 30.0;
@@ -58,6 +67,7 @@ begin
   if P > 0 then
     Base := Copy(Base, P + 1, MaxInt);
 
+  // 仮想名は Width_Height_MaxSec_Fps_Scale の順で値を保持する。
   Parts := Base.Split(['_']);
   if Length(Parts) >= 2 then
   begin
@@ -101,6 +111,7 @@ begin
     Ctx^.Info.biWidth := Ctx^.Width;
     Ctx^.Info.biHeight := Ctx^.Height;
     Ctx^.Info.biPlanes := 1;
+    // View フィルターが上に描画する土台なので、変換不要な32bit BI_RGBを返す。
     Ctx^.Info.biBitCount := 32;
     Ctx^.Info.biCompression := BI_RGB;
     Ctx^.Info.biSizeImage := Ctx^.Width * Ctx^.Height * 4;
@@ -154,6 +165,7 @@ begin
     Exit;
 
   Ctx := PBaseInputContext(Ih);
+  // Frame に依存する内容は持たず、全フレームを同じ透明な土台として返す。
   FillChar(Buf^, Ctx^.Info.biSizeImage, 0);
   Result := Ctx^.Info.biSizeImage;
 end;

@@ -1,4 +1,6 @@
-library Aul2AudioBaseInput;
+﻿library Aul2AudioBaseInput;
+
+// .aul2base 仮想素材を空の映像として開く AviUtl2 入力プラグインの DLL 境界。
 
 uses
   Winapi.Windows,
@@ -27,6 +29,7 @@ end;
 
 function func_read_audio(Ih: INPUT_HANDLE; Start, Length: Integer; Buf: Pointer): Integer; cdecl;
 begin
+  // Aul2AudioBaseInput は映像フィルターの土台専用で、音声ストリームを持たない。
   Result := 0;
 end;
 
@@ -36,6 +39,7 @@ begin
 end;
 
 var
+  // 未使用の音声・トラック・時刻変換コールバックは nil とし、映像入力だけを公開する。
   Plugin: TInputPluginTable = (
     flag: INPUT_PLUGIN_FLAG_VIDEO;
     name: 'Aul2AudioBaseInput';
@@ -53,6 +57,7 @@ var
 
 function GetInputPluginTable: PInputPluginTable; cdecl;
 begin
+  // 静的テーブルは DLL の生存期間中有効で、AviUtl2 がコールバック参照を保持できる。
   Result := @Plugin;
 end;
 
