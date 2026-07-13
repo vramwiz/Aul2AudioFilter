@@ -37,6 +37,7 @@ uses
   Aul2AudioMonitorSpectrumShared,
   Aul2AudioViewFrameShared,
   Aul2AudioBasePanel,
+  Aul2AudioPresetPanel,
   AviUtl2PluginCore,
   ToolBarPanelManager;
 
@@ -48,7 +49,8 @@ type
   TAudioMonitorPage = (
     ampWave,
     ampSpectrum,
-    ampBase
+    ampBase,
+    ampPreset
   );
 
   TFormAudioMonitor = class(TForm)
@@ -72,11 +74,14 @@ var
   ButtonWave  : TToolButton;
   ButtonSpectrum: TToolButton;
   ButtonBase  : TToolButton;
+  ButtonPreset: TToolButton;
   StateLabel  : TLabel;
   PanelWave   : TPanel;
   PanelSpectrum: TPanel;
   PanelBase   : TPanel;
+  PanelPreset : TPanel;
   BasePanel   : TAul2AudioBasePanel;
+  PresetPanel : TAul2AudioPresetPanel;
   InfoLabel   : TLabel;
   WavePaintBox: TPaintBox;
   SpectrumPaintBox: TPaintBox;
@@ -754,7 +759,7 @@ begin
   ToolBar := TToolBar.Create(MonitorForm);
   ToolBar.Parent := HeaderPanel;
   ToolBar.Align := alLeft;
-  ToolBar.Width := MulDiv(74 * 3, MonitorForm.Font.PixelsPerInch, 96);
+  ToolBar.Width := MulDiv(74 * 4, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.Height := MulDiv(28, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.ButtonWidth := MulDiv(74, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.ButtonHeight := ToolBar.Height;
@@ -784,6 +789,12 @@ begin
   ButtonBase.Left := ToolBar.ButtonWidth * 2;
   ButtonBase.Top := 0;
   ButtonBase.Parent := ToolBar;
+
+  ButtonPreset := TToolButton.Create(MonitorForm);
+  ButtonPreset.Caption := 'Preset';
+  ButtonPreset.Left := ToolBar.ButtonWidth * 3;
+  ButtonPreset.Top := 0;
+  ButtonPreset.Parent := ToolBar;
 
   StateLabel := TLabel.Create(MonitorForm);
   StateLabel.Parent := HeaderPanel;
@@ -822,6 +833,14 @@ begin
   PanelBase.Color := RGB(36, 36, 36);
   PanelBase.ParentBackground := False;
 
+  PanelPreset := TPanel.Create(MonitorForm);
+  PanelPreset.Parent := RootPanel;
+  PanelPreset.Align := alClient;
+  PanelPreset.BevelOuter := bvNone;
+  PanelPreset.Caption := '';
+  PanelPreset.Color := RGB(36, 36, 36);
+  PanelPreset.ParentBackground := False;
+
   InfoLabel := TLabel.Create(MonitorForm);
   InfoLabel.Parent := PanelWave;
   InfoLabel.Align := alClient;
@@ -855,6 +874,11 @@ begin
   BasePanel.Align := alClient;
   BasePanel.Initialize;
 
+  PresetPanel := TAul2AudioPresetPanel.Create(MonitorForm);
+  PresetPanel.Parent := PanelPreset;
+  PresetPanel.Align := alClient;
+  PresetPanel.Initialize;
+
   ToolBarManager := TToolBarPanelManager.Create;
   ToolBarManager.ToolBarBackgroundColor := RGB(48, 48, 48);
   ToolBarManager.ToolBarFontColor := RGB(230, 230, 230);
@@ -864,6 +888,7 @@ begin
   ToolBarManager.AddPanel(PanelWave);
   ToolBarManager.AddPanel(PanelSpectrum);
   ToolBarManager.AddPanel(PanelBase);
+  ToolBarManager.AddPanel(PanelPreset);
 
   MonitorForm.Show;
   MonitorForm.Visible := True;
@@ -937,11 +962,14 @@ begin
   ButtonWave := nil;
   ButtonSpectrum := nil;
   ButtonBase := nil;
+  ButtonPreset := nil;
   StateLabel := nil;
   PanelWave := nil;
   PanelSpectrum := nil;
   PanelBase := nil;
+  PanelPreset := nil;
   BasePanel := nil;
+  PresetPanel := nil;
   InfoLabel := nil;
   WavePaintBox := nil;
   SpectrumPaintBox := nil;

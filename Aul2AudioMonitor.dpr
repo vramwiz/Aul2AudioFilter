@@ -18,6 +18,9 @@ uses
   Aul2AudioBaseAlias in 'Source\Aul2AudioBaseAlias.pas',
   Aul2AudioBaseCreate in 'Source\Aul2AudioBaseCreate.pas',
   Aul2AudioBasePanel in 'Source\Aul2AudioBasePanel.pas',
+  Aul2AudioPresetPanel in 'Source\Aul2AudioPresetPanel.pas',
+  Aul2AudioPresetModel in 'Source\Aul2AudioPresetModel.pas',
+  SectionFileManager in 'Source\Lib\PresetSupport\Serialization\Section\SectionFileManager.pas',
   Aul2AudioMonitorPaint in 'Source\Aul2AudioMonitorPaint.pas',
   Aul2AudioMonitorView in 'Source\Aul2AudioMonitorView.pas',
   Aul2AudioMonitorPlugin in 'Source\Aul2AudioMonitorPlugin.pas';

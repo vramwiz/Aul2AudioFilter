@@ -4,7 +4,7 @@
         <ProjectVersion>20.4</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
+        <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <ProjectName Condition="'$(ProjectName)'==''">Aul2AudioMonitor</ProjectName>
         <TargetedPlatforms>2</TargetedPlatforms>
@@ -125,6 +125,9 @@
         <DCCReference Include="Source\Aul2AudioBaseAlias.pas"/>
         <DCCReference Include="Source\Aul2AudioBaseCreate.pas"/>
         <DCCReference Include="Source\Aul2AudioBasePanel.pas"/>
+        <DCCReference Include="Source\Aul2AudioPresetPanel.pas"/>
+        <DCCReference Include="Source\Aul2AudioPresetModel.pas"/>
+        <DCCReference Include="Source\Lib\PresetSupport\Serialization\Section\SectionFileManager.pas"/>
         <DCCReference Include="Source\Aul2AudioMonitorPaint.pas"/>
         <DCCReference Include="Source\Aul2AudioMonitorView.pas"/>
         <DCCReference Include="Source\Aul2AudioMonitorPlugin.pas"/>

@@ -1,4 +1,4 @@
-unit Aul2AudioBaseAlias;
+﻿unit Aul2AudioBaseAlias;
 
 {$WARN IMPLICIT_STRING_CAST OFF}
 
