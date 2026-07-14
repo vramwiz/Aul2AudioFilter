@@ -490,6 +490,17 @@
 
 ## Aul2AudioMonitor Peak Meter note
 
+- 2026-07-14、Monitorのサイズ変更後にツールバーを含む画面全体が消える現象へ再対応した。親クライアントのリサイズ途中で子ウィンドウが一時的に非表示になり、元と同じ寸法へ戻った際に早期終了して再表示されない経路を修正した。
+- Syncroh2の `PluginExSyncroh2Frame.Show` / `OnToolBarChange` にある再表示、親Realign、ToolBar Invalidateの手順を参考にし、可視状態が壊れている場合は同じサイズでも `SWP_SHOWWINDOW`、選択ページ再適用、RootPanel再配置、ToolBar再描画を行う。
+- 現象がPresetページ表示中に限定されるという実機確認を受け、可視性フラグの破損時だけでなく、通常のサイズ変更時にも選択ページを再適用するよう修正した。Preset内の編集コントロールが再配置された後にPanelの前面状態、RootPanel、ToolBarを順に復元する。
+- 上記修正後、Preset一覧は表示されるが右側の保存・削除・状態欄が消える現象を確認した。選択ページ再適用後に `TAul2AudioPresetPanel.RefreshLayout` を呼び、子コントロールの座標、Visible、前面順を明示的に復元するよう追加修正した。
+- 追加修正でも改善しなかったためページ管理を再調査した。`ToolBarPanelManager.UpdatePanels` が整列停止をToolBarの親HeaderPanelへ掛け、実際にVisibleを変更するページ群の親RootPanelを保護していなかった。描画中心のViewでは表面化しにくい一方、ListBox・Button・Editを持つPresetではウィンドウ順が崩れるため、ページ群の共通親をDisableAlign/EnableAlign/Realignするよう修正した。Preset固有のRefreshLayoutもRootPanelの最終Realign後へ移した。
+- 上記ページ管理変更でPreset表示中にツールバーまで消え、悪化したため撤回した。リサイズ中に `RefreshActive` でページを非表示・再表示することを避け、現在ページを維持したままPresetパネル、一覧、保存・削除ボタン、状態欄の各ネイティブウィンドウへ `ShowWindow` を直接適用する方式へ変更した。
+- ツールバーは復旧するがPreset内容はホバーするまで表示されないという実機確認から、残件を可視性ではなく再描画要求の欠落と判断した。Presetのレイアウト・可視性復旧後に `RedrawWindow` の `RDW_ALLCHILDREN` / `RDW_UPDATENOW` を使い、一覧と操作欄を即時再描画するよう変更した。
+- `RedrawWindow` の即時描画ではPreset内容が完全に空になる結果だったため撤回した。Presetパネル、一覧、保存・削除ボタンをWin32 `SetWindowPos`で1px縮小して元へ戻し、`WM_SIZE`と各コントロール本来の再描画経路を発生させるダミーリサイズ方式へ変更した。
+- ダミーリサイズで内容とボタンは大幅に改善したが、ListBoxの外枠だけ描画されない実機結果を受け、`SetWindowPos`へ `SWP_FRAMECHANGED` を追加した。さらに各対象ウィンドウ単体へ `RDW_FRAME` を指定し、親背景や他の子を消去せず非クライアント枠を即時再描画する。
+- `SWP_FRAMECHANGED` / `RDW_FRAME` で再び全内容が表示されなくなったため撤回した。改善していた通常のダミーリサイズへ戻し、ListBox自身の非クライアント枠を `bsNone` にして、外側の `TPanel` のLowered枠で安定して表示する構成へ変更した。
+
 - 2026-07-13、AviUtl2の `aesSave` 状態をMonitor上で `State: Encode` と表示するようにした。エンコード開始時はWave/Spectrumの表示履歴と再生同期履歴をクリアする。
 - エンコード中は50msタイマーによるフレーム取得、共有メモリ読み取り、Wave/Spectrum再描画を停止する。ウィンドウ再露出など外部要因でPaintが発生した場合も空背景だけを描き、エンコード負荷を抑える。
 - `Aul2Audio View` はエンコード映像に必要なWave/Spectrum解析値の読み取りと描画を継続する。一方、`Local\Aul2AudioViewFrame` への描画フレーム通知はMonitorの再生同期専用なので、エンコード中はSpectrum系・Wave系の両方で省略する。

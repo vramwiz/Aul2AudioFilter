@@ -567,12 +567,20 @@ end;
 
 procedure ResizeMonitorView(Width, Height: Integer);
 var
+  NeedsVisibilityRepair: Boolean;
   ToolButtonWidth: Integer;
 begin
   if (Width <= 0) or (Height <= 0) then
     Exit;
 
-  if (Width = LastViewWidth) and (Height = LastViewHeight) then
+  // 親のリサイズ途中で子ウィンドウが隠れた場合、寸法が元へ戻っても再表示処理を省略しない。
+  NeedsVisibilityRepair := not Assigned(MonitorForm) or
+    not MonitorForm.Visible or not IsWindowVisible(MonitorForm.Handle) or
+    not Assigned(RootPanel) or not RootPanel.Visible or
+    not Assigned(HeaderPanel) or not HeaderPanel.Visible or
+    not Assigned(ToolBar) or not ToolBar.Visible or not IsWindowVisible(ToolBar.Handle);
+  if (Width = LastViewWidth) and (Height = LastViewHeight) and
+     not NeedsVisibilityRepair then
     Exit;
 
   LastViewWidth := Width;
@@ -580,19 +588,25 @@ begin
 
   if Assigned(MonitorForm) then
   begin
+    MonitorForm.Visible := True;
     MonitorForm.SetBounds(0, 0, Width, Height);
     SetWindowPos(MonitorForm.Handle, 0, 0, 0, Width, Height,
-      SWP_NOZORDER or SWP_NOACTIVATE);
+      SWP_NOZORDER or SWP_NOACTIVATE or SWP_SHOWWINDOW);
   end;
 
   if Assigned(RootPanel) then
   begin
+    RootPanel.Visible := True;
     RootPanel.SetBounds(0, 0, Width, Height);
     RootPanel.Realign;
   end;
 
+  if Assigned(HeaderPanel) then
+    HeaderPanel.Visible := True;
+
   if Assigned(ToolBar) then
   begin
+    ToolBar.Visible := True;
     // 全ボタンで共通となる幅は、最長の Caption に左右の余白を加えて決める。
     MonitorForm.Canvas.Font.Assign(ToolBar.Font);
     ToolButtonWidth := Max(MonitorForm.Canvas.TextWidth(ButtonSpectrum.Caption),
@@ -606,6 +620,14 @@ begin
     ToolBar.Realign;
     ToolBar.Invalidate;
   end;
+
+  if Assigned(RootPanel) then
+    RootPanel.Realign;
+  // ページ切替は行わず、現在のPresetページにあるネイティブ子ウィンドウだけを復旧する。
+  if Assigned(PresetPanel) and Assigned(PanelPreset) and PanelPreset.Visible then
+    PresetPanel.RefreshLayout;
+  if Assigned(ToolBar) then
+    ToolBar.Invalidate;
 
   if Assigned(InfoLabel) then
     InfoLabel.SetBounds(0, 0, Width, Height);

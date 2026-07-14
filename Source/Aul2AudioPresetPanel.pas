@@ -10,6 +10,7 @@ uses
   System.Classes,
   Vcl.Controls,
   Vcl.ExtCtrls,
+  Vcl.Forms,
   Vcl.StdCtrls,
   DragAgent,
   ListBoxEdit,
@@ -21,6 +22,7 @@ type
   TAul2AudioPresetPanel = class(TPanel)
   private
     FDrag       : TDragShellFile;
+    FListBorder : TPanel;
     FPresetList : TListBoxEdit;
     FSaveButton : TButton;
     FDeleteButton: TButton;
@@ -53,6 +55,8 @@ type
     destructor Destroy; override;
     // 親ウィンドウへの関連付け後に、子コントロールとD&Dを一度だけ構築する。
     procedure Initialize;
+    // 親ページの再表示後に、一覧と操作欄の配置・可視性・前面順を復元する。
+    procedure RefreshLayout;
   end;
 
 implementation
@@ -155,11 +159,67 @@ begin
   FInitialized := True;
 end;
 
+procedure NudgePresetWindow(Control: TWinControl);
+var
+  ControlHeight: Integer;
+  ControlWidth : Integer;
+begin
+  if not Assigned(Control) or not Control.HandleAllocated then
+    Exit;
+  ControlWidth := Control.Width;
+  ControlHeight := Control.Height;
+  if (ControlWidth <= 1) or (ControlHeight <= 0) then
+    Exit;
+  // 同じサイズのSetBoundsはVCL側で省略されるため、Win32へ1px差のWM_SIZEを明示的に送る。
+  SetWindowPos(Control.Handle, 0, Control.Left, Control.Top,
+    ControlWidth - 1, ControlHeight, SWP_NOZORDER or SWP_NOACTIVATE or SWP_SHOWWINDOW);
+  SetWindowPos(Control.Handle, 0, Control.Left, Control.Top,
+    ControlWidth, ControlHeight, SWP_NOZORDER or SWP_NOACTIVATE or SWP_SHOWWINDOW);
+end;
+
+procedure TAul2AudioPresetPanel.RefreshLayout;
+begin
+  if not FInitialized then
+    Exit;
+  Resize;
+  // VCLのVisible値がTrueのままネイティブ子ウィンドウだけ隠れる場合も強制的に復旧する。
+  if HandleAllocated then
+    ShowWindow(Handle, SW_SHOWNA);
+  if Assigned(FPresetList) and FPresetList.HandleAllocated then
+    ShowWindow(FPresetList.Handle, SW_SHOWNA);
+  if Assigned(FListBorder) and FListBorder.HandleAllocated then
+    ShowWindow(FListBorder.Handle, SW_SHOWNA);
+  if Assigned(FSaveButton) and FSaveButton.HandleAllocated then
+    ShowWindow(FSaveButton.Handle, SW_SHOWNA);
+  if Assigned(FDeleteButton) and FDeleteButton.HandleAllocated then
+    ShowWindow(FDeleteButton.Handle, SW_SHOWNA);
+  if Assigned(FStatusLabel) then
+  begin
+    FStatusLabel.Visible := True;
+    FStatusLabel.BringToFront;
+  end;
+  // 親リサイズ後に通常の再描画要求が失われるため、1pxのダミーリサイズでWM_SIZEを発生させる。
+  NudgePresetWindow(Self);
+  NudgePresetWindow(FListBorder);
+  NudgePresetWindow(FPresetList);
+  NudgePresetWindow(FSaveButton);
+  NudgePresetWindow(FDeleteButton);
+  FStatusLabel.Invalidate;
+end;
+
 procedure TAul2AudioPresetPanel.CreateControls;
 begin
+  FListBorder := TPanel.Create(Self);
+  FListBorder.Parent := Self;
+  FListBorder.BevelOuter := bvLowered;
+  FListBorder.BevelWidth := 1;
+  FListBorder.Caption := '';
+  FListBorder.Color := RGB(32, 32, 32);
+  FListBorder.ParentBackground := False;
   FPresetList := TListBoxEdit.Create(Self);
-  FPresetList.Parent := Self;
+  FPresetList.Parent := FListBorder;
   FPresetList.Align := alNone;
+  FPresetList.BorderStyle := bsNone;
   FPresetList.Color := RGB(32, 32, 32);
   FPresetList.Font.Color := RGB(230, 230, 230);
   FPresetList.ItemHeight := 24;
@@ -214,7 +274,7 @@ var
   ButtonLeft: Integer;
 begin
   inherited;
-  if (FPresetList = nil) or (FSaveButton = nil) or
+  if (FListBorder = nil) or (FPresetList = nil) or (FSaveButton = nil) or
      (FDeleteButton = nil) or (FStatusLabel = nil) then
     Exit;
 
@@ -222,7 +282,11 @@ begin
   ListTop := 12;
   ListHeight := Max(32, ClientHeight - 24);
   ButtonLeft := Max(12, ClientWidth - 104);
-  FPresetList.SetBounds(12, ListTop, Max(1, ButtonLeft - 20), ListHeight);
+  FListBorder.SetBounds(12, ListTop, Max(1, ButtonLeft - 20), ListHeight);
+  FPresetList.SetBounds(1, 1, Max(1, FListBorder.ClientWidth - 2),
+    Max(1, FListBorder.ClientHeight - 2));
+  FListBorder.Visible := True;
+  FListBorder.BringToFront;
   FPresetList.Visible := True;
   FPresetList.BringToFront;
   FSaveButton.SetBounds(ButtonLeft, ListTop, 92, 30);
