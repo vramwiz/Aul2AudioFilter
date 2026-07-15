@@ -47,6 +47,7 @@ type
 
   TControllerEventTarget = class(TComponent)
   public
+    procedure DelayVolumeChange(Sender: TObject; const ValueText: string; var Accept: Boolean);
     procedure ModeComboChange(Sender: TObject);
     procedure MouseBoundaryTimer(Sender: TObject);
     procedure ControllerMouseEnter(Sender: TObject);
@@ -72,6 +73,12 @@ var
   Refreshing     : Boolean;
   LastUse        : Boolean;
   LastStereoMode : Integer;
+
+const
+  DELAY_CONTROL_TIME     = 1;
+  DELAY_CONTROL_DRY      = 2;
+  DELAY_CONTROL_WET      = 3;
+  DELAY_CONTROL_FEEDBACK = 4;
 
 constructor TFormAudioController.Create(AOwner: TComponent);
 begin
@@ -285,6 +292,32 @@ begin
   ShowWriteStatus(Success, 'Dly: Stereo Mode');
 end;
 
+procedure TControllerEventTarget.DelayVolumeChange(Sender: TObject; const ValueText: string;
+  var Accept: Boolean);
+var
+  ItemName: string;
+begin
+  Accept := False;
+  if Refreshing or not (Sender is TAul2VolumeControl) then
+    Exit;
+
+  case TAul2VolumeControl(Sender).Tag of
+    DELAY_CONTROL_TIME:
+      ItemName := 'Dly: Time(ms)';
+    DELAY_CONTROL_DRY:
+      ItemName := 'Dly: Dry';
+    DELAY_CONTROL_WET:
+      ItemName := 'Dly: Wet';
+    DELAY_CONTROL_FEEDBACK:
+      ItemName := 'Dly: Feedback';
+  else
+    Exit;
+  end;
+
+  Accept := SetSelectedDelayItem(ItemName, ValueText);
+  ShowWriteStatus(Accept, ItemName);
+end;
+
 function IsCursorInsideController: Boolean;
 var
   CursorPosition: TPoint;
@@ -397,25 +430,33 @@ begin
   RegisterMouseEnter(ModeCombo);
 
   TimeControl := TAul2VolumeControl.Create(ControllerForm);
-  TimeControl.Configure('Time', 1, 1000, 'ms');
+  TimeControl.Configure('Time', 1, 1000, 1, 0, 'ms');
+  TimeControl.Tag := DELAY_CONTROL_TIME;
+  TimeControl.OnValueChange := EventTarget.DelayVolumeChange;
   TimeControl.Font.Assign(ControllerForm.Font);
   TimeControl.Parent := RootPanel;
   RegisterMouseEnter(TimeControl);
 
   DryControl := TAul2VolumeControl.Create(ControllerForm);
-  DryControl.Configure('Dry', 0, 2);
+  DryControl.Configure('Dry', 0, 2, 0.01, 2);
+  DryControl.Tag := DELAY_CONTROL_DRY;
+  DryControl.OnValueChange := EventTarget.DelayVolumeChange;
   DryControl.Font.Assign(ControllerForm.Font);
   DryControl.Parent := RootPanel;
   RegisterMouseEnter(DryControl);
 
   WetControl := TAul2VolumeControl.Create(ControllerForm);
-  WetControl.Configure('Wet', 0, 2);
+  WetControl.Configure('Wet', 0, 2, 0.01, 2);
+  WetControl.Tag := DELAY_CONTROL_WET;
+  WetControl.OnValueChange := EventTarget.DelayVolumeChange;
   WetControl.Font.Assign(ControllerForm.Font);
   WetControl.Parent := RootPanel;
   RegisterMouseEnter(WetControl);
 
   FeedbackControl := TAul2VolumeControl.Create(ControllerForm);
-  FeedbackControl.Configure('Feedback', 0, 0.95);
+  FeedbackControl.Configure('Feedback', 0, 0.95, 0.01, 2);
+  FeedbackControl.Tag := DELAY_CONTROL_FEEDBACK;
+  FeedbackControl.OnValueChange := EventTarget.DelayVolumeChange;
   FeedbackControl.Font.Assign(ControllerForm.Font);
   FeedbackControl.Parent := RootPanel;
   RegisterMouseEnter(FeedbackControl);

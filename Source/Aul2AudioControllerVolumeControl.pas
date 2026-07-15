@@ -6,37 +6,71 @@ interface
 
 uses
   System.Classes,
+  System.Types,
   Vcl.Controls,
   Vcl.Forms,
   Vcl.Graphics,
   Vcl.StdCtrls;
 
+const
+  VOLUME_VERTICAL_RANGE_PER_PIXEL   = 1.0 / 180.0; // 縦ドラッグ1px当たりの全値域比率（粗調整）。
+  VOLUME_HORIZONTAL_RANGE_PER_PIXEL = 1.0 / 600.0; // 横ドラッグ1px当たりの全値域比率（微調整）。
+  VOLUME_DRAG_AXIS_THRESHOLD        = 4;           // 縦横の操作軸を確定する最小移動量。
+
 type
+  TVolumeDragAxis = (vdaNone, vdaHorizontal, vdaVertical);
+  TVolumeValueChangeEvent = procedure(Sender: TObject; const ValueText: string;
+    var Accept: Boolean) of object;
+
   TAul2VolumeControl = class(TCustomControl)
   private
     FAccentColor: TColor;
+    FDecimals: Integer;
     FDisplayName: string;
+    FDragAxis: TVolumeDragAxis;
+    FDragging: Boolean;
+    FDragStartPoint: TPoint;
+    FDragStartValue: Double;
+    FEditStartText: string;
     FMaximum: Double;
     FMinimum: Double;
+    FOnValueChange: TVolumeValueChangeEvent;
+    FStep: Double;
     FUnitText: string;
     FValue: Double;
     FValueEdit: TEdit;
     FValueText: string;
+    procedure CommitValueEdit;
+    procedure EditEnter(Sender: TObject);
+    procedure EditExit(Sender: TObject);
+    procedure EditKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    function FormatValue(Value: Double): string;
+    procedure InvalidateKnob;
     procedure LayoutValueEdit;
+    function NormalizeValue(Value: Double): Double;
     procedure SetAccentColor(const Value: TColor);
     procedure SetDisplayName(const Value: string);
     procedure SetMaximum(const Value: Double);
     procedure SetMinimum(const Value: Double);
+    procedure SetEditText(const Value: string);
     procedure SetUnitText(const Value: string);
     procedure SetValue(const Value: Double);
     procedure SetValueText(const Value: string);
+    function TryApplyValue(Value: Double; NotifyChange: Boolean): Boolean;
   protected
+    procedure CreateParams(var Params: TCreateParams); override;
+    procedure KeyDown(var Key: Word; Shift: TShiftState); override;
+    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    function DoMouseWheel(Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint): Boolean; override;
     procedure Paint; override;
     procedure Resize; override;
   public
     constructor Create(AOwner: TComponent); override;
-    // 表示名、値域、単位を一度に設定する。現段階では表示だけを行う。
-    procedure Configure(const DisplayName: string; Minimum, Maximum: Double; const UnitText: string = '');
+    // 表示名、値域、刻み、小数桁、単位を一度に設定する。
+    procedure Configure(const DisplayName: string; Minimum, Maximum, Step: Double;
+      Decimals: Integer; const UnitText: string = '');
     property ValueText: string read FValueText write SetValueText;
   published
     property AccentColor: TColor read FAccentColor write SetAccentColor default $00D88A38;
@@ -47,6 +81,7 @@ type
     property Font;
     property Maximum: Double read FMaximum write SetMaximum;
     property Minimum: Double read FMinimum write SetMinimum;
+    property OnValueChange: TVolumeValueChangeEvent read FOnValueChange write FOnValueChange;
     property ParentFont;
     property ShowHint;
     property UnitText: string read FUnitText write SetUnitText;
@@ -57,10 +92,10 @@ type
 implementation
 
 uses
+  Winapi.Messages,
   Winapi.Windows,
   System.Math,
-  System.SysUtils,
-  System.Types;
+  System.SysUtils;
 
 function ScaleColor(Color: TColor; Numerator, Denominator: Integer): TColor;
 var
@@ -124,29 +159,78 @@ begin
 
   // Parent接続や寸法変更でResize/Paintが発火する前に、子Editを完全に構築する。
   FValueEdit := TEdit.Create(Self);
-  FValueEdit.ReadOnly := True;
-  FValueEdit.TabStop := False;
+  FValueEdit.ReadOnly := False;
+  FValueEdit.TabStop := True;
   FValueEdit.Text := '0';
   FValueEdit.Alignment := taCenter;
   FValueEdit.BorderStyle := bsSingle;
   FValueEdit.Color := RGB(19, 21, 24);
   FValueEdit.Font.Color := RGB(248, 248, 248);
   FValueEdit.ParentFont := True;
+  FValueEdit.OnEnter := EditEnter;
+  FValueEdit.OnExit := EditExit;
+  FValueEdit.OnKeyDown := EditKeyDown;
 
   Width := 72;
   Height := 126;
   Color := RGB(31, 34, 38);
   ParentBackground := False;
   DoubleBuffered := True;
-  TabStop := False;
+  Cursor := crSizeAll;
+  TabStop := True;
   FAccentColor := RGB(56, 138, 216);
   FDisplayName := 'Value';
   FMinimum := 0;
   FMaximum := 1;
+  FStep := 0.01;
+  FDecimals := 2;
   FValue := 0;
   FValueText := '0';
   FValueEdit.Parent := Self;
   LayoutValueEdit;
+end;
+
+procedure TAul2VolumeControl.CreateParams(var Params: TCreateParams);
+begin
+  inherited;
+  // 親の再描画では子TEditの領域を除外する。
+  Params.Style := Params.Style or WS_CLIPCHILDREN;
+end;
+
+procedure TAul2VolumeControl.SetEditText(const Value: string);
+begin
+  if not Assigned(FValueEdit) or (FValueEdit.Text = Value) then
+    Exit;
+
+  if not FValueEdit.HandleAllocated then
+  begin
+    FValueEdit.Text := Value;
+    Exit;
+  end;
+
+  // WM_SETTEXT中の背景消去を画面へ出さず、確定した文字列を1回だけ描画する。
+  FValueEdit.Perform(WM_SETREDRAW, 0, 0);
+  try
+    FValueEdit.Text := Value;
+  finally
+    FValueEdit.Perform(WM_SETREDRAW, 1, 0);
+    RedrawWindow(FValueEdit.Handle, nil, 0,
+      RDW_INVALIDATE or RDW_UPDATENOW or RDW_NOERASE);
+  end;
+end;
+
+procedure TAul2VolumeControl.InvalidateKnob;
+var
+  KnobRect: TRect;
+begin
+  if not HandleAllocated then
+  begin
+    Invalidate;
+    Exit;
+  end;
+
+  KnobRect := Rect(0, 26, Width, 88);
+  InvalidateRect(Handle, @KnobRect, False);
 end;
 
 procedure TAul2VolumeControl.LayoutValueEdit;
@@ -174,14 +258,112 @@ begin
   FValueEdit.SetBounds(6, EditTop, Max(24, EditRight - 6), 23);
 end;
 
-procedure TAul2VolumeControl.Configure(const DisplayName: string; Minimum, Maximum: Double;
-  const UnitText: string);
+function TAul2VolumeControl.FormatValue(Value: Double): string;
+var
+  FormatSettings: TFormatSettings;
+  Mask          : string;
+begin
+  FormatSettings := TFormatSettings.Create;
+  FormatSettings.DecimalSeparator := '.';
+  Mask := '0';
+  if FDecimals > 0 then
+    Mask := Mask + '.' + StringOfChar('#', FDecimals);
+  Result := FormatFloat(Mask, Value, FormatSettings);
+end;
+
+function TAul2VolumeControl.NormalizeValue(Value: Double): Double;
+begin
+  Result := EnsureRange(Value, FMinimum, FMaximum);
+  if FStep > 0 then
+    Result := FMinimum + Round((Result - FMinimum) / FStep) * FStep;
+  Result := EnsureRange(Result, FMinimum, FMaximum);
+end;
+
+function TAul2VolumeControl.TryApplyValue(Value: Double; NotifyChange: Boolean): Boolean;
+var
+  Accept : Boolean;
+  NewText: string;
+  NewValue: Double;
+begin
+  NewValue := NormalizeValue(Value);
+  NewText := FormatValue(NewValue);
+  if SameValue(FValue, NewValue) and (FValueText = NewText) then
+  begin
+    SetEditText(FValueText);
+    Exit(True);
+  end;
+
+  Accept := True;
+  if NotifyChange and Assigned(FOnValueChange) then
+    FOnValueChange(Self, NewText, Accept);
+  Result := Accept;
+  if not Result then
+  begin
+    SetEditText(FValueText);
+    Exit;
+  end;
+
+  FValue := NewValue;
+  FValueText := NewText;
+  SetEditText(NewText);
+  InvalidateKnob;
+end;
+
+procedure TAul2VolumeControl.CommitValueEdit;
+var
+  FormatSettings: TFormatSettings;
+  NumberValue   : Double;
+begin
+  FormatSettings := TFormatSettings.Create;
+  FormatSettings.DecimalSeparator := '.';
+  if not TryStrToFloat(Trim(FValueEdit.Text), NumberValue, FormatSettings) then
+  begin
+    SetEditText(FValueText);
+    Exit;
+  end;
+  TryApplyValue(NumberValue, True);
+end;
+
+procedure TAul2VolumeControl.EditEnter(Sender: TObject);
+begin
+  FEditStartText := FValueText;
+  FValueEdit.SelectAll;
+end;
+
+procedure TAul2VolumeControl.EditExit(Sender: TObject);
+begin
+  CommitValueEdit;
+end;
+
+procedure TAul2VolumeControl.EditKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  case Key of
+    VK_RETURN:
+      begin
+        CommitValueEdit;
+        Key := 0;
+      end;
+    VK_ESCAPE:
+      begin
+        SetEditText(FEditStartText);
+        Key := 0;
+      end;
+  end;
+end;
+
+procedure TAul2VolumeControl.Configure(const DisplayName: string; Minimum, Maximum, Step: Double;
+  Decimals: Integer; const UnitText: string);
 begin
   FDisplayName := DisplayName;
   FMinimum := Minimum;
   FMaximum := Maximum;
+  FStep := Step;
+  FDecimals := Max(0, Decimals);
   FUnitText := UnitText;
-  FValue := EnsureRange(FValue, FMinimum, FMaximum);
+  FValue := NormalizeValue(FValue);
+  FValueText := FormatValue(FValue);
+  SetEditText(FValueText);
+  LayoutValueEdit;
   Invalidate;
 end;
 
@@ -229,14 +411,8 @@ begin
 end;
 
 procedure TAul2VolumeControl.SetValue(const Value: Double);
-var
-  NewValue: Double;
 begin
-  NewValue := EnsureRange(Value, FMinimum, FMaximum);
-  if SameValue(FValue, NewValue) then
-    Exit;
-  FValue := NewValue;
-  Invalidate;
+  TryApplyValue(Value, False);
 end;
 
 procedure TAul2VolumeControl.SetValueText(const Value: string);
@@ -244,17 +420,109 @@ var
   FormatSettings: TFormatSettings;
   NumberValue   : Double;
 begin
-  if FValueText = Value then
-    Exit;
-
-  FValueText := Value;
-  if Assigned(FValueEdit) then
-    FValueEdit.Text := Value;
   FormatSettings := TFormatSettings.Create;
   FormatSettings.DecimalSeparator := '.';
   if TryStrToFloat(Trim(Value), NumberValue, FormatSettings) then
+  begin
+    // 外部読込値は元の表示文字列を保ち、ノブ角度だけを値域内へ制限する。
     FValue := EnsureRange(NumberValue, FMinimum, FMaximum);
-  Invalidate;
+    FValueText := Value;
+    SetEditText(Value);
+    InvalidateKnob;
+  end
+  else if Assigned(FValueEdit) then
+    SetEditText(FValueText);
+end;
+
+procedure TAul2VolumeControl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  inherited;
+  if (Button <> mbLeft) or not Enabled then
+    Exit;
+
+  if CanFocus then
+    SetFocus;
+  FDragging := True;
+  FDragAxis := vdaNone;
+  FDragStartPoint := Point(X, Y);
+  FDragStartValue := FValue;
+  MouseCapture := True;
+end;
+
+procedure TAul2VolumeControl.MouseMove(Shift: TShiftState; X, Y: Integer);
+var
+  DeltaPixels: Integer;
+  DeltaValue : Double;
+  DeltaX     : Integer;
+  DeltaY     : Integer;
+  ValueRange : Double;
+begin
+  inherited;
+  if not FDragging then
+    Exit;
+
+  DeltaX := X - FDragStartPoint.X;
+  DeltaY := Y - FDragStartPoint.Y;
+  if FDragAxis = vdaNone then
+  begin
+    if Max(Abs(DeltaX), Abs(DeltaY)) < VOLUME_DRAG_AXIS_THRESHOLD then
+      Exit;
+    if Abs(DeltaX) > Abs(DeltaY) then
+      FDragAxis := vdaHorizontal
+    else
+      FDragAxis := vdaVertical;
+  end;
+
+  ValueRange := FMaximum - FMinimum;
+  if FDragAxis = vdaHorizontal then
+  begin
+    DeltaPixels := DeltaX;
+    DeltaValue := DeltaPixels * ValueRange * VOLUME_HORIZONTAL_RANGE_PER_PIXEL;
+  end
+  else
+  begin
+    DeltaPixels := -DeltaY;
+    DeltaValue := DeltaPixels * ValueRange * VOLUME_VERTICAL_RANGE_PER_PIXEL;
+  end;
+  TryApplyValue(FDragStartValue + DeltaValue, True);
+end;
+
+procedure TAul2VolumeControl.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  inherited;
+  if (Button <> mbLeft) or not FDragging then
+    Exit;
+  FDragging := False;
+  FDragAxis := vdaNone;
+  MouseCapture := False;
+end;
+
+procedure TAul2VolumeControl.KeyDown(var Key: Word; Shift: TShiftState);
+begin
+  inherited;
+  if (Key = VK_ESCAPE) and FDragging then
+  begin
+    TryApplyValue(FDragStartValue, True);
+    FDragging := False;
+    FDragAxis := vdaNone;
+    MouseCapture := False;
+    Key := 0;
+  end;
+end;
+
+function TAul2VolumeControl.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
+  MousePos: TPoint): Boolean;
+var
+  StepCount: Integer;
+begin
+  if not Enabled or (FStep <= 0) then
+    Exit(inherited DoMouseWheel(Shift, WheelDelta, MousePos));
+
+  StepCount := WheelDelta div WHEEL_DELTA;
+  if StepCount = 0 then
+    StepCount := Sign(WheelDelta);
+  TryApplyValue(FValue + StepCount * FStep, True);
+  Result := True;
 end;
 
 procedure TAul2VolumeControl.Resize;
