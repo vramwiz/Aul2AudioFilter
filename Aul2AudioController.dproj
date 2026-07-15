@@ -104,6 +104,15 @@
         </DelphiCompile>
         <DCCReference Include="Source\Lib\AviUtl2Plugin\AviUtl2PluginTypes.pas"/>
         <DCCReference Include="Source\Lib\AviUtl2Plugin\AviUtl2PluginCore.pas"/>
+        <DCCReference Include="Source\Lib\DragAgent\DragAgent.pas"/>
+        <DCCReference Include="Source\Lib\ListBoxEdit\ListBoxEdit.pas"/>
+        <DCCReference Include="Source\Lib\ShortcutAction\ShortcutAction.pas"/>
+        <DCCReference Include="Source\Aul2AudioBaseAlias.pas"/>
+        <DCCReference Include="Source\Aul2AudioBaseCreate.pas"/>
+        <DCCReference Include="Source\Aul2AudioBasePanel.pas"/>
+        <DCCReference Include="Source\Aul2AudioPresetModel.pas"/>
+        <DCCReference Include="Source\Aul2AudioPresetPanel.pas"/>
+        <DCCReference Include="Source\Lib\PresetSupport\Serialization\Section\SectionFileManager.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerEffectDefinition.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerSync.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerLampSwitch.pas"/>

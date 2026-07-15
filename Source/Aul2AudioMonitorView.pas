@@ -44,6 +44,8 @@ uses
 const
   // Monitor はタイマー描画のため View より先行して見える。再生時の履歴参照をこのフレーム数だけ後方へずらす。
   MONITOR_PLAYBACK_FRAME_DELAY = 10;
+  // View配置とPreset管理はControllerへ移行済み。再表示が必要な場合だけTrueへ戻す。
+  ENABLE_MONITOR_EDIT_PAGES = False;
 
 type
   TAudioMonitorPage = (
@@ -609,13 +611,20 @@ begin
     ToolBar.Visible := True;
     // 全ボタンで共通となる幅は、最長の Caption に左右の余白を加えて決める。
     MonitorForm.Canvas.Font.Assign(ToolBar.Font);
-    ToolButtonWidth := Max(MonitorForm.Canvas.TextWidth(ButtonSpectrum.Caption),
-      MonitorForm.Canvas.TextWidth(ButtonPreset.Caption)) +
+    ToolButtonWidth := MonitorForm.Canvas.TextWidth(ButtonSpectrum.Caption) +
       MulDiv(24, MonitorForm.Font.PixelsPerInch, 96);
+    if ENABLE_MONITOR_EDIT_PAGES and Assigned(ButtonPreset) then
+      ToolButtonWidth := Max(ToolButtonWidth,
+        MonitorForm.Canvas.TextWidth(ButtonPreset.Caption) +
+        MulDiv(24, MonitorForm.Font.PixelsPerInch, 96));
     ToolBar.ButtonWidth := ToolButtonWidth;
     ToolBar.ButtonHeight := MulDiv(28, MonitorForm.Font.PixelsPerInch, 96);
-    // 4個目の Preset を含む全ボタンと、ツールバー右端の内部余白を確保する。
-    ToolBar.Width := ToolButtonWidth * 4 + MulDiv(4, MonitorForm.Font.PixelsPerInch, 96);
+    if ENABLE_MONITOR_EDIT_PAGES then
+      ToolBar.Width := ToolButtonWidth * 4 +
+        MulDiv(4, MonitorForm.Font.PixelsPerInch, 96)
+    else
+      ToolBar.Width := ToolButtonWidth * 2 +
+        MulDiv(4, MonitorForm.Font.PixelsPerInch, 96);
     ToolBar.Height := ToolBar.ButtonHeight;
     ToolBar.Realign;
     ToolBar.Invalidate;
@@ -817,8 +826,12 @@ begin
   ToolBar.Height := MulDiv(28, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.ButtonWidth := MulDiv(74, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.ButtonHeight := ToolBar.Height;
-  // TToolBar内部の右端余白を含め、最後のPresetボタンがDPI環境で切れない幅を確保する。
-  ToolBar.Width := ToolBar.ButtonWidth * 4 + MulDiv(12, MonitorForm.Font.PixelsPerInch, 96);
+  if ENABLE_MONITOR_EDIT_PAGES then
+    ToolBar.Width := ToolBar.ButtonWidth * 4 +
+      MulDiv(12, MonitorForm.Font.PixelsPerInch, 96)
+  else
+    ToolBar.Width := ToolBar.ButtonWidth * 2 +
+      MulDiv(12, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.EdgeBorders := [];
   ToolBar.ShowCaptions := True;
   ToolBar.Flat := True;
@@ -840,17 +853,20 @@ begin
   ButtonSpectrum.Top := 0;
   ButtonSpectrum.Parent := ToolBar;
 
-  ButtonBase := TToolButton.Create(MonitorForm);
-  ButtonBase.Caption := 'View';
-  ButtonBase.Left := ToolBar.ButtonWidth * 2;
-  ButtonBase.Top := 0;
-  ButtonBase.Parent := ToolBar;
+  if ENABLE_MONITOR_EDIT_PAGES then
+  begin
+    ButtonBase := TToolButton.Create(MonitorForm);
+    ButtonBase.Caption := 'View';
+    ButtonBase.Left := ToolBar.ButtonWidth * 2;
+    ButtonBase.Top := 0;
+    ButtonBase.Parent := ToolBar;
 
-  ButtonPreset := TToolButton.Create(MonitorForm);
-  ButtonPreset.Caption := 'Preset';
-  ButtonPreset.Left := ToolBar.ButtonWidth * 3;
-  ButtonPreset.Top := 0;
-  ButtonPreset.Parent := ToolBar;
+    ButtonPreset := TToolButton.Create(MonitorForm);
+    ButtonPreset.Caption := 'Preset';
+    ButtonPreset.Left := ToolBar.ButtonWidth * 3;
+    ButtonPreset.Top := 0;
+    ButtonPreset.Parent := ToolBar;
+  end;
 
   StateLabel := TLabel.Create(MonitorForm);
   StateLabel.Parent := HeaderPanel;
@@ -881,21 +897,24 @@ begin
   PanelSpectrum.Color := RGB(36, 36, 36);
   PanelSpectrum.ParentBackground := False;
 
-  PanelBase := TPanel.Create(MonitorForm);
-  PanelBase.Parent := RootPanel;
-  PanelBase.Align := alClient;
-  PanelBase.BevelOuter := bvNone;
-  PanelBase.Caption := '';
-  PanelBase.Color := RGB(36, 36, 36);
-  PanelBase.ParentBackground := False;
+  if ENABLE_MONITOR_EDIT_PAGES then
+  begin
+    PanelBase := TPanel.Create(MonitorForm);
+    PanelBase.Parent := RootPanel;
+    PanelBase.Align := alClient;
+    PanelBase.BevelOuter := bvNone;
+    PanelBase.Caption := '';
+    PanelBase.Color := RGB(36, 36, 36);
+    PanelBase.ParentBackground := False;
 
-  PanelPreset := TPanel.Create(MonitorForm);
-  PanelPreset.Parent := RootPanel;
-  PanelPreset.Align := alClient;
-  PanelPreset.BevelOuter := bvNone;
-  PanelPreset.Caption := '';
-  PanelPreset.Color := RGB(36, 36, 36);
-  PanelPreset.ParentBackground := False;
+    PanelPreset := TPanel.Create(MonitorForm);
+    PanelPreset.Parent := RootPanel;
+    PanelPreset.Align := alClient;
+    PanelPreset.BevelOuter := bvNone;
+    PanelPreset.Caption := '';
+    PanelPreset.Color := RGB(36, 36, 36);
+    PanelPreset.ParentBackground := False;
+  end;
 
   InfoLabel := TLabel.Create(MonitorForm);
   InfoLabel.Parent := PanelWave;
@@ -925,15 +944,18 @@ begin
   SpectrumPaintBox.OnPaint := TimerTarget.SpectrumPaint;
   SpectrumPaintBox.BringToFront;
 
-  BasePanel := TAul2AudioBasePanel.Create(MonitorForm);
-  BasePanel.Parent := PanelBase;
-  BasePanel.Align := alClient;
-  BasePanel.Initialize;
+  if ENABLE_MONITOR_EDIT_PAGES then
+  begin
+    BasePanel := TAul2AudioBasePanel.Create(MonitorForm);
+    BasePanel.Parent := PanelBase;
+    BasePanel.Align := alClient;
+    BasePanel.Initialize;
 
-  PresetPanel := TAul2AudioPresetPanel.Create(MonitorForm);
-  PresetPanel.Parent := PanelPreset;
-  PresetPanel.Align := alClient;
-  PresetPanel.Initialize;
+    PresetPanel := TAul2AudioPresetPanel.Create(MonitorForm);
+    PresetPanel.Parent := PanelPreset;
+    PresetPanel.Align := alClient;
+    PresetPanel.Initialize;
+  end;
 
   ToolBarManager := TToolBarPanelManager.Create;
   ToolBarManager.ToolBarBackgroundColor := RGB(48, 48, 48);
@@ -943,8 +965,11 @@ begin
   ToolBarManager.ToolBarHotColor := RGB(58, 58, 58);
   ToolBarManager.AddPanel(PanelWave);
   ToolBarManager.AddPanel(PanelSpectrum);
-  ToolBarManager.AddPanel(PanelBase);
-  ToolBarManager.AddPanel(PanelPreset);
+  if ENABLE_MONITOR_EDIT_PAGES then
+  begin
+    ToolBarManager.AddPanel(PanelBase);
+    ToolBarManager.AddPanel(PanelPreset);
+  end;
 
   MonitorForm.Show;
   MonitorForm.Visible := True;

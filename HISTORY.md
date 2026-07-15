@@ -4,6 +4,37 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-15 View / Preset migration to Aul2AudioController
+
+- View表示オブジェクトの配置とユーザープリセット管理を、Aul2AudioMonitorの補助ページからAul2AudioControllerの選択画面へ移行した。
+- Controllerの選択リスト末尾は `エフェクトプリセットの管理`、`波形表示オブジェクトの配置` の順とし、縦長・正方形ウィンドウ向けの専用配置で既存パネル機能を共有する。
+- MonitorはWave／Spectrumの監視に専念させた。将来の復活を容易にするためView／Presetのコードと横配置は削除せず、`ENABLE_MONITOR_EDIT_PAGES = False` の間はツールバーボタン、ページ、編集パネルを生成しない。
+- READMEのView配置手順とPreset操作元をControllerへ更新し、Monitorから旧View／Preset説明を削除した。noteも現在の役割分担へ更新した。
+- Aul2AudioMonitorのDebug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioMonitor.aux2` へコピーされた。
+
+## 2026-07-15 Aul2AudioController View object placement
+
+- Controllerの最上段選択へ `波形表示オブジェクトの配置` を追加し、選択時に幅、高さ、秒数、FPS、配置レイヤー、Send、D&Dを持つ既存の `TAul2AudioBasePanel` を表示するようにした。
+- エフェクト定義数は20のまま維持し、配置画面は21番目の特殊項目として扱う。配置画面の選択中はエフェクトの読込・書込を行わない。
+- Monitor側のViewページは復活が必要になる可能性を考慮して残した。機能を複製せず、MonitorとControllerが同じパネル実装を共有する。
+- ControllerプロジェクトへBase生成とD&Dに必要な既存ユニット参照を追加した。Debug Win64ビルドは警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。
+- Controllerは縦長・正方形で使うため、共有Baseパネルへ縦配置モードを追加した。設定欄、レイヤー一覧、Send、状態表示の順に縦へ並べ、Monitorは従来の横配置を維持する。
+
+## 2026-07-15 Aul2AudioController preset management
+
+- Controllerの最上段選択へ `エフェクトプリセットの管理` を追加し、MonitorのPresetページで使っている `TAul2AudioPresetPanel` を共有表示するようにした。
+- Controllerでは一覧を上側へ大きく取り、その下へ保存・削除ボタンを横並び、最下部へ状態表示を置く縦配置とした。Monitorは従来の一覧左・操作欄右の横配置を維持する。
+- 保存、名前のインライン編集、`Ctrl+Up` / `Ctrl+Down` の並べ替え、削除、タイムラインへのD&Dは既存処理をそのまま利用する。Preset画面の選択中はエフェクト同期を行わない。
+- ControllerとMonitorのDebug Win64ビルドが警告0・エラー0で成功し、両方の `.aux2` へコピーされた。
+- Controllerの選択リスト末尾は、利用頻度を考慮して `エフェクトプリセットの管理`、`波形表示オブジェクトの配置` の順にした。
+
+## 2026-07-15 Aul2AudioController completion
+
+- Aul2AudioControllerは全20エフェクトの表示、現在値取得、Use切り替え、選択項目、数値ノブ、ホイール、直接入力、選択中Objectへの項目単位書き込みが揃い、ユーザー確認を経て機能完成とした。
+- エフェクト固有のパラメーターと配色は定義ユニットへ集約し、Viewと同期処理は共通実装を維持した。明色面の文字コントラストを含む最終配色も確認済み。
+- `note.md` からControllerの検討仕様と確認課題を削除し、利用方法、操作方法、対象Object、AviUtl2の `表示` メニューからの開き方を `README.md` へ追加した。
+- 配布ファイルとして `Aul2AudioController.aux2` をREADMEへ追記した。
+
 ## 2026-07-15 Aul2AudioController minimum extension plugin
 
 - `Aul2AudioMonitor` の export とクライアント登録方式を参考に、`Aul2AudioController.dpr`、`Aul2AudioController.dproj`、`Source\Aul2AudioControllerPlugin.pas` を追加した。

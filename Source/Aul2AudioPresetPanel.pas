@@ -1,6 +1,6 @@
 ﻿unit Aul2AudioPresetPanel;
 
-// MonitorのPresetページで仮プリセットを一覧表示し、D&D用の音声グループObjectを生成する。
+// プリセットを一覧表示し、D&D用の音声グループObjectを生成するUIを提供する。
 
 {$WARN IMPLICIT_STRING_CAST OFF}
 
@@ -18,6 +18,8 @@ uses
   Aul2AudioPresetModel;
 
 type
+  TAul2AudioPresetLayout = (aplHorizontal, aplVertical);
+
   // 仮プリセット一覧と、選択項目をタイムラインへ渡すD&D操作を管理するパネル。
   TAul2AudioPresetPanel = class(TPanel)
   private
@@ -29,6 +31,7 @@ type
     FStatusLabel : TLabel;
     FShortcuts  : TShortcutAction;
     FInitialized: Boolean;
+    FLayoutMode : TAul2AudioPresetLayout;
     FPresets    : TAul2AudioUserPresetList;
     procedure CreateControls;
     procedure PresetListDblClick(Sender: TObject);
@@ -45,6 +48,7 @@ type
     function CaptureSelectedObjectAlias(out AliasText: string): Boolean;
     function PresetFileName: string;
     function SaveSelectedPresetAlias: string;
+    procedure SetLayoutMode(Value: TAul2AudioPresetLayout);
   protected
     // AviUtl2内の動的なページサイズに合わせ、一覧を説明欄と状態欄の間へ配置する。
     procedure Resize; override;
@@ -57,6 +61,8 @@ type
     procedure Initialize;
     // 親ページの再表示後に、一覧と操作欄の配置・可視性・前面順を復元する。
     procedure RefreshLayout;
+    property LayoutMode: TAul2AudioPresetLayout read FLayoutMode write SetLayoutMode
+      default aplHorizontal;
   end;
 
 implementation
@@ -135,6 +141,16 @@ begin
       MoveSelectedPreset(1);
     end);
   FInitialized := False;
+  FLayoutMode := aplHorizontal;
+end;
+
+procedure TAul2AudioPresetPanel.SetLayoutMode(Value: TAul2AudioPresetLayout);
+begin
+  if FLayoutMode = Value then
+    Exit;
+
+  FLayoutMode := Value;
+  Resize;
 end;
 
 destructor TAul2AudioPresetPanel.Destroy;
@@ -269,33 +285,56 @@ end;
 
 procedure TAul2AudioPresetPanel.Resize;
 var
+  ButtonGap : Integer;
+  ButtonTop : Integer;
+  ButtonWidth: Integer;
   ListTop   : Integer;
   ListHeight: Integer;
   ButtonLeft: Integer;
+  StatusTop : Integer;
 begin
   inherited;
   if (FListBorder = nil) or (FPresetList = nil) or (FSaveButton = nil) or
      (FDeleteButton = nil) or (FStatusLabel = nil) then
     Exit;
 
-  // 左側を一覧、右側を操作ボタン用の固定幅領域として使う。
   ListTop := 12;
-  ListHeight := Max(32, ClientHeight - 24);
-  ButtonLeft := Max(12, ClientWidth - 104);
-  FListBorder.SetBounds(12, ListTop, Max(1, ButtonLeft - 20), ListHeight);
+  if FLayoutMode = aplVertical then
+  begin
+    ButtonGap := 8;
+    ButtonWidth := Max(1, (ClientWidth - 24 - ButtonGap) div 2);
+    ListHeight := Max(32, ClientHeight - 112);
+    ButtonTop := ListTop + ListHeight + 8;
+    StatusTop := ButtonTop + 38;
+    FListBorder.SetBounds(12, ListTop, Max(1, ClientWidth - 24), ListHeight);
+    FSaveButton.SetBounds(12, ButtonTop, ButtonWidth, 30);
+    FDeleteButton.SetBounds(12 + ButtonWidth + ButtonGap, ButtonTop,
+      ButtonWidth, 30);
+    FStatusLabel.SetBounds(12, StatusTop, Max(1, ClientWidth - 24),
+      Max(1, ClientHeight - StatusTop - 8));
+  end
+  else
+  begin
+    // Monitorでは左側を一覧、右側を操作ボタン用の固定幅領域として使う。
+    ListHeight := Max(32, ClientHeight - 24);
+    ButtonLeft := Max(12, ClientWidth - 104);
+    FListBorder.SetBounds(12, ListTop, Max(1, ButtonLeft - 20), ListHeight);
+    FSaveButton.SetBounds(ButtonLeft, ListTop, 92, 30);
+    FDeleteButton.SetBounds(ButtonLeft, ListTop + 38, 92, 30);
+    FStatusLabel.SetBounds(ButtonLeft, ListTop + 76, 92,
+      Max(1, ListHeight - 76));
+  end;
+
   FPresetList.SetBounds(1, 1, Max(1, FListBorder.ClientWidth - 2),
     Max(1, FListBorder.ClientHeight - 2));
   FListBorder.Visible := True;
   FListBorder.BringToFront;
   FPresetList.Visible := True;
   FPresetList.BringToFront;
-  FSaveButton.SetBounds(ButtonLeft, ListTop, 92, 30);
   FSaveButton.Visible := True;
   FSaveButton.BringToFront;
-  FDeleteButton.SetBounds(ButtonLeft, ListTop + 38, 92, 30);
   FDeleteButton.Visible := True;
   FDeleteButton.BringToFront;
-  FStatusLabel.SetBounds(ButtonLeft, ListTop + 76, 92, Max(1, ListHeight - 76));
   FStatusLabel.Visible := True;
   FStatusLabel.BringToFront;
 end;

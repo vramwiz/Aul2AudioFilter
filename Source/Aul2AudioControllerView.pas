@@ -38,7 +38,15 @@ uses
   Aul2AudioControllerEffectDefinition,
   Aul2AudioControllerLampSwitch,
   Aul2AudioControllerSync,
-  Aul2AudioControllerVolumeControl;
+  Aul2AudioControllerVolumeControl,
+  Aul2AudioBasePanel,
+  Aul2AudioPresetPanel;
+
+const
+  CONTROLLER_PRESET_ITEM_INDEX = CONTROLLER_EFFECT_COUNT;
+  CONTROLLER_PRESET_ITEM_NAME  = 'エフェクトプリセットの管理';
+  CONTROLLER_BASE_ITEM_INDEX   = CONTROLLER_EFFECT_COUNT + 1;
+  CONTROLLER_BASE_ITEM_NAME    = '波形表示オブジェクトの配置';
 
 type
   TControlAccess = class(TControl);
@@ -68,6 +76,8 @@ var
   ClientWindow   : HWND;
   ControllerForm : TFormAudioController;
   RootPanel      : TPanel;
+  BasePanel      : TAul2AudioBasePanel;
+  PresetPanel    : TAul2AudioPresetPanel;
   StatusLabel    : TLabel;
   EffectCombo    : TEffectComboBox;
   LampSwitchHost : TPanel;
@@ -184,6 +194,18 @@ begin
     GetControllerEffectDefinition(EffectCombo.ItemIndex, Definition);
 end;
 
+function IsBasePanelSelected: Boolean;
+begin
+  Result := Assigned(EffectCombo) and
+    (EffectCombo.ItemIndex = CONTROLLER_BASE_ITEM_INDEX);
+end;
+
+function IsPresetPanelSelected: Boolean;
+begin
+  Result := Assigned(EffectCombo) and
+    (EffectCombo.ItemIndex = CONTROLLER_PRESET_ITEM_INDEX);
+end;
+
 procedure LayoutControllerView;
 var
   ContentWidth: Integer;
@@ -216,6 +238,19 @@ begin
     EditWidth := Scale(80);
 
   EffectCombo.SetBounds(LeftMargin, Scale(6), ContentWidth, Scale(27));
+  if IsBasePanelSelected then
+  begin
+    BasePanel.SetBounds(0, Scale(37), RootPanel.ClientWidth,
+      Max(1, RootPanel.ClientHeight - Scale(37)));
+    Exit;
+  end;
+  if IsPresetPanelSelected then
+  begin
+    PresetPanel.SetBounds(0, Scale(37), RootPanel.ClientWidth,
+      Max(1, RootPanel.ClientHeight - Scale(37)));
+    Exit;
+  end;
+
   LampSwitchHost.SetBounds(LeftMargin, Scale(37), ContentWidth, Scale(28));
   UseLamp.SetBounds(0, 0, ContentWidth, Scale(28));
 
@@ -292,11 +327,50 @@ var
   SelectIndex: Integer;
   VolumeControl: TAul2VolumeControl;
 begin
-  if not GetCurrentEffectDefinition(Definition) then
-    Exit;
-
   Refreshing := True;
   try
+    if IsBasePanelSelected then
+    begin
+      LampSwitchHost.Visible := False;
+      ModeLabel.Visible := False;
+      ModeCombo.Visible := False;
+      for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
+        VolumeControls[ControlIndex].Visible := False;
+      PresetPanel.Visible := False;
+      BasePanel.Visible := True;
+      BasePanel.BringToFront;
+      BasePanel.ReloadLayers;
+      ControllerForm.Color := RGB(36, 36, 36);
+      RootPanel.Color := RGB(36, 36, 36);
+      LayoutControllerView;
+      RootPanel.Invalidate;
+      Exit;
+    end;
+
+    if IsPresetPanelSelected then
+    begin
+      LampSwitchHost.Visible := False;
+      ModeLabel.Visible := False;
+      ModeCombo.Visible := False;
+      for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
+        VolumeControls[ControlIndex].Visible := False;
+      BasePanel.Visible := False;
+      PresetPanel.Visible := True;
+      PresetPanel.BringToFront;
+      PresetPanel.RefreshLayout;
+      ControllerForm.Color := RGB(36, 36, 36);
+      RootPanel.Color := RGB(36, 36, 36);
+      LayoutControllerView;
+      RootPanel.Invalidate;
+      Exit;
+    end;
+
+    if not GetCurrentEffectDefinition(Definition) then
+      Exit;
+
+    BasePanel.Visible := False;
+    PresetPanel.Visible := False;
+    LampSwitchHost.Visible := True;
     UseLamp.Caption := Definition.LampCaption;
     UseLamp.Enabled := Definition.UseItemName <> '';
     ModeLabel.Caption := Definition.SelectControl.DisplayName;
@@ -364,6 +438,10 @@ var
   VolumeControl: TAul2VolumeControl;
 begin
   if Refreshing or not Assigned(ControllerForm) then
+    Exit;
+  if IsBasePanelSelected then
+    Exit;
+  if IsPresetPanelSelected then
     Exit;
   if not GetCurrentEffectDefinition(Definition) or
      (Definition.UseItemName = '') then
@@ -497,7 +575,8 @@ begin
   StatusLabel.Font.Color := RGB(112, 180, 232);
   StatusLabel.Invalidate;
   ConfigureCurrentEffect;
-  RefreshEffectState;
+  if not IsBasePanelSelected and not IsPresetPanelSelected then
+    RefreshEffectState;
 end;
 
 function IsCursorInsideController: Boolean;
@@ -583,6 +662,18 @@ begin
   RootPanel.DoubleBuffered := True;
   RegisterMouseEnter(RootPanel);
 
+  BasePanel := TAul2AudioBasePanel.Create(ControllerForm);
+  BasePanel.LayoutMode := ablVertical;
+  BasePanel.Parent := RootPanel;
+  BasePanel.Visible := False;
+  BasePanel.Initialize;
+
+  PresetPanel := TAul2AudioPresetPanel.Create(ControllerForm);
+  PresetPanel.LayoutMode := aplVertical;
+  PresetPanel.Parent := RootPanel;
+  PresetPanel.Visible := False;
+  PresetPanel.Initialize;
+
   CreateLabel(StatusLabel, 'Move the mouse into this window to read');
   StatusLabel.Font.Color := RGB(170, 170, 170);
   StatusLabel.Visible := False;
@@ -598,6 +689,8 @@ begin
   for EffectIndex := 0 to CONTROLLER_EFFECT_COUNT - 1 do
     if GetControllerEffectDefinition(EffectIndex, Definition) then
       EffectCombo.Items.Add(Definition.DisplayName);
+  EffectCombo.Items.Add(CONTROLLER_PRESET_ITEM_NAME);
+  EffectCombo.Items.Add(CONTROLLER_BASE_ITEM_NAME);
   EffectCombo.ItemIndex := 0;
   EffectCombo.OnChange := EventTarget.EffectComboChange;
   ApplyDarkComboStyle(EffectCombo);
@@ -732,6 +825,8 @@ begin
   FreeAndNil(ControllerForm);
   ClientWindow := 0;
   RootPanel := nil;
+  BasePanel := nil;
+  PresetPanel := nil;
   StatusLabel := nil;
   EffectCombo := nil;
   LampSwitchHost := nil;

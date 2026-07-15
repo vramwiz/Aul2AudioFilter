@@ -2,7 +2,7 @@
 
 {$WARN IMPLICIT_STRING_CAST OFF}
 
-// MonitorのBaseページで映像仕様と配置レイヤーを入力し、作成またはD&Dを開始するUIを提供する。
+// 波形表示オブジェクトの映像仕様と配置レイヤーを入力し、作成またはD&Dを開始するUIを提供する。
 
 interface
 
@@ -15,6 +15,8 @@ uses
   Aul2AudioBaseAlias;
 
 type
+  TAul2AudioBaseLayout = (ablHorizontal, ablVertical);
+
   // Base素材の設定、レイヤー選択、直接作成、エイリアスD&Dをまとめるパネル。
   TAul2AudioBasePanel = class(TPanel)
   private
@@ -36,6 +38,7 @@ type
     FLayerPanel: TPanel;
     FInitialized: Boolean;
     FDragInitialized: Boolean;
+    FLayoutMode: TAul2AudioBaseLayout;
     FLastLayoutWidth: Integer;
     FLastLayoutHeight: Integer;
     procedure CreateControls;
@@ -46,6 +49,7 @@ type
     function ScalePx(Value: Integer): Integer;
     function GetSelectedLayer: Integer;
     function ReadParams: TAul2AudioBaseAliasParams;
+    procedure SetLayoutMode(Value: TAul2AudioBaseLayout);
     procedure SetStatus(const Text: string);
   protected
     // DPIと現在サイズに合わせ、設定欄、レイヤー欄、作成ボタンを再配置する。
@@ -59,6 +63,8 @@ type
     procedure Initialize;
     // AviUtl2の表示レイヤー番号に合わせて選択一覧を作り直す。
     procedure ReloadLayers;
+    property LayoutMode: TAul2AudioBaseLayout read FLayoutMode write SetLayoutMode
+      default ablHorizontal;
   end;
 
 implementation
@@ -100,8 +106,20 @@ begin
 
   FInitialized := False;
   FDragInitialized := False;
+  FLayoutMode := ablHorizontal;
   FLastLayoutWidth := -1;
   FLastLayoutHeight := -1;
+end;
+
+procedure TAul2AudioBasePanel.SetLayoutMode(Value: TAul2AudioBaseLayout);
+begin
+  if FLayoutMode = Value then
+    Exit;
+
+  FLayoutMode := Value;
+  FLastLayoutWidth := -1;
+  FLastLayoutHeight := -1;
+  Resize;
 end;
 
 function TAul2AudioBasePanel.ScalePx(Value: Integer): Integer;
@@ -276,7 +294,9 @@ var
   PanelH: Integer;
   SettingsW: Integer;
   LayerW: Integer;
+  LayerH: Integer;
   SendW: Integer;
+  StatusH: Integer;
   StatusW: Integer;
   X: Integer;
   Row1: Integer;
@@ -322,9 +342,38 @@ begin
 
   DisableAlign;
   try
-    SetBoundsIfChanged(FSettingsPanel, Margin, Margin, SettingsW, PanelH);
-    SetBoundsIfChanged(FLayerPanel, FSettingsPanel.Left + FSettingsPanel.Width + Margin,
-      Margin, LayerW, PanelH);
+    if FLayoutMode = ablVertical then
+    begin
+      SettingsW := Width - Margin * 2;
+      LayerW := SettingsW;
+      SendW := SettingsW;
+      StatusH := ScalePx(28);
+      LayerH := Height - PanelH - ScalePx(32) - StatusH - Margin * 5;
+      if LayerH < ScalePx(60) then
+        LayerH := ScalePx(60);
+
+      SetBoundsIfChanged(FSettingsPanel, Margin, Margin, SettingsW, PanelH);
+      SetBoundsIfChanged(FLayerPanel, Margin, FSettingsPanel.Top +
+        FSettingsPanel.Height + Margin, LayerW, LayerH);
+      SetBoundsIfChanged(FCreateButton, Margin, FLayerPanel.Top +
+        FLayerPanel.Height + Margin, SendW, ScalePx(32));
+      SetBoundsIfChanged(FStatusLabel, Margin, FCreateButton.Top +
+        FCreateButton.Height + Margin, SettingsW, StatusH);
+    end
+    else
+    begin
+      SetBoundsIfChanged(FSettingsPanel, Margin, Margin, SettingsW, PanelH);
+      SetBoundsIfChanged(FLayerPanel, FSettingsPanel.Left +
+        FSettingsPanel.Width + Margin, Margin, LayerW, PanelH);
+      SetBoundsIfChanged(FCreateButton, FLayerPanel.Left +
+        FLayerPanel.Width + Margin, Margin, SendW, ScalePx(32));
+
+      StatusW := Width - FCreateButton.Left - FCreateButton.Width - Margin * 2;
+      if StatusW < ScalePx(120) then
+        StatusW := ScalePx(120);
+      SetBoundsIfChanged(FStatusLabel, FCreateButton.Left +
+        FCreateButton.Width + Margin, Margin, StatusW, PanelH);
+    end;
 
     X := ScalePx(8);
     Row1 := ScalePx(7);
@@ -349,15 +398,6 @@ begin
     SetBoundsIfChanged(FFpsLabel, X, Row2 + ScalePx(4), LabelW, ScalePx(20));
     Inc(X, LabelW);
     SetBoundsIfChanged(FFpsEdit, X, Row2, EditW, ScalePx(24));
-
-    SetBoundsIfChanged(FCreateButton, FLayerPanel.Left + FLayerPanel.Width + Margin,
-      Margin, SendW, ScalePx(32));
-
-    StatusW := Width - FCreateButton.Left - FCreateButton.Width - Margin * 2;
-    if StatusW < ScalePx(120) then
-      StatusW := ScalePx(120);
-    SetBoundsIfChanged(FStatusLabel, FCreateButton.Left + FCreateButton.Width + Margin,
-      Margin, StatusW, PanelH);
 
     SetBoundsIfChanged(FLayerLabel, 0, 0, 1, 1);
     SetBoundsIfChanged(FLayerList, 0, 0, FLayerPanel.Width, FLayerPanel.Height);
