@@ -19,10 +19,8 @@ uses
   Winapi.Windows,
   System.Math,
   System.SysUtils,
-  Aul2AudioFilterAudioTrace,
   Aul2AudioMonitorShared,
-  Aul2AudioMonitorSpectrumShared,
-  Aul2AudioMonitorVectorShared;
+  Aul2AudioMonitorSpectrumShared;
 
 type
   TAudioMonitorInputSnapshot = record
@@ -33,16 +31,12 @@ type
     Wave: TAudioMonitorWaveData;
     WaveMin: TAudioMonitorWaveData;
     WaveMax: TAudioMonitorWaveData;
-    VectorLeft : TAudioMonitorVectorData;
-    VectorRight: TAudioMonitorVectorData;
-    VectorValid: Boolean;
     Spectrum: TAudioMonitorSpectrumData;
   end;
 
 var
   SharedMemory: TAul2AudioMonitorSharedMemory;
   SpectrumMemory: TAul2AudioMonitorSpectrumSharedMemory;
-  VectorMemory: TAul2AudioMonitorVectorSharedMemory;
   LastInputSnapshots: array[0..AUDIO_MONITOR_LAYER_SLOT_LAST] of TAudioMonitorInputSnapshot;
   SpectrumCosTable: TArray<Single>;
   SpectrumSinTable: TArray<Single>;
@@ -79,21 +73,6 @@ begin
   Root^.History[Layer, Index] := State;
 end;
 
-procedure PushVectorHistory(Root: PAul2AudioMonitorLayeredVectorState; Layer: Integer;
-  const State: TAul2AudioMonitorVectorState);
-var
-  Index: Integer;
-begin
-  if (Root = nil) or (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
-    Exit;
-
-  Index := Root^.HistoryIndex[Layer] + 1;
-  if (Index < 0) or (Index > AUDIO_MONITOR_VECTOR_HISTORY_LAST) then
-    Index := 0;
-  Root^.HistoryIndex[Layer] := Index;
-  Root^.History[Layer, Index] := State;
-end;
-
 function GetSharedMemory: TAul2AudioMonitorSharedMemory;
 begin
   if SharedMemory = nil then
@@ -108,32 +87,6 @@ begin
     SpectrumMemory := TAul2AudioMonitorSpectrumSharedMemory.Create;
 
   Result := SpectrumMemory;
-end;
-
-function GetVectorMemory: TAul2AudioMonitorVectorSharedMemory;
-begin
-  if VectorMemory = nil then
-    VectorMemory := TAul2AudioMonitorVectorSharedMemory.Create;
-
-  Result := VectorMemory;
-end;
-
-function VectorCaptureRequested: Boolean;
-var
-  NowTick: UInt64;
-  Root: PAul2AudioMonitorLayeredVectorState;
-begin
-  Result := False;
-  Root := GetVectorMemory.Root;
-  if (Root = nil) or
-     (Root^.Magic <> AUDIO_MONITOR_VECTOR_SHARED_MAGIC) or
-     (Root^.Version <> AUDIO_MONITOR_VECTOR_SHARED_VERSION) or
-     (Root^.RequestTick = 0) then
-    Exit;
-
-  NowTick := GetTickCount64;
-  Result := (NowTick >= Root^.RequestTick) and
-    ((NowTick - Root^.RequestTick) <= AUDIO_MONITOR_VECTOR_REQUEST_MS);
 end;
 
 function AudioLayer(Audio: PFILTER_PROC_AUDIO): Integer;
@@ -210,21 +163,10 @@ begin
   State.MaxHz := 20000;
 end;
 
-procedure InitializeVectorSlot(var State: TAul2AudioMonitorVectorState; Layer: Integer);
-begin
-  FillChar(State, SizeOf(State), 0);
-  State.Magic := AUDIO_MONITOR_VECTOR_SHARED_MAGIC;
-  State.Version := AUDIO_MONITOR_VECTOR_SHARED_VERSION;
-  State.UpdateTick := 0;
-  State.SourceLayer := Layer;
-  State.PointCount := AUDIO_MONITOR_VECTOR_POINT_COUNT;
-end;
-
 procedure AudioMonitorInitialize;
 var
   SharedRoot: PAul2AudioMonitorLayeredState;
   SpectrumRoot: PAul2AudioMonitorLayeredSpectrumState;
-  VectorRoot: PAul2AudioMonitorLayeredVectorState;
   Layer: Integer;
   Index: Integer;
 begin
@@ -260,23 +202,6 @@ begin
           InitializeSpectrumSlot(SpectrumRoot^.History[Layer, Index], Layer);
       end;
       Inc(SpectrumRoot^.Generation);
-    end;
-
-    VectorRoot := GetVectorMemory.Root;
-    if VectorRoot <> nil then
-    begin
-      VectorRoot^.Magic := AUDIO_MONITOR_VECTOR_SHARED_MAGIC;
-      VectorRoot^.Version := AUDIO_MONITOR_VECTOR_SHARED_VERSION;
-      VectorRoot^.LastLayer := AUDIO_MONITOR_LAYER_AUTO;
-      VectorRoot^.RequestTick := 0;
-      for Layer := 0 to AUDIO_MONITOR_LAYER_SLOT_LAST do
-      begin
-        VectorRoot^.HistoryIndex[Layer] := 0;
-        InitializeVectorSlot(VectorRoot^.Slots[Layer], Layer);
-        for Index := 0 to AUDIO_MONITOR_VECTOR_HISTORY_LAST do
-          InitializeVectorSlot(VectorRoot^.History[Layer, Index], Layer);
-      end;
-      Inc(VectorRoot^.Generation);
     end;
   except
     // 初期化疎通は補助機能なので、プラグインロードへ例外を漏らさない。
@@ -339,9 +264,7 @@ begin
 end;
 
 procedure CaptureWave(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer;
-  var Wave, WaveMin, WaveMax: TAudioMonitorWaveData;
-  var VectorLeft, VectorRight: TAudioMonitorVectorData; CaptureVectors: Boolean;
-  out PeakL, PeakR, RmsL, RmsR: Single);
+  var Wave, WaveMin, WaveMax: TAudioMonitorWaveData; out PeakL, PeakR, RmsL, RmsR: Single);
 var
   LeftBuffer: TArray<Single>;
   RightBuffer: TArray<Single>;
@@ -366,8 +289,6 @@ begin
   FillChar(Wave, SizeOf(Wave), 0);
   FillChar(WaveMin, SizeOf(WaveMin), 0);
   FillChar(WaveMax, SizeOf(WaveMax), 0);
-  FillChar(VectorLeft, SizeOf(VectorLeft), 0);
-  FillChar(VectorRight, SizeOf(VectorRight), 0);
   SumSqL := 0;
   SumSqR := 0;
 
@@ -446,18 +367,6 @@ begin
     WaveMin[Point] := MinValue;
     WaveMax[Point] := MaxValue;
   end;
-
-  if CaptureVectors then
-    for Point := 0 to AUDIO_MONITOR_VECTOR_POINT_LAST do
-    begin
-      SampleIndex := Min(SampleNum - 1,
-        ((Point * 2 + 1) * SampleNum) div (AUDIO_MONITOR_VECTOR_POINT_COUNT * 2));
-      VectorLeft[Point] := LeftBuffer[SampleIndex];
-      if Length(RightBuffer) > SampleIndex then
-        VectorRight[Point] := RightBuffer[SampleIndex]
-      else
-        VectorRight[Point] := LeftBuffer[SampleIndex];
-    end;
 end;
 
 procedure ApplyAudioOutputLevel(Audio: PFILTER_PROC_AUDIO;
@@ -606,7 +515,6 @@ end;
 
 procedure AudioMonitorCaptureInput(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer);
 var
-  CaptureVectors: Boolean;
   State: PAul2AudioMonitorState;
   Layer: Integer;
 begin
@@ -615,8 +523,6 @@ begin
     Layer := AudioLayer(Audio);
     if Layer = AUDIO_MONITOR_LAYER_AUTO then
       Exit;
-
-    CaptureVectors := VectorCaptureRequested;
 
     State := GetSharedMemory.GetStateForLayer(Layer);
     if State <> nil then
@@ -630,11 +536,8 @@ begin
 
     CaptureWave(Audio, SampleNum, ChannelNum, LastInputSnapshots[Layer].Wave,
       LastInputSnapshots[Layer].WaveMin, LastInputSnapshots[Layer].WaveMax,
-      LastInputSnapshots[Layer].VectorLeft, LastInputSnapshots[Layer].VectorRight,
-      CaptureVectors,
       LastInputSnapshots[Layer].PeakL, LastInputSnapshots[Layer].PeakR,
       LastInputSnapshots[Layer].RmsL, LastInputSnapshots[Layer].RmsR);
-    LastInputSnapshots[Layer].VectorValid := CaptureVectors;
     CaptureSpectrum(Audio, SampleNum, ChannelNum, LastInputSnapshots[Layer].Spectrum);
   except
     if (Layer >= 0) and (Layer <= AUDIO_MONITOR_LAYER_SLOT_LAST) then
@@ -644,7 +547,6 @@ end;
 
 procedure AudioMonitorCaptureOutput(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer);
 var
-  CaptureVectors: Boolean;
   Shared: TAul2AudioMonitorSharedMemory;
   State: PAul2AudioMonitorState;
   OutputPeakL: Single;
@@ -654,13 +556,9 @@ var
   OutputWave: TAudioMonitorWaveData;
   OutputWaveMin: TAudioMonitorWaveData;
   OutputWaveMax: TAudioMonitorWaveData;
-  OutputVectorLeft: TAudioMonitorVectorData;
-  OutputVectorRight: TAudioMonitorVectorData;
   OutputSpectrum: TAudioMonitorSpectrumData;
   SpectrumState: PAul2AudioMonitorSpectrumState;
   SpectrumRoot: PAul2AudioMonitorLayeredSpectrumState;
-  VectorState: PAul2AudioMonitorVectorState;
-  VectorRoot: PAul2AudioMonitorLayeredVectorState;
   Layer: Integer;
   InputSnapshot: TAudioMonitorInputSnapshot;
 begin
@@ -669,10 +567,7 @@ begin
     if Layer = AUDIO_MONITOR_LAYER_AUTO then
       Exit;
 
-    CaptureVectors := VectorCaptureRequested;
-
     CaptureWave(Audio, SampleNum, ChannelNum, OutputWave, OutputWaveMin, OutputWaveMax,
-      OutputVectorLeft, OutputVectorRight, CaptureVectors,
       OutputPeakL, OutputPeakR, OutputRmsL, OutputRmsR);
     ApplyAudioOutputLevel(Audio, OutputPeakL, OutputPeakR, OutputRmsL, OutputRmsR);
     CaptureSpectrum(Audio, SampleNum, ChannelNum, OutputSpectrum);
@@ -685,8 +580,6 @@ begin
     InputSnapshot := LastInputSnapshots[Layer];
     ApplyAudioOutputLevel(Audio, InputSnapshot.PeakL, InputSnapshot.PeakR,
       InputSnapshot.RmsL, InputSnapshot.RmsR);
-    AudioTraceMonitorPeaks(Audio, InputSnapshot.PeakL, InputSnapshot.PeakR,
-      OutputPeakL, OutputPeakR);
     State^.Magic := AUDIO_MONITOR_SHARED_MAGIC;
     State^.Version := AUDIO_MONITOR_SHARED_VERSION;
     State^.UpdateTick := GetTickCount64;
@@ -749,39 +642,6 @@ begin
         Inc(SpectrumRoot^.Generation);
       end;
     end;
-
-    if CaptureVectors and InputSnapshot.VectorValid then
-    begin
-      VectorState := GetVectorMemory.GetStateForLayer(Layer);
-      if VectorState <> nil then
-      begin
-        VectorRoot := GetVectorMemory.Root;
-        VectorState^.Magic := AUDIO_MONITOR_VECTOR_SHARED_MAGIC;
-        VectorState^.Version := AUDIO_MONITOR_VECTOR_SHARED_VERSION;
-        VectorState^.UpdateTick := GetTickCount64;
-        VectorState^.SampleRate := Audio^.Scene^.SampleRate;
-        VectorState^.SampleNum := SampleNum;
-        VectorState^.ChannelNum := ChannelNum;
-        VectorState^.SourceFrame := Audio^.Object_^.Frame;
-        VectorState^.SourceFrameS := Audio^.Object_^.FrameS;
-        VectorState^.SourceFrameE := Audio^.Object_^.FrameE;
-        VectorState^.SourceLayer := Layer;
-        VectorState^.SourceIndex := Audio^.Object_^.Index;
-        VectorState^.SampleIndex := Audio^.Object_^.SampleIndex;
-        VectorState^.PointCount := AUDIO_MONITOR_VECTOR_POINT_COUNT;
-        VectorState^.InputLeft := InputSnapshot.VectorLeft;
-        VectorState^.InputRight := InputSnapshot.VectorRight;
-        VectorState^.OutputLeft := OutputVectorLeft;
-        VectorState^.OutputRight := OutputVectorRight;
-        Inc(VectorState^.Generation);
-        if VectorRoot <> nil then
-        begin
-          VectorRoot^.LastLayer := Shared.Root^.LastLayer;
-          PushVectorHistory(VectorRoot, Layer, VectorState^);
-          Inc(VectorRoot^.Generation);
-        end;
-      end;
-    end;
   except
     // モニター連携は補助機能なので、音声処理へ例外を漏らさない。
   end;
@@ -791,7 +651,6 @@ procedure AudioMonitorFinalize;
 begin
   SetLength(SpectrumCosTable, 0);
   SetLength(SpectrumSinTable, 0);
-  FreeAndNil(VectorMemory);
   FreeAndNil(SpectrumMemory);
   FreeAndNil(SharedMemory);
 end;

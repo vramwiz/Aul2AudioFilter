@@ -10,7 +10,7 @@ uses
 const
   MONITOR_WINDOW_NAME = 'Aul2AudioMonitor'; // フォームとクライアントで共有する表示名。
 
-// Monitorフォームを生成し、ParentWindowの子として解析表示ページを構築する。
+// Monitorフォームを生成し、ParentWindowの子としてWave/Spectrum/Baseページを構築する。
 procedure CreateMonitorView(ParentWindow: HWND);
 // タイマー、共有メモリ、フォームを停止・解放し、表示用履歴を破棄する。
 procedure DestroyMonitorView;
@@ -33,11 +33,8 @@ uses
   Vcl.StdCtrls,
   Vcl.ToolWin,
   Aul2AudioMonitorPaint,
-  Aul2AudioMonitorSpectrogram,
-  Aul2AudioMonitorVectorscope,
   Aul2AudioMonitorShared,
   Aul2AudioMonitorSpectrumShared,
-  Aul2AudioMonitorVectorShared,
   Aul2AudioViewFrameShared,
   Aul2AudioBasePanel,
   Aul2AudioPresetPanel,
@@ -54,8 +51,6 @@ type
   TAudioMonitorPage = (
     ampWave,
     ampSpectrum,
-    ampSpectrogram,
-    ampVectorscope,
     ampBase,
     ampPreset
   );
@@ -70,8 +65,6 @@ type
     procedure ReadTimerTick(Sender: TObject);
     procedure WavePaint(Sender: TObject);
     procedure SpectrumPaint(Sender: TObject);
-    procedure SpectrogramPaint(Sender: TObject);
-    procedure VectorscopePaint(Sender: TObject);
   end;
 
 var
@@ -82,15 +75,11 @@ var
   ToolBar     : TToolBar;
   ButtonWave  : TToolButton;
   ButtonSpectrum: TToolButton;
-  ButtonSpectrogram: TToolButton;
-  ButtonVectorscope: TToolButton;
   ButtonBase  : TToolButton;
   ButtonPreset: TToolButton;
   StateLabel  : TLabel;
   PanelWave   : TPanel;
   PanelSpectrum: TPanel;
-  PanelSpectrogram: TPanel;
-  PanelVectorscope: TPanel;
   PanelBase   : TPanel;
   PanelPreset : TPanel;
   BasePanel   : TAul2AudioBasePanel;
@@ -98,14 +87,11 @@ var
   InfoLabel   : TLabel;
   WavePaintBox: TPaintBox;
   SpectrumPaintBox: TPaintBox;
-  SpectrogramPaintBox: TPaintBox;
-  VectorscopePaintBox: TPaintBox;
   ReadTimer   : TTimer;
   TimerTarget : TMonitorTimerTarget;
   ToolBarManager: TToolBarPanelManager;
   SharedMemory: TAul2AudioMonitorSharedMemory;
   SpectrumMemory: TAul2AudioMonitorSpectrumSharedMemory;
-  VectorMemory: TAul2AudioMonitorVectorSharedMemory;
   ViewFrameMemory: TAul2AudioViewFrameSharedMemory;
   LastViewWidth: Integer;
   LastViewHeight: Integer;
@@ -118,10 +104,8 @@ var
   MonitorFrameValid: Boolean;
   PlaybackMonitorSnapshot: TAul2AudioMonitorState;
   PlaybackSpectrumSnapshot: TAul2AudioMonitorSpectrumState;
-  PlaybackVectorSnapshot: TAul2AudioMonitorVectorState;
   PlaybackMonitorSnapshotValid: Boolean;
   PlaybackSpectrumSnapshotValid: Boolean;
-  PlaybackVectorSnapshotValid: Boolean;
 
 procedure InvalidateMonitorView; forward;
 
@@ -129,8 +113,6 @@ procedure ClearPlaybackHistory;
 begin
   PlaybackMonitorSnapshotValid := False;
   PlaybackSpectrumSnapshotValid := False;
-  PlaybackVectorSnapshotValid := False;
-  ClearAudioSpectrogramHistory;
 end;
 
 procedure PositionStateLabel;
@@ -324,17 +306,6 @@ begin
   Result := (Frame >= State.SourceFrameS) and (Frame <= State.SourceFrameE);
 end;
 
-function VectorStateMatchesFrame(const State: TAul2AudioMonitorVectorState; Frame: Integer): Boolean;
-begin
-  if Frame < 0 then
-    Exit(True);
-
-  if (State.SourceFrameS <= 0) and (State.SourceFrameE <= 0) then
-    Exit(True);
-
-  Result := (Frame >= State.SourceFrameS) and (Frame <= State.SourceFrameE);
-end;
-
 function MonitorStateUsable(State: PAul2AudioMonitorState): Boolean;
 begin
   Result := (State <> nil) and
@@ -351,17 +322,8 @@ begin
             (State^.UpdateTick <> 0);
 end;
 
-function VectorStateUsable(State: PAul2AudioMonitorVectorState): Boolean;
-begin
-  Result := (State <> nil) and
-            (State^.Magic = AUDIO_MONITOR_VECTOR_SHARED_MAGIC) and
-            (State^.Version = AUDIO_MONITOR_VECTOR_SHARED_VERSION) and
-            (State^.UpdateTick <> 0);
-end;
-
 function GetMonitorSharedMemory: TAul2AudioMonitorSharedMemory; forward;
 function GetSpectrumSharedMemory: TAul2AudioMonitorSpectrumSharedMemory; forward;
-function GetVectorSharedMemory: TAul2AudioMonitorVectorSharedMemory; forward;
 
 function MonitorStateDisplayFrame(State: PAul2AudioMonitorState): Integer;
 begin
@@ -369,11 +331,6 @@ begin
 end;
 
 function SpectrumStateDisplayFrame(State: PAul2AudioMonitorSpectrumState): Integer;
-begin
-  Result := State^.SourceFrameS + State^.SourceFrame;
-end;
-
-function VectorStateDisplayFrame(State: PAul2AudioMonitorVectorState): Integer;
 begin
   Result := State^.SourceFrameS + State^.SourceFrame;
 end;
@@ -392,14 +349,6 @@ begin
     Exit(0);
 
   Result := Abs(SpectrumStateDisplayFrame(State) - Frame);
-end;
-
-function VectorStateFrameDistance(State: PAul2AudioMonitorVectorState; Frame: Integer): Integer;
-begin
-  if Frame < 0 then
-    Exit(0);
-
-  Result := Abs(VectorStateDisplayFrame(State) - Frame);
 end;
 
 function PreferMonitorState(Candidate, Current: PAul2AudioMonitorState;
@@ -430,23 +379,6 @@ begin
 
   CandidateDistance := SpectrumStateFrameDistance(Candidate, Frame);
   CurrentDistance := SpectrumStateFrameDistance(Current, Frame);
-  if CandidateDistance <> CurrentDistance then
-    Exit(CandidateDistance < CurrentDistance);
-
-  Result := Candidate^.UpdateTick > Current^.UpdateTick;
-end;
-
-function PreferVectorState(Candidate, Current: PAul2AudioMonitorVectorState;
-  Frame: Integer): Boolean;
-var
-  CandidateDistance: Integer;
-  CurrentDistance: Integer;
-begin
-  if Current = nil then
-    Exit(True);
-
-  CandidateDistance := VectorStateFrameDistance(Candidate, Frame);
-  CurrentDistance := VectorStateFrameDistance(Current, Frame);
   if CandidateDistance <> CurrentDistance then
     Exit(CandidateDistance < CurrentDistance);
 
@@ -503,31 +435,6 @@ begin
   end;
 end;
 
-function FindVectorHistoryState(Frame: Integer): PAul2AudioMonitorVectorState;
-var
-  Layer: Integer;
-  Index: Integer;
-  State: PAul2AudioMonitorVectorState;
-  Memory: TAul2AudioMonitorVectorSharedMemory;
-begin
-  Result := nil;
-
-  Memory := GetVectorSharedMemory;
-  if (Memory = nil) or (Memory.Root = nil) then
-    Exit;
-
-  for Layer := 0 to AUDIO_MONITOR_LAYER_SLOT_LAST do
-  begin
-    for Index := 0 to AUDIO_MONITOR_VECTOR_HISTORY_LAST do
-    begin
-      State := Memory.GetHistoryStateForLayer(Layer, Index);
-      if VectorStateUsable(State) and VectorStateMatchesFrame(State^, Frame) and
-         PreferVectorState(State, Result, Frame) then
-        Result := State;
-    end;
-  end;
-end;
-
 procedure DecayMonitorSnapshot(var State: TAul2AudioMonitorState);
 const
   DECAY = 0.72;
@@ -564,22 +471,6 @@ begin
   begin
     State.InputBands[Index] := State.InputBands[Index] * DECAY;
     State.OutputBands[Index] := State.OutputBands[Index] * DECAY;
-  end;
-  State.UpdateTick := GetTickCount64;
-end;
-
-procedure DecayVectorSnapshot(var State: TAul2AudioMonitorVectorState);
-const
-  DECAY = 0.72;
-var
-  Index: Integer;
-begin
-  for Index := 0 to AUDIO_MONITOR_VECTOR_POINT_LAST do
-  begin
-    State.InputLeft[Index] := State.InputLeft[Index] * DECAY;
-    State.InputRight[Index] := State.InputRight[Index] * DECAY;
-    State.OutputLeft[Index] := State.OutputLeft[Index] * DECAY;
-    State.OutputRight[Index] := State.OutputRight[Index] * DECAY;
   end;
   State.UpdateTick := GetTickCount64;
 end;
@@ -650,39 +541,6 @@ begin
   Result := @Snapshot;
 end;
 
-function SelectVectorSnapshot(Current: PAul2AudioMonitorVectorState;
-  out Snapshot: TAul2AudioMonitorVectorState): PAul2AudioMonitorVectorState;
-var
-  DisplayFrame: Integer;
-begin
-  Result := Current;
-  if not IsPlaybackDisplay then
-    Exit;
-  if not PlaybackFrameAvailable then
-    Exit;
-
-  DisplayFrame := MonitorDisplayFrame;
-  Result := FindVectorHistoryState(DisplayFrame);
-  if (Result <> nil) and (VectorStateFrameDistance(Result, DisplayFrame) > 1) then
-    Result := nil;
-  if Result = nil then
-  begin
-    if not PlaybackVectorSnapshotValid then
-      Exit(nil);
-    DecayVectorSnapshot(PlaybackVectorSnapshot);
-    Snapshot := PlaybackVectorSnapshot;
-    Exit(@Snapshot);
-  end;
-  if not VectorStateUsable(Result) then
-    Exit;
-
-  Snapshot := Result^;
-  Snapshot.UpdateTick := GetTickCount64;
-  PlaybackVectorSnapshot := Snapshot;
-  PlaybackVectorSnapshotValid := True;
-  Result := @Snapshot;
-end;
-
 function GetMonitorSharedMemory: TAul2AudioMonitorSharedMemory;
 begin
   if SharedMemory = nil then
@@ -697,14 +555,6 @@ begin
     SpectrumMemory := TAul2AudioMonitorSpectrumSharedMemory.Create;
 
   Result := SpectrumMemory;
-end;
-
-function GetVectorSharedMemory: TAul2AudioMonitorVectorSharedMemory;
-begin
-  if VectorMemory = nil then
-    VectorMemory := TAul2AudioMonitorVectorSharedMemory.Create;
-
-  Result := VectorMemory;
 end;
 
 constructor TFormAudioMonitor.Create(AOwner: TComponent);
@@ -763,9 +613,6 @@ begin
     MonitorForm.Canvas.Font.Assign(ToolBar.Font);
     ToolButtonWidth := MonitorForm.Canvas.TextWidth(ButtonSpectrum.Caption) +
       MulDiv(24, MonitorForm.Font.PixelsPerInch, 96);
-    ToolButtonWidth := Max(ToolButtonWidth,
-      MonitorForm.Canvas.TextWidth(ButtonSpectrogram.Caption) +
-      MulDiv(24, MonitorForm.Font.PixelsPerInch, 96));
     if ENABLE_MONITOR_EDIT_PAGES and Assigned(ButtonPreset) then
       ToolButtonWidth := Max(ToolButtonWidth,
         MonitorForm.Canvas.TextWidth(ButtonPreset.Caption) +
@@ -773,10 +620,10 @@ begin
     ToolBar.ButtonWidth := ToolButtonWidth;
     ToolBar.ButtonHeight := MulDiv(28, MonitorForm.Font.PixelsPerInch, 96);
     if ENABLE_MONITOR_EDIT_PAGES then
-      ToolBar.Width := ToolButtonWidth * 6 +
+      ToolBar.Width := ToolButtonWidth * 4 +
         MulDiv(4, MonitorForm.Font.PixelsPerInch, 96)
     else
-      ToolBar.Width := ToolButtonWidth * 4 +
+      ToolBar.Width := ToolButtonWidth * 2 +
         MulDiv(4, MonitorForm.Font.PixelsPerInch, 96);
     ToolBar.Height := ToolBar.ButtonHeight;
     ToolBar.Realign;
@@ -800,12 +647,6 @@ begin
   if Assigned(SpectrumPaintBox) then
     SpectrumPaintBox.SetBounds(0, 0, PanelSpectrum.Width, PanelSpectrum.Height);
 
-  if Assigned(SpectrogramPaintBox) then
-    SpectrogramPaintBox.SetBounds(0, 0, PanelSpectrogram.Width, PanelSpectrogram.Height);
-
-  if Assigned(VectorscopePaintBox) then
-    VectorscopePaintBox.SetBounds(0, 0, PanelVectorscope.Width, PanelVectorscope.Height);
-
   PositionStateLabel;
 end;
 
@@ -827,12 +668,6 @@ begin
 
   if Assigned(SpectrumPaintBox) and SpectrumPaintBox.Visible and PanelSpectrum.Visible then
     SpectrumPaintBox.Invalidate;
-
-  if Assigned(SpectrogramPaintBox) and SpectrogramPaintBox.Visible and PanelSpectrogram.Visible then
-    SpectrogramPaintBox.Invalidate;
-
-  if Assigned(VectorscopePaintBox) and VectorscopePaintBox.Visible and PanelVectorscope.Visible then
-    VectorscopePaintBox.Invalidate;
 end;
 
 procedure DrawBuffered(PaintBox: TPaintBox; DrawProc: TProc<TCanvas, TRect>);
@@ -941,83 +776,6 @@ begin
     end);
 end;
 
-procedure TMonitorTimerTarget.SpectrogramPaint(Sender: TObject);
-var
-  PaintBox: TPaintBox;
-  SpectrumState: PAul2AudioMonitorSpectrumState;
-  DisplaySpectrumState: PAul2AudioMonitorSpectrumState;
-  SpectrumSnapshot: TAul2AudioMonitorSpectrumState;
-begin
-  if not (Sender is TPaintBox) then
-    Exit;
-
-  PaintBox := TPaintBox(Sender);
-  // 非表示ページの再配置などでPaintが届いても履歴更新と描画を行わない。
-  if not PaintBox.Visible or not Assigned(PanelSpectrogram) or
-     not PanelSpectrogram.Visible then
-    Exit;
-
-  if IsEncodingDisplay then
-  begin
-    PaintBox.Canvas.Brush.Color := RGB(36, 36, 36);
-    PaintBox.Canvas.FillRect(PaintBox.ClientRect);
-    Exit;
-  end;
-
-  try
-    SpectrumState := GetSpectrumSharedMemory.State;
-  except
-    SpectrumState := nil;
-  end;
-  DisplaySpectrumState := SelectSpectrumSnapshot(SpectrumState, SpectrumSnapshot);
-
-  DrawBuffered(PaintBox,
-    procedure(Canvas: TCanvas; Rect: TRect)
-    begin
-      DrawAudioSpectrogramCanvas(Canvas, Rect, DisplaySpectrumState, IsPlaybackDisplay);
-    end);
-end;
-
-procedure TMonitorTimerTarget.VectorscopePaint(Sender: TObject);
-var
-  PaintBox: TPaintBox;
-  Memory: TAul2AudioMonitorVectorSharedMemory;
-  VectorState: PAul2AudioMonitorVectorState;
-  DisplayVectorState: PAul2AudioMonitorVectorState;
-  VectorSnapshot: TAul2AudioMonitorVectorState;
-begin
-  if not (Sender is TPaintBox) then
-    Exit;
-
-  PaintBox := TPaintBox(Sender);
-  // 表示中のページだけがキャプチャを要求する。非表示後はFilter側の期限判定で停止する。
-  if not PaintBox.Visible or not Assigned(PanelVectorscope) or
-     not PanelVectorscope.Visible then
-    Exit;
-
-  if IsEncodingDisplay then
-  begin
-    PaintBox.Canvas.Brush.Color := RGB(36, 36, 36);
-    PaintBox.Canvas.FillRect(PaintBox.ClientRect);
-    Exit;
-  end;
-
-  try
-    Memory := GetVectorSharedMemory;
-    Memory.RequestCapture;
-    VectorState := Memory.State;
-  except
-    VectorState := nil;
-  end;
-  DisplayVectorState := SelectVectorSnapshot(VectorState, VectorSnapshot);
-
-  DrawBuffered(PaintBox,
-    procedure(Canvas: TCanvas; Rect: TRect)
-    begin
-      DrawAudioVectorscopeCanvas(Canvas, Rect, DisplayVectorState);
-    end);
-end;
-
 procedure CreateMonitorView(ParentWindow: HWND);
 var
   Rect: TRect;
@@ -1069,10 +827,10 @@ begin
   ToolBar.ButtonWidth := MulDiv(74, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.ButtonHeight := ToolBar.Height;
   if ENABLE_MONITOR_EDIT_PAGES then
-    ToolBar.Width := ToolBar.ButtonWidth * 6 +
+    ToolBar.Width := ToolBar.ButtonWidth * 4 +
       MulDiv(12, MonitorForm.Font.PixelsPerInch, 96)
   else
-    ToolBar.Width := ToolBar.ButtonWidth * 4 +
+    ToolBar.Width := ToolBar.ButtonWidth * 2 +
       MulDiv(12, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.EdgeBorders := [];
   ToolBar.ShowCaptions := True;
@@ -1095,29 +853,17 @@ begin
   ButtonSpectrum.Top := 0;
   ButtonSpectrum.Parent := ToolBar;
 
-  ButtonSpectrogram := TToolButton.Create(MonitorForm);
-  ButtonSpectrogram.Caption := 'Spectrogram';
-  ButtonSpectrogram.Left := ToolBar.ButtonWidth * 2;
-  ButtonSpectrogram.Top := 0;
-  ButtonSpectrogram.Parent := ToolBar;
-
-  ButtonVectorscope := TToolButton.Create(MonitorForm);
-  ButtonVectorscope.Caption := 'Vectorscope';
-  ButtonVectorscope.Left := ToolBar.ButtonWidth * 3;
-  ButtonVectorscope.Top := 0;
-  ButtonVectorscope.Parent := ToolBar;
-
   if ENABLE_MONITOR_EDIT_PAGES then
   begin
     ButtonBase := TToolButton.Create(MonitorForm);
     ButtonBase.Caption := 'View';
-    ButtonBase.Left := ToolBar.ButtonWidth * 4;
+    ButtonBase.Left := ToolBar.ButtonWidth * 2;
     ButtonBase.Top := 0;
     ButtonBase.Parent := ToolBar;
 
     ButtonPreset := TToolButton.Create(MonitorForm);
     ButtonPreset.Caption := 'Preset';
-    ButtonPreset.Left := ToolBar.ButtonWidth * 5;
+    ButtonPreset.Left := ToolBar.ButtonWidth * 3;
     ButtonPreset.Top := 0;
     ButtonPreset.Parent := ToolBar;
   end;
@@ -1150,22 +896,6 @@ begin
   PanelSpectrum.Caption := '';
   PanelSpectrum.Color := RGB(36, 36, 36);
   PanelSpectrum.ParentBackground := False;
-
-  PanelSpectrogram := TPanel.Create(MonitorForm);
-  PanelSpectrogram.Parent := RootPanel;
-  PanelSpectrogram.Align := alClient;
-  PanelSpectrogram.BevelOuter := bvNone;
-  PanelSpectrogram.Caption := '';
-  PanelSpectrogram.Color := RGB(36, 36, 36);
-  PanelSpectrogram.ParentBackground := False;
-
-  PanelVectorscope := TPanel.Create(MonitorForm);
-  PanelVectorscope.Parent := RootPanel;
-  PanelVectorscope.Align := alClient;
-  PanelVectorscope.BevelOuter := bvNone;
-  PanelVectorscope.Caption := '';
-  PanelVectorscope.Color := RGB(36, 36, 36);
-  PanelVectorscope.ParentBackground := False;
 
   if ENABLE_MONITOR_EDIT_PAGES then
   begin
@@ -1214,18 +944,6 @@ begin
   SpectrumPaintBox.OnPaint := TimerTarget.SpectrumPaint;
   SpectrumPaintBox.BringToFront;
 
-  SpectrogramPaintBox := TPaintBox.Create(MonitorForm);
-  SpectrogramPaintBox.Parent := PanelSpectrogram;
-  SpectrogramPaintBox.Align := alClient;
-  SpectrogramPaintBox.OnPaint := TimerTarget.SpectrogramPaint;
-  SpectrogramPaintBox.BringToFront;
-
-  VectorscopePaintBox := TPaintBox.Create(MonitorForm);
-  VectorscopePaintBox.Parent := PanelVectorscope;
-  VectorscopePaintBox.Align := alClient;
-  VectorscopePaintBox.OnPaint := TimerTarget.VectorscopePaint;
-  VectorscopePaintBox.BringToFront;
-
   if ENABLE_MONITOR_EDIT_PAGES then
   begin
     BasePanel := TAul2AudioBasePanel.Create(MonitorForm);
@@ -1247,8 +965,6 @@ begin
   ToolBarManager.ToolBarHotColor := RGB(58, 58, 58);
   ToolBarManager.AddPanel(PanelWave);
   ToolBarManager.AddPanel(PanelSpectrum);
-  ToolBarManager.AddPanel(PanelSpectrogram);
-  ToolBarManager.AddPanel(PanelVectorscope);
   if ENABLE_MONITOR_EDIT_PAGES then
   begin
     ToolBarManager.AddPanel(PanelBase);
@@ -1309,12 +1025,6 @@ begin
   if Assigned(SpectrumPaintBox) then
     SpectrumPaintBox.OnPaint := nil;
 
-  if Assigned(SpectrogramPaintBox) then
-    SpectrogramPaintBox.OnPaint := nil;
-
-  if Assigned(VectorscopePaintBox) then
-    VectorscopePaintBox.OnPaint := nil;
-
   if Assigned(MonitorForm) then
   begin
     MonitorForm.Hide;
@@ -1323,7 +1033,6 @@ begin
 
   FreeAndNil(SharedMemory);
   FreeAndNil(SpectrumMemory);
-  FreeAndNil(VectorMemory);
   FreeAndNil(ViewFrameMemory);
   FreeAndNil(ReadTimer);
   FreeAndNil(ToolBarManager);
@@ -1333,15 +1042,11 @@ begin
   ToolBar := nil;
   ButtonWave := nil;
   ButtonSpectrum := nil;
-  ButtonSpectrogram := nil;
-  ButtonVectorscope := nil;
   ButtonBase := nil;
   ButtonPreset := nil;
   StateLabel := nil;
   PanelWave := nil;
   PanelSpectrum := nil;
-  PanelSpectrogram := nil;
-  PanelVectorscope := nil;
   PanelBase := nil;
   PanelPreset := nil;
   BasePanel := nil;
@@ -1349,8 +1054,6 @@ begin
   InfoLabel := nil;
   WavePaintBox := nil;
   SpectrumPaintBox := nil;
-  SpectrogramPaintBox := nil;
-  VectorscopePaintBox := nil;
   TimerTarget := nil;
   ClientWindow := 0;
   LastViewWidth := 0;

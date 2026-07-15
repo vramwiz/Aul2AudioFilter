@@ -8,6 +8,8 @@
 
 ## 現在の方針
 
+- 主要機能は完成しており、通常利用できる状態。現在の残課題は `Aul2Audio View` / `Aul2AudioMonitor` の再生同期の微調整だけとする。
+- 新しいエフェクト、プリセット、View Type、音質表現の追加は現在の課題に含めない。明確な要望が出た場合に改めて検討する。
 - 内部プロジェクト名は `Aul2AudioFilter`。
 - AviUtl2 上の表示名は「サウンドエフェクター」。
 - Syncroh2 とは別プロジェクトとして、`D:\DelphiProg\test\Syncroh2` と同層の `D:\DelphiProg\test\Aul2AudioFilter` で開発する。
@@ -24,23 +26,18 @@
 - 共有メモリ上は内部 0-based レイヤー別スロットで保持し、GUI と Monitor 表示では AviUtl2 の表示レイヤーに合わせて 1-based で扱う。
 - `Source Layer = Auto` は最後に更新されたレイヤーを表示し、レイヤー指定時はその表示レイヤー由来の波形/スペクトラムだけを読む。
 - エフェクトの GUI 並びは、プリセットを除き、実際に音声へ処理される順番へ揃える。利用者が上から順に音が変わると理解できる状態を保つ。
-- 最終段にユーザーが触れる `Output: Gain(dB)` のような出力音量調整を追加する方針。音量を上げた後のピーク保護のため、最終 Limiter はその後段に置く。
-- 完全自動の音量復元は、ノイズや残響まで不自然に持ち上げる可能性があるため基本機能にはしない。必要なら後で `AutoGain` として独立した任意エフェクトにする。
+- 最終段の `Output: Gain(dB)` で出力音量を調整し、その後段の Limiter でピークを保護する。
+- `AutoGain` は独立した任意エフェクトとして扱い、必要な場合だけ有効にする。
 
 ## 検証状況
 
+- 主要機能の実装と基本検証は完了済み。同期の微調整を除き、既知の必須課題はない。
 - プラグインテストは正常。
 - `GetSampleData` で音声サンプルを受け取り、加工して `SetSampleData` で戻す基本経路は正常。
 - Delay / Ping-Pong / Chorus / Reverb / EQ / Compressor / Limiter / Distortion / Noise / BitCrusher などの基本動作は検証済み。
 - 追加プリセットは `夢/回想` まで一通り試聴済み。
 - `無線` と `劣化` は `Noise` 使用時に無音化や AviUtl2 側の例外が出る可能性があったため、プリセットからは `Noise` を外している。
 - `FilterProcAudio` 全体は `try..except` で保護し、音声処理中の Delphi 例外が AviUtl2 まで漏れないようにしている。
-- 緊急: 2 人分の声など複数音声素材を 1 つの `グループ制御（音声）` で処理すると、Monitor 表示だけでなくエフェクト本体も壊れる可能性が高い。最初に解くべき問題は、1 つのフィルターが複数音声を扱うケースであり、この場合は素材別の独立エフェクトではなく、グループ/バスに入った 1 本のミックス音声として扱う方針にする。現在の Delay / Chorus / Reverb / EQ / Compressor / Limiter / AutoGain / NoiseGate などの状態持ち処理は、`GDelayChannels` や `GNextSampleIndex` のようなユニット単位の単一グローバル状態を使っているため、AviUtl2 が子音声ごとに交互呼び出しする場合はリセットや履歴混入が起きる。まず `グループ制御（音声）` 時の `FilterProcAudio` 呼び出し単位を診断し、ミックス済み 1 回呼び出しなのか、子音声ごとの複数回呼び出しなのかを確認する。その後、同じフレーム上の複数音声オブジェクトそれぞれにフィルターが追加されるケースへ、Syncroh2 の `GCTX` と同様のフィルターオブジェクト別 Context 分離を適用する。
-- 2026-07-10: `グループ制御（音声）` 配下の 2 音声再生ログで、同じ `EffectID` / `SampleIndex` に対して `Object_.ID` と `Layer` が異なる子音声が交互に `FilterProcAudio` へ来ることを確認した。`Delay` / `Chorus` / `Reverb` / `EQ` / `Compressor` / `Limiter` は `Object_.ID + EffectID` ごとの状態スロットへ分離済み。Debug Win64 ビルド成功、2 音声再生で改善確認済み。状態スロット管理は `Source\Aul2AudioFilterContextManager.pas` の Syncroh2 `GCTX` 方式に近い共通 Context List へ寄せた。残りの状態持ち候補は `AutoGain` / `NoiseGate` / `Ghost` / `Wobble` / `Pitch` / `Muffle` / `Whisper` / `BitCrusher` / `VoiceDrive` など。
-- 2026-07-10: 同一フレームに 2 音声ファイルを置き、それぞれに別の `Aul2AudioFilter` 設定を付けると、Use OFF のエフェクトが `ClearXxxState` で全 Context を消し、もう一方の状態まで引っ張る問題を確認。`Delay` / `Chorus` / `Reverb` / `EQ` / `Compressor` / `Limiter` は、処理中に Use OFF でも全 Context を消さず何もしない方針へ変更した。プリセット適用時の明示的な `SetXxxGuiParams` では引き続き Context をクリアする。修正後、同一フレーム上の 2 音声ファイルへ別々のフィルター設定/別エフェクトをかける構成で、片方に引っ張られず正しく効くことを確認済み。
-- 2026-07-10: `Aul2Audio View` と `Aul2AudioMonitor` は、再生中も現在フレーム基準で十分に同期が取れていることを確認済み。Filter 側が共有メモリへレイヤー別履歴リングを書き、View / Monitor 側が `SourceFrame` を描画フレーム基準へ正規化して現在フレームに最も近い履歴を選択する。
-- 2026-07-11: 音声コールバックが数秒先まで先読みされるため、Monitor は View が共有する現在描画フレームを基準に履歴を選択する方式で同期を改善した。再生中に現在フレームへ対応する履歴が見つからない場合、先読み側の最新値へフォールバックせず、直前の Wave / Spectrum / Peak / RMS を 50ms ごとに減衰させて 0 へ収束させる。これにより無音区間で表示が持続する問題と、再生開始時に前回のバッファが表示される問題が解消し、正常表示を確認済み。
-- 2026-07-12: WAV終端後もDelay残響を続けるため、同じ `EffectID` / 内部レイヤーで1～2フレーム以内に隣接する後続音声ObjectへDelayリングを引き継ぐ処理を追加した。元WAVの直後へ `Sample\無音_極小ノイズ_ループ推奨.wav` を置き、両方を同じ `グループ制御（音声）` の範囲に入れると、元WAV終了後もエコーが継続する。後続Objectが `SampleIndex = 0` から始まるたびに状態を更新するため、2回目以降の再生でも正常動作を実機確認済み。重複音声や離れたObjectのContext分離は維持する。
 - 詳細な実装記録、検証ログ、プリセット試聴メモは `HISTORY.md` を参照する。
 
 ## プロジェクト構成
@@ -56,8 +53,6 @@
 - `Aul2AudioView.dpr`: `Aul2AudioBaseInput` の上に載せる MV 用表示フィルタープラグイン入口。
 - `Aul2AudioView.dproj`: 表示用フィルタープラグインの Delphi Win64 Debug / Release ビルド設定。出力先は `Aul2AudioFilter` と同じ配布フォルダ。
 - `Source\Aul2AudioMonitorPlugin.pas`: `Aul2AudioMonitor` の拡張メニュー登録、AviUtl2 クライアントウィンドウ登録、フォーム表示管理。
-- `Source\Aul2AudioMonitorSpectrogram.pas`: 既存の処理前/処理後64バンド解析値から、表示中だけ約6.4秒のスペクトログラム履歴を蓄積して上下2段で描画する。
-- `Source\Aul2AudioMonitorVectorscope.pas`: 処理前/処理後のL/R代表点を同じ倍率で並べ、ステレオの広がりと位相傾向を描画する。
 - `Source\Aul2AudioControllerPlugin.pas`: `Aul2AudioController` の拡張メニュー登録、AviUtl2 クライアントウィンドウ登録、マウス進入時の同期発火とフォーム表示管理。
 - `Source\Aul2AudioControllerEffectDefinition.pas`: 全20エフェクターの名前、日本語LED表記、配色、選択項目、ノブ範囲、Alias項目名を一元管理する。
 - `Source\Aul2AudioControllerSync.pas`: 選択中Objectのエイリアス取得、対象フィルター探索、選択中エフェクターの定義に基づく読み込みと項目単位の書き込みを担当する。
@@ -132,26 +127,12 @@
 - エフェクト処理順は `Aul2AudioFilterPlugin.pas` の `FilterProcAudio` で管理する。
 - GUI 登録順は `GetFilterTable` 内の `AddXxxItems` 呼び出し順で管理し、原則として `FilterProcAudio` の `ProcessXxx` 呼び出し順と一致させる。
 
-## 今後の主な確認候補
+## 残課題
 
-- `Aul2AudioMonitor` の再生中同期は、View が共有する現在描画フレームと履歴選択を利用して改善済み。無音区間では直前の表示値を減衰させ、前回バッファや先読み側の値を表示し続けない。今後同期処理を変更する場合は、View の正常な同期処理とこの無音時減衰を崩さない。
-- 最優先: 1 つのフィルターが `グループ制御（音声）` 配下の複数音声を扱う問題を先に解く。音響上は、子音声別に Delay/Reverb などの履歴を分けるのではなく、グループ/バスへ入った 1 本のミックス音声に対して 1 つのエフェクト状態を持つのが正しい方針。まず `FilterProcAudio` の一時診断で、同一フレーム/同一 `SampleIndex` 周辺に対して `Object_.ID`、`EffectID`、`Layer`、`Index`、`Num`、`SampleIndex` がどう並ぶかを確認する。AviUtl2 がミックス済み 1 回呼び出しを渡しているなら単一状態を維持し、リセット条件を見直す。子音声ごとの複数回呼び出しなら、素材別状態分離ではなく、ミックス音声として扱うために何を同一グループ入力として束ねられるかを先に判断する。
-- `FilterProcAudio` の呼び出し診断は `Source\Aul2AudioFilterAudioTrace.pas` で行う。`%TEMP%\Aul2AudioFilterAudioTrace.enable` という空ファイルがある時だけ、最大 2048 行まで `%TEMP%\Aul2AudioFilterAudioTrace.log` へ `Object_.ID` / `EffectID` / `Layer` / `Index` / `Num` / `SampleIndex` などを書き出す。通常時は enable ファイルを置かない。
-- 次点: 同じフレームに複数の音声オブジェクトがあり、それぞれに `Aul2AudioFilter` が追加されているケースは、Syncroh2 の `GCTX` と同様にフィルターオブジェクト別 Context で状態を分離する。対象候補は Delay、Chorus、Reverb、EQ、Compressor、Limiter、AutoGain、NoiseGate、Ghost、Wobble、Pitch、Muffle、Whisper、BitCrusher など。こちらは `Object_.ID` + `EffectID` を主キー候補にし、1 フィルター内の複数音声ミックス問題を解いた後に展開する。
-- `エコー` と `反響` は似すぎているため、必要なら用途差が分かる値へ再調整する。
-- `無線` と `劣化` は `Noise` を外した状態で運用中。`Noise` の無音化や例外原因は別途調査候補とする。
-- `エコー` と `反響` は用途が近いが、プリセット間の差別化は不要とする。現状値のまま維持し、追加調整の対象にしない。
-- `Pitch` は簡易方式のため、声素材で `男性` / `女性` のぶつ切れや不自然さを継続確認する。
-- `風邪`、`遠く` は専用プリセットとしては未追加。必要になったら既存エフェクトの組み合わせで検討する。
-- ユーザープリセットは `Aul2AudioController` の `エフェクトプリセットの管理` へ移行済み。選択中の `グループ制御（音声）` を登録し、一覧からタイムラインへD&Dして再利用する。選択中Objectへ設定を読み込む機能は実装しない。
-- Controllerは選択欄を常時表示する。未同期時はエフェクター操作部だけを隠して選択欄の下へ対象Objectの選択案内を表示し、正常に読み込めた後に操作画面を表示する。Preset／View配置は同期状態に関係なく利用でき、エフェクターへ戻った時に再同期する。
-- 別件の検証候補: ユーザープリセットの選択方式パラメーターが、登録、起動時再読込、タイムラインへのD&D生成後まで正しく維持されるか確認する。現行実装はエイリアスの `Key=Value` を文字列のまま保持して再構築するため、`Dly: Stereo Mode=Normal` / `Ping-Pong` などの表示値もコード上は保持できる。まず Delay の Stereo Mode で実機確認し、必要に応じてほかの Select 項目へ展開する。
-- 外部 AI からの提案として、`Wobble` / `Pitch` のランダム性を強める方向を検討候補にする。周期 LFO だけでなく、古いテープのワウ・フラッターのような不規則なピッチ揺れを想定する。
-- 外部 AI からの提案として、Lo-Fi 系の質感強化を検討候補にする。`BitCrusher` に加えて、8kHz / 11kHz 相当へ落とすダウンサンプリング的な音を想定する。
-- 外部 AI からの提案として、複数レイヤー/グループ制御時の負荷と競合を継続確認する。`Source Layer` の個別指定で干渉回避できるが、`Auto` の安定性と多重トラック時の軽量化は確認候補に残す。
-- 外部 AI からの提案として、`Aul2Audio View` の View Type 拡張を検討候補にする。円形波形、ドーナツ型スペクトラム、音量反応の明滅、不透明度やブラーの揺れなど、MV 用素材として映像表現へ直接効く描画を想定する。
-- `Aul2Audio View` / `Aul2AudioMonitor` の再生同期は現状良好。今後触る場合は、共有メモリ履歴リングとフレーム距離優先選択を崩さない。
-- 新しい実装作業や試聴結果を終えたら、詳細な経緯は `HISTORY.md` へ追記する。
+- `Aul2Audio View` / `Aul2AudioMonitor` の再生同期は現状でも実用上良好。必要に応じて表示タイミングだけを微調整する。
+- 同期調整では、共有メモリ履歴リング、フレーム距離優先選択、無音時の表示減衰を崩さない。
+- 同期以外に既知の必須課題はない。新しい要望は現在の残課題と分けて扱う。
+- 新しい実装や試聴結果が生じた場合、詳細な経緯は `HISTORY.md` へ追記する。
 
 ## ビルド方法
 
@@ -181,8 +162,8 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 `Aul2AudioMonitor` は `.dll` を `.aux2` にコピーする。Release では元の `.dll` と `.rsm` を削除する。
 `Aul2AudioController` も `.dll` を `.aux2` にコピーし、Release では元の `.dll` と `.rsm` を削除する。
 
-`Aul2AudioMonitor` は AviUtl2 の編集メニューに `Aul2AudioMonitor` を追加し、Wave / Spectrum / Spectrogram / Vectorscope を切り替えて表示する拡張プラグインとして本採用する。
-フィルター側は `Local\Aul2AudioMonitorState` と `Local\Aul2AudioMonitorSpectrum` へ常時表示用データを書き出し、`Local\Aul2AudioMonitorVector` はVectorscope表示中だけ書き出す。検証用の `ENABLE_AUDIO_MONITOR_SHARED_MEMORY` const と分岐は削除済み。
+`Aul2AudioMonitor` は AviUtl2 の編集メニューに `Aul2AudioMonitor` を追加し、Wave / Spectrum を切り替えて表示する拡張プラグインとして本採用する。
+フィルター側は `Local\Aul2AudioMonitorState` と `Local\Aul2AudioMonitorSpectrum` へ常時表示用データを書き出す。検証用の `ENABLE_AUDIO_MONITOR_SHARED_MEMORY` const と分岐は削除済み。
 `Aul2AudioMonitor` 側は 50ms タイマーで共有メモリを読み、初期表示は `Spectrum`。数値中心の疎通確認表示はちらつきが大きいため通常表示から外し、描画表示を主にする。`Spectrum` 右側には小型の縦 Peak Meter と Stereo Balance を常時表示する。
 
 ## コメントルール
@@ -212,13 +193,11 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 ## Aul2AudioMonitor 現状
 
 - `Aul2AudioMonitor.aux2` は `Aul2AudioFilter.auf2` と同時配布する表示用拡張プラグイン。
-- `.auf2` 側は共有メモリへ表示用データを書き出し、`.aux2` 側は描画/UI だけを担当する。Vectorscope用データだけはページ表示中に要求する。
-- 表示は `Wave` / `Spectrum` / `Spectrogram` / `Vectorscope` のツールバー構成。初期表示は `Spectrum`。View配置とPreset管理はControllerへ移行済み。
+- `.auf2` 側は共有メモリへ表示用データを書き出し、`.aux2` 側は描画/UI だけを担当する。
+- 表示は `Wave` / `Spectrum` のツールバー構成。初期表示は `Spectrum`。View配置とPreset管理はControllerへ移行済み。
 - `Wave` は 256 点程度の時間波形表示。`Spectrum` は 64 バンドの周波数表示で、入力はグリーン、出力はアンバー。
-- `Spectrogram` は既存の入力/出力64バンドを約20fpsで最大128列保持し、約6.4秒の変化をInput/Outputの上下2段で表示する。選択中だけ履歴更新と描画を行う。
-- `Vectorscope` は入力/出力それぞれ64組のL/R代表点を同じ自動倍率で描画する。専用共有メモリ `Local\Aul2AudioMonitorVector` を使い、ページ表示中の要求が新鮮な間だけFilter側で採取する。ページを離れると約250ms以内に採取を停止する。
 - `Spectrum` 右側には Peak Meter と Stereo Balance を表示する。
-- 共有メモリは基本状態/時間波形用の `Local\Aul2AudioMonitorState`、スペクトラム用の `Local\Aul2AudioMonitorSpectrum`、ベクトルスコープ用の `Local\Aul2AudioMonitorVector` に分ける。
+- 共有メモリは基本状態/時間波形用の `Local\Aul2AudioMonitorState` とスペクトラム用の `Local\Aul2AudioMonitorSpectrum` に分ける。
 - 生の音声サンプル全体は共有メモリに載せない。Wave、Spectrum、Meter、Stereo は表示用に軽量集計した値だけを使う。
 - 再生中の Monitor は共有メモリ履歴リングから現在フレームに最も近い解析値を選び、十分に同期が取れている。詳細な同期調査履歴は `HISTORY.md` を参照する。
 - Monitor内のView／Preset実装は将来の復活に備えて保持するが、`ENABLE_MONITOR_EDIT_PAGES = False` としてボタン、ページ、編集パネルを生成しない。

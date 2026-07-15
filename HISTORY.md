@@ -4,6 +4,12 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-16 Spectrogram / Vectorscope removal
+
+- Monitorへ追加したSpectrogramとVectorscopeは、通常利用での有用性が低いため不採用とした。
+- ツールバーボタンと表示ページだけでなく、両描画ユニット、Vectorscope専用共有メモリ、Filter側の要求判定、L/R代表点採取、履歴書き込みを削除した。
+- MonitorはWave / Spectrumの2表示へ戻した。既存のWave、Spectrum、Peak Meter、Stereo Balance、Aul2Audio View用解析は維持する。
+
 ## 2026-07-15 Aul2AudioMonitor Input/Output vectorscope
 
 - Monitorのツールバーへ`Vectorscope`を追加し、エフェクト処理前のInputと処理後のOutputについて、L/Rの広がりと位相傾向を並べて比較できるようにした。

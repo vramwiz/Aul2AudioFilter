@@ -123,7 +123,6 @@
         <DCCReference Include="Source\Lib\ShortcutAction\ShortcutAction.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas"/>
-        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorVectorShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioViewFrameShared.pas"/>
         <DCCReference Include="Source\Aul2AudioBaseAlias.pas"/>
         <DCCReference Include="Source\Aul2AudioBaseCreate.pas"/>
@@ -132,8 +131,6 @@
         <DCCReference Include="Source\Aul2AudioPresetModel.pas"/>
         <DCCReference Include="Source\Lib\PresetSupport\Serialization\Section\SectionFileManager.pas"/>
         <DCCReference Include="Source\Aul2AudioMonitorPaint.pas"/>
-        <DCCReference Include="Source\Aul2AudioMonitorSpectrogram.pas"/>
-        <DCCReference Include="Source\Aul2AudioMonitorVectorscope.pas"/>
         <DCCReference Include="Source\Aul2AudioMonitorView.pas"/>
         <DCCReference Include="Source\Aul2AudioMonitorPlugin.pas"/>
         <BuildConfiguration Include="Base">
