@@ -49,11 +49,17 @@
 - `Aul2AudioFilter.dproj`: Delphi Win64 Debug / Release ビルド設定。
 - `Aul2AudioMonitor.dpr`: AviUtl2 へ `RegisterPlugin` などを export する拡張プラグイン入口。波形表示 UI 用の受け皿。
 - `Aul2AudioMonitor.dproj`: 拡張プラグインの Delphi Win64 Debug / Release ビルド設定。出力先は `Aul2AudioFilter` と同じ配布フォルダ。
+- `Aul2AudioController.dpr`: AviUtl2 へ `RegisterPlugin` などを export する設定補助拡張プラグイン入口。
+- `Aul2AudioController.dproj`: Controller の Delphi Win64 Debug / Release ビルド設定。出力先は `Aul2AudioFilter` と同じ配布フォルダ。
 - `Aul2AudioBaseInput.dpr`: AviUtl2 入力プラグイン入口。`.aul2base` 仮想ファイルを空の動画素材として開く。
 - `Aul2AudioBaseInput.dproj`: 入力プラグインの Delphi Win64 Debug / Release ビルド設定。出力先は `Aul2AudioFilter` と同じ配布フォルダ。
 - `Aul2AudioView.dpr`: `Aul2AudioBaseInput` の上に載せる MV 用表示フィルタープラグイン入口。
 - `Aul2AudioView.dproj`: 表示用フィルタープラグインの Delphi Win64 Debug / Release ビルド設定。出力先は `Aul2AudioFilter` と同じ配布フォルダ。
 - `Source\Aul2AudioMonitorPlugin.pas`: `Aul2AudioMonitor` の拡張メニュー登録、AviUtl2 クライアントウィンドウ登録、フォーム表示管理。
+- `Source\Aul2AudioControllerPlugin.pas`: `Aul2AudioController` の拡張メニュー登録、AviUtl2 クライアントウィンドウ登録、マウス進入時の同期発火とフォーム表示管理。
+- `Source\Aul2AudioControllerSync.pas`: 選択中Objectのエイリアス取得、対象フィルター探索、Delayパラメーターの読み込みと項目単位の書き込みを担当する。
+- `Source\Aul2AudioControllerView.pas`: Controller のVCLフォーム、Delay取得、パラメーターコントロールの配置を担当する。
+- `Source\Aul2AudioControllerVolumeControl.pas`: 連続数値パラメーター用の音響機器風ノブと値欄を描画する。操作はまだ接続せず、表示調整を先行する。
 - `Source\Aul2AudioBasePanel.pas`: `Aul2AudioMonitor` の `Base` ページ UI。解像度設定、レイヤーリスト、選択レイヤー生成ボタン、D&D エイリアス生成を担当する。
 - `Source\Aul2AudioPresetPanel.pas`: Monitorの `Preset` ページUI。選択Objectの保存、一覧の名前編集、グループ制御（音声）のD&D生成を担当する。
 - `Source\Aul2AudioPresetModel.pas`: ユーザープリセットとエイリアス要素のRTTIモデル、二重セクションINIの保存と読み込みを担当する。
@@ -134,12 +140,61 @@
 - `Pitch` は簡易方式のため、声素材で `男性` / `女性` のぶつ切れや不自然さを継続確認する。
 - `風邪`、`遠く` は専用プリセットとしては未追加。必要になったら既存エフェクトの組み合わせで検討する。
 - ユーザープリセットは `Aul2AudioMonitor` の `Preset` ページへ実装済み。選択中の `グループ制御（音声）` を保存し、一覧からタイムラインへD&Dして再利用する。選択中Objectへ設定を読み込む機能は実装しない。
+- 別件の検証候補: ユーザープリセットの選択方式パラメーターが、保存、起動時再読込、タイムラインへのD&D生成後まで正しく維持されるか確認する。現行実装はエイリアスの `Key=Value` を文字列のまま保持して再構築するため、`Dly: Stereo Mode=Normal` / `Ping-Pong` などの表示値もコード上は保持できる。まず Delay の Stereo Mode で実機確認し、必要に応じてほかの Select 項目へ展開する。
 - 外部 AI からの提案として、`Wobble` / `Pitch` のランダム性を強める方向を検討候補にする。周期 LFO だけでなく、古いテープのワウ・フラッターのような不規則なピッチ揺れを想定する。
 - 外部 AI からの提案として、Lo-Fi 系の質感強化を検討候補にする。`BitCrusher` に加えて、8kHz / 11kHz 相当へ落とすダウンサンプリング的な音を想定する。
 - 外部 AI からの提案として、複数レイヤー/グループ制御時の負荷と競合を継続確認する。`Source Layer` の個別指定で干渉回避できるが、`Auto` の安定性と多重トラック時の軽量化は確認候補に残す。
 - 外部 AI からの提案として、`Aul2Audio View` の View Type 拡張を検討候補にする。円形波形、ドーナツ型スペクトラム、音量反応の明滅、不透明度やブラーの揺れなど、MV 用素材として映像表現へ直接効く描画を想定する。
 - `Aul2Audio View` / `Aul2AudioMonitor` の再生同期は現状良好。今後触る場合は、共有メモリ履歴リングとフレーム距離優先選択を崩さない。
 - 新しい実装作業や試聴結果を終えたら、詳細な経緯は `HISTORY.md` へ追記する。
+
+## Aul2AudioController 検討仕様
+
+- 新しい拡張プラグイン名は `Aul2AudioController` とする。既存の `Aul2AudioFilter` のパラメーターを外部から参照し、設定操作を補助する。音声処理自体は担当しない。
+- 拡張プラグインの最小骨格と、Delayを対象にした読み書き同期の最小実装まで完了している。編集メニューとAviUtl2管理クライアントウィンドウへ `Aul2AudioController` を登録し、約320 x 320ピクセルを基準にしたVCLフォームを表示する。正式なエフェクターリストとノブUIは未実装。
+- 最初の対象は、選択中の `グループ制御（音声）` に付いた `Aul2AudioFilter` と、音声オブジェクトへ直接付いた `Aul2AudioFilter` とする。それ以外の選択では Controller 全体を無効化し、対象を選択するよう案内を表示する。
+- 同一オブジェクトに複数の `Aul2AudioFilter` があるケースは正式な対応対象外とする。実動作ではエイリアスデータ内で先に見つかったフィルターを読み書きの対象とし、読み込みと書き込みで同じ探索規則を使う。
+- Controller の GUI 領域へマウスが入った時に、AviUtl2 の選択中オブジェクトとエイリアスデータを取得する。エイリアスから対象フィルターの全パラメーターを読み込み、GUI 全体へ反映する。この発火方式は既存処理でも操作感に問題がないため、ほかの自動更新契機は設けない。
+- GUI 操作時は、操作中のコントロールに対応するパラメーターだけを選択中オブジェクトへ書き込む。全体読み込みによる GUI 更新中は変更イベントから書き込まず、読み込みと書き込みを循環させない。
+- パラメーターの最小値、最大値、最小移動値は既存のフィルタープラグイン側の定義を参照する。実装時に利用する既存の同期ライブラリと参照先は別途確認する。Undo や編集履歴の集約は考慮しない。
+- 有効な対象を読み込む前の初期状態は、全エフェクター `OFF`、数値 `0`、選択項目は先頭とする。有効な対象を取得したら、読み込んだ値で GUI 全体を置き換える。個別のエラー表示は設けない。
+
+### 現在の同期実装状況
+
+- 最初の同期対象としてDelayを採用し、仮GUIに `Use` のチェックボックス、`Stereo Mode` のコンボボックスを配置した。`Time(ms)` / `Dry` / `Wet` / `Feedback` は表示専用のボリュームコントローラーへ置き換えた。
+- ControllerのGUI領域へマウスが入った時に `WM_SETCURSOR` を契機として、選択中Objectのエイリアスを取得する。同じマウス進入中は一度だけ読み込み、領域外へ出た後の再進入で再取得する。
+- エイリアス内で最初に見つかる `サウンドエフェクター` / `音声効果` / `Aul2AudioFilter` のセクションからDelay項目を読み込む。GUI更新中はイベントを書き込みへ接続せず、読み書きの循環を防止する。
+- `Dly: Stereo Mode` はインデックス値ではなく `Normal` / `Ping-Pong` の表示値として取得される。読み込み側は表示値と数値表現の両方を解釈でき、実機で正常取得を確認済み。
+- GUIからの書き込みは `Use` と `Stereo Mode` で維持している。数値項目はノブの外観と配置を先に調整するため、現在は読み込んだ値と値域に対応する角度の表示だけを行い、入力イベントを接続しない。
+- 数値項目の値域は `Time(ms)` が `1..1000`、`Dry` と `Wet` が `0..2`、`Feedback` が `0..0.95`。操作実装時の刻みは順に `1`、`0.01`、`0.01`、`0.01` とする。
+- Delayの取得と書き込みは実機で正常動作を確認済み。Debug / Release Win64はいずれも警告0・エラー0で、Release版 `Aul2AudioController.aux2` を配布フォルダへ配置済み。
+- 選択中Object内の対象フィルターを基準に同期するため、`グループ制御（音声）` に付けたフィルターと、音声オブジェクトへ直接付けたフィルターの両方でDelayの取得・書き込みが正しく同期することを実機確認済み。Object種別ごとに同期処理を分岐する必要はない。
+- 次の段階では、実機表示を見ながらノブの寸法、配色、目盛り角、値欄、折り返し配置を調整する。外観確定後にドラッグ、ホイール、直接入力を追加し、Delayで確立した「全体読込・操作項目だけ書込」の規則へ接続する。
+
+### エフェクター選択
+
+- 初期設計はリスト方式とする。`Use = ON` のエフェクターだけを、実際にエフェクトが適用される順番で上から下へ表示する。処理順を表すため、ユーザーによる並べ替えは許可しない。
+- リストの追加メニューには `Use = OFF` のエフェクターだけを表示する。追加すると対象の `Use` を `ON`、リストから外すと `OFF` にし、設定値自体は維持する。GUI の変化と選択中オブジェクトへの `Use` の書き込みは同時に行う。
+- 将来、表示密度を優先してコンボボックス方式へ変更する可能性は残すが、最初は有効なエフェクターと処理順を一覧できるリストで設計する。
+- リストでエフェクターを選択すると、そのエフェクターの設定領域へコンボボックスと数値コントロールを表示する。選択方式のパラメーターにはコンボボックスを使う。
+
+### 数値コントロールと配置
+
+- 音量、Gain、Wet、Dry、Feedback、Mix など量を表す数値には、ギターエフェクターのボリュームつまみを意識したカスタムノブを使う。ノブの下へ直接入力可能な `Edit` を置き、双方を常に連動させる。
+- ノブはかなり黒くするが、黒い背景とは識別できる明度差と輪郭を持たせる。現在位置は三角マーカーを使わず、アクセント色の少し太い線で示す。外周ベベル、左上のハイライト、右下の陰影、内側の明度差で円に立体感を持たせる。
+- ノブはマウスダウン後のドラッグで操作する。上または右で増加、下または左で減少し、最初に大きく動いた方向へ操作軸を固定して斜め移動による二重加算を避ける。ホイールは 1 単位ずつの細かい操作に使う。
+- `Edit` はノブ操作中の値を即時表示し、直接入力にも対応する。値は対象パラメーターの範囲内へ制限する。
+- エフェクターごとにコンボボックスを上側へ置き、その下へ数値コントロールを左から右へ並べる。利用可能な横幅へ並ぶだけ並べ、収まらない場合は次の行へ折り返す。最後の行は左詰めとする。
+- Controller の横幅変更時は、既存コントロールを作り直さず位置だけを再計算する。DPI に応じてノブ寸法、セル幅、余白、行間、線幅を調整する。縦方向へ収まらない場合は外側の領域に縦スクロールバーを表示し、横スクロールバーは使わない。
+- 実運用時のウィンドウ外形は、初期表示確認時の約 320 x 320 ピクセル程度を基準とする。この幅でもエフェクター選択とパラメーター操作が成立するように設計し、広げた場合はノブの横並び数を増やす。
+- 固定画像の拡大縮小は使わず、DPI 対応のカスタム描画を基本とする。サイズや DPI に依存する固定部分はキャッシュし、値の変化時は回転部分を更新する。ダブルバッファリングでドラッグ中のちらつきを防ぐ。
+
+### デザイン方針
+
+- `Image\icon_3.png` のような、黒から濃いグレーの背景、立体的なパネル、沈み込んだ操作領域、明るい文字、黒いノブ、ノブ下の数値欄を持つ音響機器風デザインを目標にする。画像の完全な再現は目的としない。
+- 選択中のエフェクターを直感的に識別できるよう、ギターエフェクターを連想させる種類別のテーマ色を設定領域の背景や見出しへ使う。特定メーカーや製品の配色をそのまま再現せず、独自に暗く調整した色を使う。
+- Delay / Echo は青、Chorus は水色、Reverb は紫、Distortion / VoiceDrive は赤または橙、Compressor は黄、Limiter は琥珀、EQ は緑、NoiseGate は濃いグレー、Pitch / Wobble はマゼンタ、BitCrusher / Lo-Fi は青紫などを初期候補とする。
+- テーマ色は背景全体を鮮やかに塗らず、暗い背景への薄い色味、見出し、境界線、選択中リスト項目の細い帯などへ使う。色だけに依存せず、現在のエフェクター名を常に明示する。
 
 ## ビルド方法
 
@@ -160,12 +215,14 @@ cmd /c "call ""C:\Program Files (x86)\Embarcadero\Studio\37.0\bin\rsvars.bat"" &
 ```text
 C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioFilter.auf2
 C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioMonitor.aux2
+C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioController.aux2
 C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioBaseInput.aui2
 C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 ```
 
 ビルド後イベントで生成された `.dll` を `.auf2` にコピーし、元の `.dll` を削除する。Release では `.rsm` も削除する。
 `Aul2AudioMonitor` は `.dll` を `.aux2` にコピーする。Release では元の `.dll` と `.rsm` を削除する。
+`Aul2AudioController` も `.dll` を `.aux2` にコピーし、Release では元の `.dll` と `.rsm` を削除する。
 
 `Aul2AudioMonitor` は AviUtl2 の編集メニューに `Aul2AudioMonitor` を追加し、Wave / Spectrum を切り替えて表示する拡張プラグインとして本採用する。
 フィルター側は `Local\Aul2AudioMonitorState` と `Local\Aul2AudioMonitorSpectrum` へ常時表示用データを書き出す。検証用の `ENABLE_AUDIO_MONITOR_SHARED_MEMORY` const と分岐は削除済み。
