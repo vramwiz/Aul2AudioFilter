@@ -12,6 +12,96 @@
 - Debug / Release Win64 ビルドが警告なしで成功し、`C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioController.aux2` へコピーされることを確認した。
 - `tdump` で `InitializePlugin` / `RegisterPlugin` / `UninitializePlugin` の export を確認した。
 
+## 2026-07-15 Aul2AudioController effect definition and EQ switching
+
+- `Source\Aul2AudioControllerEffectDefinition.pas` を追加し、エフェクター名、日本語LED表記、配色、Use項目、選択項目、ノブの表示名・Alias項目名・範囲・刻み・小数桁・単位をViewから分離した。
+- Delayの既存定義を専用ユニットへ移し、EQには `Mode`、`Low Cut`、`High Cut`、`Mix` の定義を追加した。
+- 同期処理をDelay固定レコードからエフェクター定義を受け取る汎用処理へ変更した。選択中ObjectのAlias取得は従来通り1回で、定義されたUse、Select、Volume項目をまとめて読む。
+- エフェクターコンボでDelayとEQを切り替えると、LED表記、選択コンボ、ノブ数、範囲、単位、背景色が再構成され、選択中Objectの対応パラメーターを実際に読み書きするようにした。EQでは4個目のノブを隠して3個を上詰め配置する。
+- 残り18エフェクターは従来の選択順、配色、日本語LED表記を定義ユニットへ移した。パラメーター未接続時は操作コントロールを表示せず、誤書き込みを行わない。
+- `Aul2AudioController.dproj` のDebug Win64ビルドが成功し、`Aul2AudioController.aux2` へコピーされた。
+
+## 2026-07-15 Aul2AudioController Compressor parameters
+
+- Compressorの `Use`、`Threshold`、`Ratio`、`Attack`、`Release`、`Makeup`、`Mix` を既存の汎用定義・同期へ接続した。
+- Viewが保持していたDelay由来の4個の名前付きノブを、定義側の上限と同じ7個の共通配列へ置き換えた。エフェクト追加時にViewのフィールドや分岐を増やさず、定義だけで表示数、値域、刻み、単位を切り替える。
+- Debug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。実機での6ノブ表示と読み書きは確認待ち。
+
+## 2026-07-15 Aul2AudioController Voice Drive parameters
+
+- Voice Driveの `Use`、`Drive`、`Body`、`Level`、`Mix` を既存の汎用定義・同期へ接続した。
+- Viewや同期処理にはエフェクト固有処理を追加せず、定義追加だけで4ノブの表示、値域、刻み、単位、Alias項目名を切り替える構成を維持した。
+- Debug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。実機での4ノブ表示と読み書きは確認待ち。
+
+## 2026-07-15 Aul2AudioController Distortion parameters
+
+- Distortionの `Use`、`Mode`、`Drive`、`Tone`、`Level`、`Mix` を既存の汎用定義・同期へ接続した。
+- `Mode` は `Soft Clip` / `Hard Clip` の選択コンボ、残りは4ノブとして表示する。View・同期・配色にはDistortion固有処理を追加していない。
+- Debug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。実機での表示と読み書きは確認待ち。
+
+## 2026-07-15 Aul2AudioController Noise parameters
+
+- Noiseの `Use`、`Mode`、`Level`、`Mix` を既存の汎用定義・同期へ接続した。
+- `Mode` は `White` / `Crackle` の選択コンボ、残りは2ノブとして表示する。音声処理側で既知の無音化・例外調査候補があることは変更せず、Controllerは設定の読み書きだけを担当する。
+- Debug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。実機での表示と読み書きは確認待ち。
+
+## 2026-07-15 Aul2AudioController Bit Crusher / Tremble / Wobble parameters
+
+- 定義追加だけで接続できる連続3エフェクトをまとめ、既存の汎用表示・同期へ接続した。
+- Bit Crusherは `Use`、`Bit Depth`、`Sample Hold`、`Mix` の3ノブを表示する。
+- Trembleは `Use`、`Rate`、`Depth`、`Mix` の3ノブ、Wobbleは `Use`、`Delay`、`Depth`、`Rate`、`Mix` の4ノブを表示する。
+- 3エフェクトとも選択コンボはなく、View・同期・配色へ固有処理を追加していない。
+- Debug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。実機での表示と読み書きは確認待ち。
+
+## 2026-07-15 Aul2AudioController Pitch parameters
+
+- Pitchの `Use`、`Mode` と7個の数値項目を既存の汎用定義・同期へ接続した。
+- `Mode` は `Natural` / `Pitch Only` / `Formant Only` / `Step`。数値項目は `Semitone`、`Window`、`Formant`、`Amount`、`Step`、`Rate`、`Mix`。
+- モードごとの表示切り替えは追加せず、元GUIと同様に全項目を表示する。これによりViewへPitch固有処理を持ち込まず、定義上限7ノブの検証対象とする。
+- Debug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。実機では7ノブの複数段配置と下端の収まりを重点確認する。
+
+## 2026-07-15 Aul2AudioController Ring Mod / Muffle / Whisper parameters
+
+- 定義追加だけで接続できる3エフェクトを既存の汎用表示・同期へ接続した。
+- Ring Modは `Use`、`Frequency`、`Depth`、`Mix`、Muffleは `Use`、`Cutoff`、`Amount`、`Mix`、Whisperは `Use`、`Level`、`Tone`、`Mix` を表示する。
+- いずれも選択コンボなしの3ノブ構成で、View・同期・配色へ固有処理を追加していない。
+- Debug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。実機での表示と読み書きは確認待ち。
+
+## 2026-07-15 Aul2AudioController Auto Gain / Noise Gate / Ghost parameters
+
+- Auto Gain、Noise Gate、Ghostを既存の汎用表示・同期へ接続した。
+- Auto Gainは `Target`、`Speed`、`Max Gain`、`Mix`、Noise Gateは `Threshold`、`Attack`、`Release`、`Floor`、Ghostは `Size`、`Feedback`、`Wet`、`Mix` を表示する。
+- いずれも選択コンボなしの4ノブ構成で、View・同期・配色へ固有処理を追加していない。
+- Debug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。実機での表示と読み書きは確認待ち。
+
+## 2026-07-15 Aul2AudioController Chorus / Reverb / Output / Limiter parameters
+
+- Chorus、Reverb、Output、Limiterを既存の汎用表示・同期へ接続し、全20エフェクターのパラメーター定義を揃えた。
+- Chorusは `Stereo Mode` と `Delay` / `Depth` / `Rate` / `Mix`、Reverbは `Type` と `Room Size` / `Damping` / `Dry` / `Wet` を表示する。Outputは `Gain`、Limiterは `Ceiling` / `Release` / `Mix` を表示する。
+- 全インデックスが固有定義を持ったため、重複していたプレースホルダー用の表示名・説明文配列と生成処理を削除した。View・同期・配色への固有分岐は追加していない。
+- Debug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。全20エフェクターの実機表示と読み書きは確認待ち。
+
+## 2026-07-15 Aul2AudioController final effect colors
+
+- ユーザー指定の全20エフェクター分のメイン色、ボリューム色、指示線色を `EFFECT_COLORS` へ反映した。Whisper/BreathはWhisper、Reverse Reverb/GhostはGhostの定義へ対応させた。
+- ボリューム色と指示線色は指定されたRGB値をそのまま使う。メイン色だけは知覚明度が上限を超える場合に限り、暗いニュートラル色へ上限到達分だけ混ぜる方式へ変更した。
+- 黒、ダークグレー、濃いブルー、濃いマゼンタなど、元から明度上限以下のメイン色は追加で暗くしない。従来の全色一律ブレンドは廃止した。
+- Debug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。
+
+## 2026-07-15 Aul2AudioController text contrast
+
+- EQ、Compressor、Noise、Auto Gain、Noise Gate、Chorus、Limiterは明るいボリューム面に白文字が重なっていたため、LED面、モード見出し、ノブ見出し、単位を黒文字へ変更した。
+- 文字色を `EFFECT_COLORS` のエフェクター別設定へ追加し、Viewにエフェクター名による分岐を持たせない構成にした。暗い背景の数値入力欄は白文字を維持する。
+- Debug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。
+
+## 2026-07-15 Aul2AudioController softer base colors
+
+- エフェクター識別色を全面ベースへそのまま使うと長時間操作で目が疲れるため、背景色を暗いニュートラル色へブレンドするようにした。
+- BOSSの代表的な実機を参考に、Delay/EQは白・銀、Compressorは青、Overdrive系は黄、Distortionは橙、Tremoloは緑、Vibrato/Pitch/Chorusは青系、Reverb/Noise Suppressorは灰系へ再割り当てした。直接対応する定番機がない処理は近い音響カテゴリの慣用色へ寄せた。
+- 20色を `EFFECT_COLORS` const配列へ集約した。各行に筐体基準の `PedalColor`、ボリュームカードの `VolumeColor`、ノブ位置線の `IndicatorColor` を持たせ、それぞれ独立して変更できる。
+- 広い背景面とカード外周は `PedalColor` を暗いニュートラル色へ共通比率で混ぜる。ボリュームカードと位置線は定義色をそのまま使うため、後からは該当エフェクトの1行だけで3箇所を調整できる。
+- Debug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。
+
 ## 2026-07-15 Aul2AudioController volume control preview
 
 - Controllerの肥大化を避けるため、連続数値パラメーターの描画を `Source\Aul2AudioControllerVolumeControl.pas` の `TAul2VolumeControl` へ分離した。
@@ -30,6 +120,7 @@
 - Delayを基準に最終レイアウト調整を開始し、最上段からエフェクターコンボ、Use、`Stereo Mode`のラベルと選択コンボ、ノブ領域の順へ上詰めした。Useは将来の電源ボタン・表示灯用 `LampSwitchHost` 内へ移し、デバッグ用状態ラベルは非表示にした。Useのネイティブチェックにもフォーム表示前のダークテーマを適用した。
 - `Source\Aul2AudioControllerLampSwitch.pas` を追加し、Useチェックボックスをギターエフェクター風の `TAul2LampSwitch` へ置き換えた。ON時は暗赤の外周グロー、明るい赤色LED、反射点を重ね、OFF時は消灯した暗赤表示にする。Delayの表記は「遅延音を加える」とし、LEDと文字を含む全面クリック、Space／Enter操作、既存 `Dly: Use` 同期へ対応した。
 - LEDの外周グロー、本体、反射点を一回り拡大した。さらにエフェクター別テーマ色の見た目確認として、20項目それぞれに暗い青・緑・黄・赤・紫などを割り当て、コンボ選択時にRootPanel、LEDスイッチ面、各ボリュームカード面を同系色へ変更するようにした。白系文字と黒いノブの視認性を優先して低輝度に抑え、値や同期先はDelayのまま維持する。
+- 初回テーマ色が抑えすぎていたため、RootPanel側だけをエフェクター本来の青・緑・黄・赤・紫などが明確に分かる中低輝度の高彩度色へ変更した。LEDスイッチ面とボリュームカード周囲は従来の暗いテーマ色を維持し、文字とノブの視認性を比較できる構成にした。
 - 読み込んだ数値を値域へ正規化して270度のノブ角へ反映する。今回、ドラッグ、ホイール、直接入力、数値項目のObject書き込みは接続していない。
 - Controller側は4コントロールの生成、値設定、DPIスケール、横幅に応じた折り返し配置だけを担当する。`Use` と `Stereo Mode` の既存同期は維持した。
 - `Aul2AudioController.dproj` のDebug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。

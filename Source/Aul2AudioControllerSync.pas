@@ -1,32 +1,33 @@
 ﻿unit Aul2AudioControllerSync;
 
-// 選択中ObjectのエイリアスからController検証用のDelay設定を一括取得する。
+// 選択中Objectのエイリアスから、定義で指定されたエフェクター設定を一括取得する。
 
 interface
 
+uses
+  Aul2AudioControllerEffectDefinition;
+
 type
-  TControllerDelayReadResult = (
-    cdrrLoaded,
-    cdrrUnavailable,
-    cdrrNoObject,
-    cdrrNoAlias,
-    cdrrFilterNotFound,
-    cdrrDelayIncomplete
+  TControllerEffectReadResult = (
+    cerrLoaded,
+    cerrUnavailable,
+    cerrNoObject,
+    cerrNoAlias,
+    cerrFilterNotFound,
+    cerrEffectIncomplete
   );
 
-  TControllerDelayState = record
-    Use         : Boolean; // Dly: UseのON/OFF。
-    StereoMode  : Integer; // Dly: Stereo Modeの選択値。
-    TimeText    : string;  // Dly: Time(ms)のエイリアス表記。
-    DryText     : string;  // Dly: Dryのエイリアス表記。
-    WetText     : string;  // Dly: Wetのエイリアス表記。
-    FeedbackText: string;  // Dly: Feedbackのエイリアス表記。
+  TControllerEffectState = record
+    Use           : Boolean;
+    SelectIndex   : Integer;
+    ParameterTexts: array[0..CONTROLLER_MAX_VOLUME_COUNT - 1] of string;
   end;
 
-// フォーカスObjectからエイリアスを1回取得し、最初の音声エフェクトにあるDelay設定と診断結果を返す。
-function CaptureSelectedDelayState(out State: TControllerDelayState): TControllerDelayReadResult;
-// フォーカスObjectの音声エフェクトへ、指定したDelay項目だけを書き込む。
-function SetSelectedDelayItem(const ItemName, Value: string): Boolean;
+// フォーカスObjectからエイリアスを1回取得し、指定エフェクターの設定と診断結果を返す。
+function CaptureSelectedEffectState(const Definition: TControllerEffectDefinition;
+  out State: TControllerEffectState): TControllerEffectReadResult;
+// フォーカスObjectの音声エフェクトへ、指定したGUI項目だけを書き込む。
+function SetSelectedEffectItem(const ItemName, Value: string): Boolean;
 
 implementation
 
@@ -42,40 +43,40 @@ const
   FILTER_NAME_INTERNAL = 'Aul2AudioFilter';      // 内部名がAliasへ出る環境の互換候補。
 
 type
-  PDelayCaptureContext = ^TDelayCaptureContext;
-  TDelayCaptureContext = record
+  PEffectCaptureContext = ^TEffectCaptureContext;
+  TEffectCaptureContext = record
     AliasText: string;  // SDKから取得してUTF-16へ変換したエイリアス全文。
-    Result   : TControllerDelayReadResult; // SDK取得段階の診断結果。
+    Result   : TControllerEffectReadResult; // SDK取得段階の診断結果。
   end;
 
-  PDelayWriteContext = ^TDelayWriteContext;
-  TDelayWriteContext = record
+  PEffectWriteContext = ^TEffectWriteContext;
+  TEffectWriteContext = record
     ItemName: string;     // 書き込むAul2AudioFilterのGUI項目名。
     Value   : UTF8String; // SDKへ渡すUTF-8表記の値。
     Success : Boolean;    // SetObjectItemValueが成功した場合True。
   end;
 
-procedure ClearDelayState(out State: TControllerDelayState);
+procedure ClearEffectState(out State: TControllerEffectState);
+var
+  Index: Integer;
 begin
   State.Use := False;
-  State.StereoMode := 0;
-  State.TimeText := '0';
-  State.DryText := '0';
-  State.WetText := '0';
-  State.FeedbackText := '0';
+  State.SelectIndex := 0;
+  for Index := Low(State.ParameterTexts) to High(State.ParameterTexts) do
+    State.ParameterTexts[Index] := '0';
 end;
 
 procedure CaptureSelectedAliasParam(Param: Pointer; Edit: PEditSection); cdecl;
 var
   AliasValue: LPCSTR;
-  Context   : PDelayCaptureContext;
+  Context   : PEffectCaptureContext;
   Obj       : TObjectHandle;
 begin
-  Context := PDelayCaptureContext(Param);
+  Context := PEffectCaptureContext(Param);
   if Context = nil then
     Exit;
 
-  Context^.Result := cdrrUnavailable;
+  Context^.Result := cerrUnavailable;
   Context^.AliasText := '';
   if (Edit = nil) or not Assigned(Edit^.GetFocusObject) or not Assigned(Edit^.GetObjectAlias) then
     Exit;
@@ -83,30 +84,30 @@ begin
   Obj := Edit^.GetFocusObject;
   if Obj = nil then
   begin
-    Context^.Result := cdrrNoObject;
+    Context^.Result := cerrNoObject;
     Exit;
   end;
 
   AliasValue := Edit^.GetObjectAlias(Obj);
   if AliasValue = nil then
   begin
-    Context^.Result := cdrrNoAlias;
+    Context^.Result := cerrNoAlias;
     Exit;
   end;
 
   Context^.AliasText := UTF8ToString(AnsiString(AliasValue));
   if Context^.AliasText = '' then
-    Context^.Result := cdrrNoAlias
+    Context^.Result := cerrNoAlias
   else
-    Context^.Result := cdrrLoaded;
+    Context^.Result := cerrLoaded;
 end;
 
-procedure SetSelectedDelayItemParam(Param: Pointer; Edit: PEditSection); cdecl;
+procedure SetSelectedEffectItemParam(Param: Pointer; Edit: PEditSection); cdecl;
 var
-  Context: PDelayWriteContext;
+  Context: PEffectWriteContext;
   Obj    : TObjectHandle;
 begin
-  Context := PDelayWriteContext(Param);
+  Context := PEffectWriteContext(Param);
   if Context = nil then
     Exit;
 
@@ -150,38 +151,51 @@ begin
     Value := '';
 end;
 
-function TryBuildDelayState(const EffectName: string; Values: TStrings;
-  out State: TControllerDelayState): Boolean;
+function TryBuildEffectState(const EffectName: string; Values: TStrings;
+  const Definition: TControllerEffectDefinition;
+  out State: TControllerEffectState): Boolean;
 var
-  FeedbackText: string;
-  ModeText    : string;
-  UseText     : string;
+  ItemIndex: Integer;
+  SelectText: string;
+  UseText: string;
 begin
   Result := False;
   if not IsTargetFilterName(EffectName) then
     Exit;
 
-  if not TryGetAliasValue(Values, 'Dly: Use', UseText) or
-     not TryGetAliasValue(Values, 'Dly: Stereo Mode', ModeText) or
-     not TryGetAliasValue(Values, 'Dly: Time(ms)', State.TimeText) or
-     not TryGetAliasValue(Values, 'Dly: Dry', State.DryText) or
-     not TryGetAliasValue(Values, 'Dly: Wet', State.WetText) or
-     not TryGetAliasValue(Values, 'Dly: Feedback', FeedbackText) then
+  if (Definition.UseItemName = '') or
+     not TryGetAliasValue(Values, Definition.UseItemName, UseText) then
     Exit;
 
   State.Use := StrToIntDef(Trim(UseText), 0) <> 0;
-  ModeText := Trim(ModeText);
-  if SameText(ModeText, 'Ping-Pong') then
-    State.StereoMode := 1
-  else if SameText(ModeText, 'Normal') then
-    State.StereoMode := 0
-  else
-    State.StereoMode := StrToIntDef(ModeText, 0);
-  State.FeedbackText := FeedbackText;
+
+  if Definition.SelectControl.Visible then
+  begin
+    if not TryGetAliasValue(Values, Definition.SelectControl.ItemName, SelectText) then
+      Exit;
+    State.SelectIndex := -1;
+    SelectText := Trim(SelectText);
+    for ItemIndex := 0 to High(Definition.SelectControl.Items) do
+      if SameText(SelectText, Definition.SelectControl.Items[ItemIndex]) then
+      begin
+        State.SelectIndex := ItemIndex;
+        Break;
+      end;
+    if State.SelectIndex < 0 then
+      State.SelectIndex := StrToIntDef(SelectText, -1);
+  end;
+
+  if Length(Definition.Volumes) > Length(State.ParameterTexts) then
+    Exit;
+  for ItemIndex := 0 to High(Definition.Volumes) do
+    if not TryGetAliasValue(Values, Definition.Volumes[ItemIndex].ItemName,
+      State.ParameterTexts[ItemIndex]) then
+      Exit;
   Result := True;
 end;
 
-function TryParseDelayState(const AliasText: string; out State: TControllerDelayState;
+function TryParseEffectState(const AliasText: string;
+  const Definition: TControllerEffectDefinition; out State: TControllerEffectState;
   out TargetFilterFound: Boolean): Boolean;
 var
   EffectName: string;
@@ -195,7 +209,7 @@ var
 begin
   Result := False;
   TargetFilterFound := False;
-  ClearDelayState(State);
+  ClearEffectState(State);
   if AliasText = '' then
     Exit;
 
@@ -214,7 +228,7 @@ begin
       if (Line[1] = '[') and (Line[Length(Line)] = ']') then
       begin
         TargetFilterFound := TargetFilterFound or IsTargetFilterName(EffectName);
-        if TryBuildDelayState(EffectName, Values, State) then
+        if TryBuildEffectState(EffectName, Values, Definition, State) then
           Exit(True);
 
         EffectName := '';
@@ -235,43 +249,44 @@ begin
     end;
 
     TargetFilterFound := TargetFilterFound or IsTargetFilterName(EffectName);
-    Result := TryBuildDelayState(EffectName, Values, State);
+    Result := TryBuildEffectState(EffectName, Values, Definition, State);
   finally
     Values.Free;
     Lines.Free;
   end;
 end;
 
-function CaptureSelectedDelayState(out State: TControllerDelayState): TControllerDelayReadResult;
+function CaptureSelectedEffectState(const Definition: TControllerEffectDefinition;
+  out State: TControllerEffectState): TControllerEffectReadResult;
 var
-  Context          : TDelayCaptureContext;
+  Context          : TEffectCaptureContext;
   TargetFilterFound: Boolean;
 begin
-  ClearDelayState(State);
-  Result := cdrrUnavailable;
+  ClearEffectState(State);
+  Result := cerrUnavailable;
   if not Assigned(EditHandle) or not Assigned(EditHandle^.CallEditSectionParam) then
     Exit;
 
   Context.AliasText := '';
-  Context.Result := cdrrUnavailable;
+  Context.Result := cerrUnavailable;
   if not EditHandle^.CallEditSectionParam(@Context, @CaptureSelectedAliasParam) then
     Exit;
 
-  if Context.Result <> cdrrLoaded then
+  if Context.Result <> cerrLoaded then
     Exit(Context.Result);
 
-  if TryParseDelayState(Context.AliasText, State, TargetFilterFound) then
-    Exit(cdrrLoaded);
+  if TryParseEffectState(Context.AliasText, Definition, State, TargetFilterFound) then
+    Exit(cerrLoaded);
 
   if TargetFilterFound then
-    Result := cdrrDelayIncomplete
+    Result := cerrEffectIncomplete
   else
-    Result := cdrrFilterNotFound;
+    Result := cerrFilterNotFound;
 end;
 
-function SetSelectedDelayItem(const ItemName, Value: string): Boolean;
+function SetSelectedEffectItem(const ItemName, Value: string): Boolean;
 var
-  Context: TDelayWriteContext;
+  Context: TEffectWriteContext;
 begin
   Result := False;
   if (ItemName = '') or not Assigned(EditHandle) or not Assigned(EditHandle^.CallEditSectionParam) then
@@ -280,7 +295,7 @@ begin
   Context.ItemName := ItemName;
   Context.Value := UTF8String(Value);
   Context.Success := False;
-  if not EditHandle^.CallEditSectionParam(@Context, @SetSelectedDelayItemParam) then
+  if not EditHandle^.CallEditSectionParam(@Context, @SetSelectedEffectItemParam) then
     Exit;
 
   Result := Context.Success;

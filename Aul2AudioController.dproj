@@ -104,6 +104,7 @@
         </DelphiCompile>
         <DCCReference Include="Source\Lib\AviUtl2Plugin\AviUtl2PluginTypes.pas"/>
         <DCCReference Include="Source\Lib\AviUtl2Plugin\AviUtl2PluginCore.pas"/>
+        <DCCReference Include="Source\Aul2AudioControllerEffectDefinition.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerSync.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerLampSwitch.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerVolumeControl.pas"/>

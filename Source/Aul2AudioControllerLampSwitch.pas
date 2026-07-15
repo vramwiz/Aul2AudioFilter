@@ -18,11 +18,13 @@ type
     FHover: Boolean;
     FPanelColor: TColor;
     FPressed: Boolean;
+    FTextColor: TColor;
     procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
     procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
     procedure SetCaption(const Value: string);
     procedure SetChecked(Value: Boolean);
     procedure SetPanelColor(const Value: TColor);
+    procedure SetTextColor(const Value: TColor);
     procedure Toggle;
   protected
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
@@ -44,6 +46,7 @@ type
     property ParentFont;
     property ShowHint;
     property TabStop default True;
+    property TextColor: TColor read FTextColor write SetTextColor default $00ECECEC;
     property Visible;
   end;
 
@@ -65,6 +68,7 @@ begin
   TabStop := True;
   FCaption := 'Effect';
   FPanelColor := RGB(34, 37, 41);
+  FTextColor := RGB(236, 236, 236);
 end;
 
 procedure TAul2LampSwitch.SetCaption(const Value: string);
@@ -88,6 +92,14 @@ begin
   if FPanelColor = Value then
     Exit;
   FPanelColor := Value;
+  Invalidate;
+end;
+
+procedure TAul2LampSwitch.SetTextColor(const Value: TColor);
+begin
+  if FTextColor = Value then
+    Exit;
+  FTextColor := Value;
   Invalidate;
 end;
 
@@ -202,7 +214,7 @@ begin
   Canvas.Font.Assign(Font);
   Canvas.Font.Style := [fsBold];
   if Enabled then
-    Canvas.Font.Color := RGB(236, 236, 236)
+    Canvas.Font.Color := FTextColor
   else
     Canvas.Font.Color := RGB(126, 126, 126);
   Canvas.Brush.Style := bsClear;

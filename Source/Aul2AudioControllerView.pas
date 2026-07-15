@@ -1,6 +1,6 @@
 ﻿unit Aul2AudioControllerView;
 
-// ControllerのVCLフォーム、Delay取得、表示専用パラメーター配置を担当する。
+// ControllerのVCLフォーム、選択エフェクターの取得、パラメーター配置を担当する。
 
 interface
 
@@ -10,7 +10,7 @@ uses
 const
   CONTROLLER_WINDOW_NAME = 'Aul2AudioController'; // フォームとクライアントで共有する表示名。
 
-// Controllerフォームを生成し、ParentWindowの子としてDelay確認GUIを構築する。
+// Controllerフォームを生成し、ParentWindowの子としてエフェクターGUIを構築する。
 procedure CreateControllerView(ParentWindow: HWND);
 // タイマーとControllerフォームを停止・解放する。
 procedure DestroyControllerView;
@@ -20,7 +20,7 @@ procedure ShowControllerView;
 procedure SyncControllerViewBounds;
 // AviUtl2クライアントから通知された寸法へRootPanelとフォームを追従させる。
 procedure ResizeControllerView(Width, Height: Integer);
-// クライアントWndProcのマウス進入通知からDelay再取得を1回だけ発火する。
+// クライアントWndProcのマウス進入通知から選択エフェクター再取得を1回だけ発火する。
 procedure NotifyControllerMouseEnter;
 
 implementation
@@ -35,6 +35,7 @@ uses
   Vcl.Forms,
   Vcl.Graphics,
   Vcl.StdCtrls,
+  Aul2AudioControllerEffectDefinition,
   Aul2AudioControllerLampSwitch,
   Aul2AudioControllerSync,
   Aul2AudioControllerVolumeControl;
@@ -55,7 +56,7 @@ type
 
   TControllerEventTarget = class(TComponent)
   public
-    procedure DelayVolumeChange(Sender: TObject; const ValueText: string; var Accept: Boolean);
+    procedure EffectVolumeChange(Sender: TObject; const ValueText: string; var Accept: Boolean);
     procedure EffectComboChange(Sender: TObject);
     procedure ModeComboChange(Sender: TObject);
     procedure MouseBoundaryTimer(Sender: TObject);
@@ -73,22 +74,13 @@ var
   UseLamp        : TAul2LampSwitch;
   ModeLabel      : TLabel;
   ModeCombo      : TComboBox;
-  TimeControl    : TAul2VolumeControl;
-  DryControl     : TAul2VolumeControl;
-  WetControl     : TAul2VolumeControl;
-  FeedbackControl: TAul2VolumeControl;
+  VolumeControls : array[0..CONTROLLER_MAX_VOLUME_COUNT - 1] of TAul2VolumeControl;
   MouseTimer     : TTimer;
   EventTarget    : TControllerEventTarget;
   MouseInside    : Boolean;
   Refreshing     : Boolean;
   LastUse        : Boolean;
-  LastStereoMode : Integer;
-
-const
-  DELAY_CONTROL_TIME     = 1;
-  DELAY_CONTROL_DRY      = 2;
-  DELAY_CONTROL_WET      = 3;
-  DELAY_CONTROL_FEEDBACK = 4;
+  LastSelectIndex: Integer;
 
 constructor TFormAudioController.Create(AOwner: TComponent);
 begin
@@ -145,68 +137,51 @@ begin
   SetWindowTheme(Combo.Handle, '', '');
 end;
 
-function GetEffectThemeColor(EffectIndex: Integer): TColor;
-begin
-  case EffectIndex of
-    0:  Result := RGB(20, 31, 44); // Delay
-    1:  Result := RGB(20, 38, 29); // EQ
-    2:  Result := RGB(43, 38, 20); // Compressor
-    3:  Result := RGB(45, 27, 18); // Voice Drive
-    4:  Result := RGB(45, 22, 22); // Distortion
-    5:  Result := RGB(32, 34, 37); // Noise
-    6:  Result := RGB(31, 24, 45); // Bit Crusher
-    7:  Result := RGB(21, 38, 38); // Tremble
-    8:  Result := RGB(44, 21, 39); // Wobble
-    9:  Result := RGB(42, 22, 45); // Pitch
-    10: Result := RGB(20, 37, 42); // Ring Mod
-    11: Result := RGB(40, 31, 22); // Muffle
-    12: Result := RGB(27, 31, 40); // Whisper
-    13: Result := RGB(22, 40, 27); // Auto Gain
-    14: Result := RGB(27, 29, 32); // Noise Gate
-    15: Result := RGB(34, 27, 43); // Ghost
-    16: Result := RGB(19, 38, 44); // Chorus
-    17: Result := RGB(35, 24, 45); // Reverb
-    18: Result := RGB(25, 33, 40); // Output
-    19: Result := RGB(45, 34, 17); // Limiter
-  else
-    Result := RGB(28, 30, 33);
-  end;
-end;
-
-function LightenThemeColor(Color: TColor; Amount: Integer): TColor;
-begin
-  Color := ColorToRGB(Color);
-  Result := RGB(
-    Min(255, GetRValue(Color) + Amount),
-    Min(255, GetGValue(Color) + Amount),
-    Min(255, GetBValue(Color) + Amount));
-end;
-
 procedure ApplyEffectTheme(EffectIndex: Integer);
 var
-  PanelColor: TColor;
+  BackgroundColor: TColor;
+  ControlIndex   : Integer;
+  Definition     : TControllerEffectDefinition;
   ThemeColor: TColor;
 begin
   if not Assigned(ControllerForm) or not Assigned(RootPanel) or not Assigned(UseLamp) then
     Exit;
+  if not GetControllerEffectDefinition(EffectIndex, Definition) then
+    Exit;
 
-  ThemeColor := GetEffectThemeColor(EffectIndex);
-  PanelColor := LightenThemeColor(ThemeColor, 10);
-  ControllerForm.Color := ThemeColor;
-  RootPanel.Color := ThemeColor;
-  LampSwitchHost.Color := ThemeColor;
-  UseLamp.Color := ThemeColor;
-  UseLamp.PanelColor := PanelColor;
-  ModeLabel.Color := ThemeColor;
-  TimeControl.Color := ThemeColor;
-  TimeControl.PanelColor := PanelColor;
-  DryControl.Color := ThemeColor;
-  DryControl.PanelColor := PanelColor;
-  WetControl.Color := ThemeColor;
-  WetControl.PanelColor := PanelColor;
-  FeedbackControl.Color := ThemeColor;
-  FeedbackControl.PanelColor := PanelColor;
+  ThemeColor := Definition.ThemeColor;
+  BackgroundColor := Definition.BackgroundColor;
+  ControllerForm.Color := BackgroundColor;
+  RootPanel.Color := BackgroundColor;
+  LampSwitchHost.Color := BackgroundColor;
+  UseLamp.Color := BackgroundColor;
+  UseLamp.PanelColor := Definition.VolumeColor;
+  UseLamp.TextColor := Definition.TextColor;
+  ModeLabel.Color := BackgroundColor;
+  ModeLabel.Font.Color := Definition.TextColor;
+  for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
+  begin
+    VolumeControls[ControlIndex].Color := ThemeColor;
+    VolumeControls[ControlIndex].PanelColor := Definition.VolumeColor;
+    VolumeControls[ControlIndex].AccentColor := Definition.IndicatorColor;
+    VolumeControls[ControlIndex].TextColor := Definition.TextColor;
+  end;
   RootPanel.Invalidate;
+end;
+
+function GetVolumeControl(Index: Integer): TAul2VolumeControl;
+begin
+  if (Index >= Low(VolumeControls)) and (Index <= High(VolumeControls)) then
+    Result := VolumeControls[Index]
+  else
+    Result := nil;
+end;
+
+function GetCurrentEffectDefinition(
+  out Definition: TControllerEffectDefinition): Boolean;
+begin
+  Result := Assigned(EffectCombo) and
+    GetControllerEffectDefinition(EffectCombo.ItemIndex, Definition);
 end;
 
 procedure LayoutControllerView;
@@ -220,13 +195,13 @@ var
   ControlLeft : Integer;
   ControlTop  : Integer;
   ControlWidth: Integer;
-  Controls    : array[0..3] of TAul2VolumeControl;
   EditLeft    : Integer;
   EditWidth   : Integer;
   LabelWidth  : Integer;
   LeftMargin  : Integer;
   RowHeight   : Integer;
   TopPosition : Integer;
+  VisibleControlCount: Integer;
 begin
   if not Assigned(ControllerForm) or not Assigned(RootPanel) then
     Exit;
@@ -245,52 +220,123 @@ begin
   UseLamp.SetBounds(0, 0, ContentWidth, Scale(28));
 
   TopPosition := Scale(69);
-  ModeLabel.SetBounds(LeftMargin, TopPosition + Scale(4), LabelWidth, Scale(23));
-  ModeCombo.SetBounds(EditLeft, TopPosition, EditWidth, Scale(25));
-  Inc(TopPosition, RowHeight);
+  if ModeCombo.Visible then
+  begin
+    ModeLabel.SetBounds(LeftMargin, TopPosition + Scale(4), LabelWidth, Scale(23));
+    ModeCombo.SetBounds(EditLeft, TopPosition, EditWidth, Scale(25));
+    Inc(TopPosition, RowHeight);
+  end;
 
-  Controls[0] := TimeControl;
-  Controls[1] := DryControl;
-  Controls[2] := WetControl;
-  Controls[3] := FeedbackControl;
+  VisibleControlCount := 0;
+  for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
+    if VolumeControls[ControlIndex].Visible then
+      Inc(VisibleControlCount);
+  if VisibleControlCount = 0 then
+    Exit;
+
   ControlGap := Scale(6);
   // ノブ内部は固定ピクセル描画のため、DPI拡大で値欄との間隔を広げない。
   ControlHeight := 126;
   ColumnCount := Max(1, (ContentWidth + ControlGap) div (Scale(64) + ControlGap));
-  ColumnCount := Min(ColumnCount, Length(Controls));
+  ColumnCount := Min(ColumnCount, VisibleControlCount);
   ControlWidth := (ContentWidth - ControlGap * (ColumnCount - 1)) div ColumnCount;
   ControlWidth := Min(ControlWidth, Scale(84));
-  for ControlIndex := 0 to High(Controls) do
+  ColumnIndex := 0;
+  for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
   begin
-    ColumnIndex := ControlIndex mod ColumnCount;
-    ControlLeft := LeftMargin + ColumnIndex * (ControlWidth + ControlGap);
-    ControlTop := TopPosition + (ControlIndex div ColumnCount) * (ControlHeight + ControlGap);
-    Controls[ControlIndex].SetBounds(ControlLeft, ControlTop, ControlWidth, ControlHeight);
+    if not VolumeControls[ControlIndex].Visible then
+      Continue;
+    ControlLeft := LeftMargin + (ColumnIndex mod ColumnCount) * (ControlWidth + ControlGap);
+    ControlTop := TopPosition + (ColumnIndex div ColumnCount) * (ControlHeight + ControlGap);
+    VolumeControls[ControlIndex].SetBounds(ControlLeft, ControlTop, ControlWidth, ControlHeight);
+    Inc(ColumnIndex);
   end;
 end;
 
-procedure ApplyEmptyDelayState;
+procedure ApplyEmptyEffectState;
+var
+  ControlIndex: Integer;
+  VolumeControl: TAul2VolumeControl;
 begin
   UseLamp.Checked := False;
-  ModeCombo.ItemIndex := 0;
-  TimeControl.ValueText := '0';
-  DryControl.ValueText := '0';
-  WetControl.ValueText := '0';
-  FeedbackControl.ValueText := '0';
+  if ModeCombo.Items.Count > 0 then
+    ModeCombo.ItemIndex := 0
+  else
+    ModeCombo.ItemIndex := -1;
+  for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
+  begin
+    VolumeControl := GetVolumeControl(ControlIndex);
+    if Assigned(VolumeControl) and VolumeControl.Visible then
+      VolumeControl.Value := VolumeControl.Minimum;
+  end;
 end;
 
-procedure RepaintDelayControls;
+procedure RepaintEffectControls;
+var
+  ControlIndex: Integer;
 begin
   EffectCombo.Invalidate;
   StatusLabel.Invalidate;
   UseLamp.Invalidate;
   ModeLabel.Invalidate;
   ModeCombo.Invalidate;
-  TimeControl.Invalidate;
-  DryControl.Invalidate;
-  WetControl.Invalidate;
-  FeedbackControl.Invalidate;
+  for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
+    VolumeControls[ControlIndex].Invalidate;
   RootPanel.Update;
+end;
+
+procedure ConfigureCurrentEffect;
+var
+  ControlIndex: Integer;
+  Definition: TControllerEffectDefinition;
+  SelectIndex: Integer;
+  VolumeControl: TAul2VolumeControl;
+begin
+  if not GetCurrentEffectDefinition(Definition) then
+    Exit;
+
+  Refreshing := True;
+  try
+    UseLamp.Caption := Definition.LampCaption;
+    UseLamp.Enabled := Definition.UseItemName <> '';
+    ModeLabel.Caption := Definition.SelectControl.DisplayName;
+    ModeLabel.Visible := Definition.SelectControl.Visible;
+    ModeCombo.Visible := Definition.SelectControl.Visible;
+    ModeCombo.Items.BeginUpdate;
+    try
+      ModeCombo.Items.Clear;
+      for SelectIndex := 0 to High(Definition.SelectControl.Items) do
+        ModeCombo.Items.Add(Definition.SelectControl.Items[SelectIndex]);
+    finally
+      ModeCombo.Items.EndUpdate;
+    end;
+
+    for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
+    begin
+      VolumeControl := GetVolumeControl(ControlIndex);
+      VolumeControl.Visible := ControlIndex < Length(Definition.Volumes);
+      if VolumeControl.Visible then
+      begin
+        VolumeControl.Configure(
+          Definition.Volumes[ControlIndex].DisplayName,
+          Definition.Volumes[ControlIndex].Minimum,
+          Definition.Volumes[ControlIndex].Maximum,
+          Definition.Volumes[ControlIndex].Step,
+          Definition.Volumes[ControlIndex].Decimals,
+          Definition.Volumes[ControlIndex].UnitText);
+        VolumeControl.Tag := ControlIndex;
+      end;
+    end;
+
+    ApplyEmptyEffectState;
+    LastUse := False;
+    LastSelectIndex := ModeCombo.ItemIndex;
+    ApplyEffectTheme(EffectCombo.ItemIndex);
+    LayoutControllerView;
+    RepaintEffectControls;
+  finally
+    Refreshing := False;
+  end;
 end;
 
 procedure ShowWriteStatus(Success: Boolean; const ItemName: string);
@@ -309,56 +355,72 @@ begin
   StatusLabel.Update;
 end;
 
-procedure RefreshDelayState;
+procedure RefreshEffectState;
 var
-  ReadResult: TControllerDelayReadResult;
-  State     : TControllerDelayState;
+  ControlIndex: Integer;
+  Definition: TControllerEffectDefinition;
+  ReadResult: TControllerEffectReadResult;
+  State     : TControllerEffectState;
+  VolumeControl: TAul2VolumeControl;
 begin
   if Refreshing or not Assigned(ControllerForm) then
     Exit;
+  if not GetCurrentEffectDefinition(Definition) or
+     (Definition.UseItemName = '') then
+  begin
+    StatusLabel.Caption := 'This effect is not connected yet';
+    StatusLabel.Font.Color := RGB(170, 170, 170);
+    Exit;
+  end;
 
   Refreshing := True;
   try
     StatusLabel.Caption := 'Mouse enter detected: reading...';
     StatusLabel.Font.Color := RGB(214, 174, 78);
     StatusLabel.Update;
-    ReadResult := CaptureSelectedDelayState(State);
-    if ReadResult = cdrrLoaded then
+    ReadResult := CaptureSelectedEffectState(Definition, State);
+    if ReadResult = cerrLoaded then
     begin
       UseLamp.Checked := State.Use;
-      if (State.StereoMode >= 0) and (State.StereoMode < ModeCombo.Items.Count) then
-        ModeCombo.ItemIndex := State.StereoMode
-      else
-        ModeCombo.ItemIndex := -1;
-      TimeControl.ValueText := State.TimeText;
-      DryControl.ValueText := State.DryText;
-      WetControl.ValueText := State.WetText;
-      FeedbackControl.ValueText := State.FeedbackText;
+      if Definition.SelectControl.Visible then
+      begin
+        if (State.SelectIndex >= 0) and (State.SelectIndex < ModeCombo.Items.Count) then
+          ModeCombo.ItemIndex := State.SelectIndex
+        else
+          ModeCombo.ItemIndex := -1;
+      end;
+      for ControlIndex := 0 to Length(Definition.Volumes) - 1 do
+      begin
+        VolumeControl := GetVolumeControl(ControlIndex);
+        if Assigned(VolumeControl) then
+          VolumeControl.ValueText := State.ParameterTexts[ControlIndex];
+      end;
       LastUse := State.Use;
-      LastStereoMode := State.StereoMode;
-      StatusLabel.Caption := 'Delay loaded';
+      LastSelectIndex := State.SelectIndex;
+      StatusLabel.Caption := Definition.DisplayName + ' loaded';
       StatusLabel.Font.Color := RGB(112, 232, 142);
     end
     else
     begin
-      ApplyEmptyDelayState;
+      ApplyEmptyEffectState;
       case ReadResult of
-        cdrrUnavailable:
+        cerrUnavailable:
           StatusLabel.Caption := 'Mouse enter detected: SDK unavailable';
-        cdrrNoObject:
+        cerrNoObject:
           StatusLabel.Caption := 'Mouse enter detected: no focus object';
-        cdrrNoAlias:
+        cerrNoAlias:
           StatusLabel.Caption := 'Mouse enter detected: no alias';
-        cdrrFilterNotFound:
+        cerrFilterNotFound:
           StatusLabel.Caption := 'Mouse enter detected: filter not found';
-        cdrrDelayIncomplete:
-          StatusLabel.Caption := 'Mouse enter detected: Delay items incomplete';
+        cerrEffectIncomplete:
+          StatusLabel.Caption := 'Mouse enter detected: ' +
+            Definition.DisplayName + ' items incomplete';
       else
         StatusLabel.Caption := 'Mouse enter detected: read failed';
       end;
       StatusLabel.Font.Color := RGB(170, 170, 170);
     end;
-    RepaintDelayControls;
+    RepaintEffectControls;
   finally
     Refreshing := False;
   end;
@@ -366,61 +428,64 @@ end;
 
 procedure TControllerEventTarget.UseLampClick(Sender: TObject);
 var
+  Definition: TControllerEffectDefinition;
   Success: Boolean;
 begin
-  if Refreshing or (UseLamp.Checked = LastUse) then
+  if Refreshing or (UseLamp.Checked = LastUse) or
+     not GetCurrentEffectDefinition(Definition) or
+     (Definition.UseItemName = '') then
     Exit;
 
   if UseLamp.Checked then
-    Success := SetSelectedDelayItem('Dly: Use', '1')
+    Success := SetSelectedEffectItem(Definition.UseItemName, '1')
   else
-    Success := SetSelectedDelayItem('Dly: Use', '0');
+    Success := SetSelectedEffectItem(Definition.UseItemName, '0');
 
   if Success then
     LastUse := UseLamp.Checked
   else
     UseLamp.Checked := LastUse;
-  ShowWriteStatus(Success, 'Dly: Use');
+  ShowWriteStatus(Success, Definition.UseItemName);
 end;
 
 procedure TControllerEventTarget.ModeComboChange(Sender: TObject);
 var
+  Definition: TControllerEffectDefinition;
   Success: Boolean;
 begin
-  if Refreshing or (ModeCombo.ItemIndex < 0) or (ModeCombo.ItemIndex = LastStereoMode) then
+  if Refreshing or (ModeCombo.ItemIndex < 0) or
+     (ModeCombo.ItemIndex = LastSelectIndex) or
+     not GetCurrentEffectDefinition(Definition) or
+     not Definition.SelectControl.Visible then
     Exit;
 
-  Success := SetSelectedDelayItem('Dly: Stereo Mode', ModeCombo.Items[ModeCombo.ItemIndex]);
+  Success := SetSelectedEffectItem(Definition.SelectControl.ItemName,
+    ModeCombo.Items[ModeCombo.ItemIndex]);
   if Success then
-    LastStereoMode := ModeCombo.ItemIndex
+    LastSelectIndex := ModeCombo.ItemIndex
   else
-    ModeCombo.ItemIndex := LastStereoMode;
-  ShowWriteStatus(Success, 'Dly: Stereo Mode');
+    ModeCombo.ItemIndex := LastSelectIndex;
+  ShowWriteStatus(Success, Definition.SelectControl.ItemName);
 end;
 
-procedure TControllerEventTarget.DelayVolumeChange(Sender: TObject; const ValueText: string;
+procedure TControllerEventTarget.EffectVolumeChange(Sender: TObject; const ValueText: string;
   var Accept: Boolean);
 var
+  ControlIndex: Integer;
+  Definition: TControllerEffectDefinition;
   ItemName: string;
 begin
   Accept := False;
-  if Refreshing or not (Sender is TAul2VolumeControl) then
+  if Refreshing or not (Sender is TAul2VolumeControl) or
+     not GetCurrentEffectDefinition(Definition) then
     Exit;
 
-  case TAul2VolumeControl(Sender).Tag of
-    DELAY_CONTROL_TIME:
-      ItemName := 'Dly: Time(ms)';
-    DELAY_CONTROL_DRY:
-      ItemName := 'Dly: Dry';
-    DELAY_CONTROL_WET:
-      ItemName := 'Dly: Wet';
-    DELAY_CONTROL_FEEDBACK:
-      ItemName := 'Dly: Feedback';
-  else
+  ControlIndex := TAul2VolumeControl(Sender).Tag;
+  if (ControlIndex < 0) or (ControlIndex >= Length(Definition.Volumes)) then
     Exit;
-  end;
+  ItemName := Definition.Volumes[ControlIndex].ItemName;
 
-  Accept := SetSelectedDelayItem(ItemName, ValueText);
+  Accept := SetSelectedEffectItem(ItemName, ValueText);
   ShowWriteStatus(Accept, ItemName);
 end;
 
@@ -428,10 +493,11 @@ procedure TControllerEventTarget.EffectComboChange(Sender: TObject);
 begin
   if not Assigned(EffectCombo) or (EffectCombo.ItemIndex < 0) then
     Exit;
-  StatusLabel.Caption := 'Selected: ' + EffectCombo.Items[EffectCombo.ItemIndex] + ' (preview only)';
+  StatusLabel.Caption := 'Selected: ' + EffectCombo.Items[EffectCombo.ItemIndex];
   StatusLabel.Font.Color := RGB(112, 180, 232);
   StatusLabel.Invalidate;
-  ApplyEffectTheme(EffectCombo.ItemIndex);
+  ConfigureCurrentEffect;
+  RefreshEffectState;
 end;
 
 function IsCursorInsideController: Boolean;
@@ -459,7 +525,7 @@ begin
     Exit;
 
   MouseInside := True;
-  RefreshDelayState;
+  RefreshEffectState;
 end;
 
 procedure TControllerEventTarget.MouseBoundaryTimer(Sender: TObject);
@@ -483,6 +549,10 @@ begin
 end;
 
 procedure CreateControllerView(ParentWindow: HWND);
+var
+  ControlIndex: Integer;
+  Definition: TControllerEffectDefinition;
+  EffectIndex: Integer;
 begin
   if Assigned(ControllerForm) or (ParentWindow = 0) then
     Exit;
@@ -525,26 +595,9 @@ begin
   EffectCombo.ParentFont := False;
   // Items.AddはHandleを要求するため、項目登録より先にParentへ接続する。
   EffectCombo.Parent := RootPanel;
-  EffectCombo.Items.Add('Delay');
-  EffectCombo.Items.Add('EQ');
-  EffectCombo.Items.Add('Compressor');
-  EffectCombo.Items.Add('Voice Drive');
-  EffectCombo.Items.Add('Distortion');
-  EffectCombo.Items.Add('Noise');
-  EffectCombo.Items.Add('Bit Crusher');
-  EffectCombo.Items.Add('Tremble');
-  EffectCombo.Items.Add('Wobble');
-  EffectCombo.Items.Add('Pitch');
-  EffectCombo.Items.Add('Ring Mod');
-  EffectCombo.Items.Add('Muffle');
-  EffectCombo.Items.Add('Whisper');
-  EffectCombo.Items.Add('Auto Gain');
-  EffectCombo.Items.Add('Noise Gate');
-  EffectCombo.Items.Add('Ghost');
-  EffectCombo.Items.Add('Chorus');
-  EffectCombo.Items.Add('Reverb');
-  EffectCombo.Items.Add('Output');
-  EffectCombo.Items.Add('Limiter');
+  for EffectIndex := 0 to CONTROLLER_EFFECT_COUNT - 1 do
+    if GetControllerEffectDefinition(EffectIndex, Definition) then
+      EffectCombo.Items.Add(Definition.DisplayName);
   EffectCombo.ItemIndex := 0;
   EffectCombo.OnChange := EventTarget.EffectComboChange;
   ApplyDarkComboStyle(EffectCombo);
@@ -584,39 +637,17 @@ begin
   ApplyDarkComboStyle(ModeCombo);
   RegisterMouseEnter(ModeCombo);
 
-  TimeControl := TAul2VolumeControl.Create(ControllerForm);
-  TimeControl.Configure('Time', 1, 1000, 1, 0, 'ms');
-  TimeControl.Tag := DELAY_CONTROL_TIME;
-  TimeControl.OnValueChange := EventTarget.DelayVolumeChange;
-  TimeControl.Font.Assign(ControllerForm.Font);
-  TimeControl.Parent := RootPanel;
-  RegisterMouseEnter(TimeControl);
+  for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
+  begin
+    VolumeControls[ControlIndex] := TAul2VolumeControl.Create(ControllerForm);
+    VolumeControls[ControlIndex].Configure('', 0, 1, 0.01, 2);
+    VolumeControls[ControlIndex].Tag := ControlIndex;
+    VolumeControls[ControlIndex].OnValueChange := EventTarget.EffectVolumeChange;
+    VolumeControls[ControlIndex].Font.Assign(ControllerForm.Font);
+    VolumeControls[ControlIndex].Parent := RootPanel;
+    RegisterMouseEnter(VolumeControls[ControlIndex]);
+  end;
 
-  DryControl := TAul2VolumeControl.Create(ControllerForm);
-  DryControl.Configure('Dry', 0, 2, 0.01, 2);
-  DryControl.Tag := DELAY_CONTROL_DRY;
-  DryControl.OnValueChange := EventTarget.DelayVolumeChange;
-  DryControl.Font.Assign(ControllerForm.Font);
-  DryControl.Parent := RootPanel;
-  RegisterMouseEnter(DryControl);
-
-  WetControl := TAul2VolumeControl.Create(ControllerForm);
-  WetControl.Configure('Wet', 0, 2, 0.01, 2);
-  WetControl.Tag := DELAY_CONTROL_WET;
-  WetControl.OnValueChange := EventTarget.DelayVolumeChange;
-  WetControl.Font.Assign(ControllerForm.Font);
-  WetControl.Parent := RootPanel;
-  RegisterMouseEnter(WetControl);
-
-  FeedbackControl := TAul2VolumeControl.Create(ControllerForm);
-  FeedbackControl.Configure('Feedback', 0, 0.95, 0.01, 2);
-  FeedbackControl.Tag := DELAY_CONTROL_FEEDBACK;
-  FeedbackControl.OnValueChange := EventTarget.DelayVolumeChange;
-  FeedbackControl.Font.Assign(ControllerForm.Font);
-  FeedbackControl.Parent := RootPanel;
-  RegisterMouseEnter(FeedbackControl);
-
-  ApplyEmptyDelayState;
   MouseInside := False;
   Refreshing := False;
 
@@ -625,8 +656,7 @@ begin
   MouseTimer.OnTimer := EventTarget.MouseBoundaryTimer;
   MouseTimer.Enabled := True;
 
-  ApplyEffectTheme(EffectCombo.ItemIndex);
-  LayoutControllerView;
+  ConfigureCurrentEffect;
   ControllerForm.Show;
   RootPanel.Visible := True;
   RootPanel.BringToFront;
@@ -683,6 +713,8 @@ begin
 end;
 
 procedure DestroyControllerView;
+var
+  ControlIndex: Integer;
 begin
   if Assigned(MouseTimer) then
   begin
@@ -706,10 +738,8 @@ begin
   UseLamp := nil;
   ModeLabel := nil;
   ModeCombo := nil;
-  TimeControl := nil;
-  DryControl := nil;
-  WetControl := nil;
-  FeedbackControl := nil;
+  for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
+    VolumeControls[ControlIndex] := nil;
   MouseTimer := nil;
   EventTarget := nil;
   MouseInside := False;

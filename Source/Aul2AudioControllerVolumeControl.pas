@@ -37,6 +37,7 @@ type
     FOnValueChange: TVolumeValueChangeEvent;
     FPanelColor: TColor;
     FStep: Double;
+    FTextColor: TColor;
     FUnitText: string;
     FValue: Double;
     FValueEdit: TEdit;
@@ -54,6 +55,7 @@ type
     procedure SetMaximum(const Value: Double);
     procedure SetMinimum(const Value: Double);
     procedure SetPanelColor(const Value: TColor);
+    procedure SetTextColor(const Value: TColor);
     procedure SetEditText(const Value: string);
     procedure SetUnitText(const Value: string);
     procedure SetValue(const Value: Double);
@@ -88,6 +90,7 @@ type
     property PanelColor: TColor read FPanelColor write SetPanelColor default $00292522;
     property ParentFont;
     property ShowHint;
+    property TextColor: TColor read FTextColor write SetTextColor default $00E8E8E8;
     property UnitText: string read FUnitText write SetUnitText;
     property Value: Double read FValue write SetValue;
     property Visible;
@@ -184,6 +187,7 @@ begin
   TabStop := True;
   FAccentColor := RGB(56, 138, 216);
   FPanelColor := RGB(34, 37, 41);
+  FTextColor := RGB(232, 232, 232);
   FDisplayName := 'Value';
   FMinimum := 0;
   FMaximum := 1;
@@ -414,6 +418,14 @@ begin
   Invalidate;
 end;
 
+procedure TAul2VolumeControl.SetTextColor(const Value: TColor);
+begin
+  if FTextColor = Value then
+    Exit;
+  FTextColor := Value;
+  Invalidate;
+end;
+
 procedure TAul2VolumeControl.SetUnitText(const Value: string);
 begin
   if FUnitText = Value then
@@ -566,7 +578,7 @@ begin
   Canvas.RoundRect(CardRect.Left, CardRect.Top, CardRect.Right, CardRect.Bottom, 9, 9);
 
   Canvas.Font.Assign(Font);
-  Canvas.Font.Color := RGB(232, 232, 232);
+  Canvas.Font.Color := FTextColor;
   Canvas.Font.Style := [fsBold];
   Canvas.Brush.Style := bsClear;
   TextRect := Rect(3, 7, ClientWidth - 3, 25);
@@ -635,7 +647,7 @@ begin
     TextRect := Rect(UnitLeft, FValueEdit.Top, ClientWidth - 4,
       FValueEdit.Top + FValueEdit.Height);
     Canvas.Font.Style := [];
-    Canvas.Font.Color := RGB(188, 192, 197);
+    Canvas.Font.Color := FTextColor;
     Canvas.Brush.Style := bsClear;
     DrawText(Canvas.Handle, PChar(FUnitText), -1, TextRect,
       DT_LEFT or DT_SINGLELINE or DT_END_ELLIPSIS or DT_VCENTER);
