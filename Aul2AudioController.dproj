@@ -1,10 +1,10 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{C6F1B43E-04E4-43A8-9FC1-6A889FA7D0C2}</ProjectGuid>
         <ProjectVersion>20.4</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Config Condition="'$(Config)'==''">Release</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <ProjectName Condition="'$(ProjectName)'==''">Aul2AudioController</ProjectName>
         <TargetedPlatforms>2</TargetedPlatforms>
@@ -150,4 +150,20 @@
     <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
     <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPPLATFORM)\$(ProductVersion)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPPLATFORM)\$(ProductVersion)\UserTools.proj')"/>
     <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
+    <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win64'">
+        <PreBuildEvent>if not exist &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter&quot; mkdir &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter&quot;</PreBuildEvent>
+        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+        <PreLinkEvent/>
+        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+        <PostBuildEvent>copy /Y &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll&quot; &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).aux2&quot;</PostBuildEvent>
+        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win64'">
+        <PreBuildEvent>if not exist &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter&quot; mkdir &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter&quot;</PreBuildEvent>
+        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+        <PreLinkEvent/>
+        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+        <PostBuildEvent>copy /Y &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll&quot; &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).aux2&quot;&amp;&amp;if exist &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll&quot; del /Q &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll&quot;&amp;&amp;if exist &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).rsm&quot; del /Q &quot;C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).rsm&quot;</PostBuildEvent>
+        <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
+    </PropertyGroup>
 </Project>

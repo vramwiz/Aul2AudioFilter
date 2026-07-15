@@ -1,4 +1,4 @@
-library Aul2AudioController;
+﻿library Aul2AudioController;
 
 // AviUtl2 が読み込む Controller 拡張プラグインの最小 export 境界を定義する。
 

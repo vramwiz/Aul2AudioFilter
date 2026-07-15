@@ -4,6 +4,18 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-15 Controller release package inclusion
+
+- `Setup\make_release_zip.bat`から呼ばれる配布スクリプトへ`Aul2AudioController.aux2`の存在チェックとコピー処理を追加した。
+- `Setup\Aul2AudioFilter.zip`を再生成し、Controllerを含む5プラグイン、README、残響継続用WAVが格納されることを確認した。
+
+## 2026-07-15 Aul2AudioController DPI layout fix
+
+- 高DPI環境でノブ下の数値入力欄がカード下端から欠ける問題を修正した。
+- 子`TEdit`の自動高さを無効にし、フォントPPIから入力欄の高さを明示的に計算するようにした。
+- ノブ描画部分は固定ピクセルのまま維持し、DPIで増えた入力欄の高さだけカードと行間へ加えるようにした。
+- Release Win64のDelphiコンパイルは警告0・エラー0で完了した。AviUtl2が既存の`Aul2AudioController.aux2`を使用中だったため、ビルド後のファイル差し替えは保留した。
+
 ## 2026-07-15 View / Preset migration to Aul2AudioController
 
 - Controllerの起動直後と同期失敗時は、選択欄を残してエフェクター操作部だけを隠し、その下へサウンドエフェクターを追加した音声Objectまたはグループ制御（音声）の選択案内を表示するようにした。設定を正常に読み込めた時点で操作画面を表示する。

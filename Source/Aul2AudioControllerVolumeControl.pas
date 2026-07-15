@@ -170,6 +170,7 @@ begin
   FValueEdit.TabStop := True;
   FValueEdit.Text := '0';
   FValueEdit.Alignment := taCenter;
+  FValueEdit.AutoSize := False;
   FValueEdit.BorderStyle := bsSingle;
   FValueEdit.Color := RGB(19, 21, 24);
   FValueEdit.Font.Color := RGB(248, 248, 248);
@@ -244,6 +245,7 @@ end;
 
 procedure TAul2VolumeControl.LayoutValueEdit;
 var
+  EditHeight: Integer;
   EditRight: Integer;
   EditTop  : Integer;
   FontPPI  : Integer;
@@ -262,9 +264,11 @@ begin
   else
     UnitWidth := 0;
   // ClientWidth/ClientHeightはHandleを要求するため、Parent接続前は保存済み寸法を使う。
+  // TEditの既定AutoSizeへ任せると、親カードの固定高さと異なる倍率で拡大されて下端が欠ける。
+  EditHeight := MulDiv(23, FontPPI, 96);
   EditRight := Width - 6 - UnitWidth;
-  EditTop := Min(Height - 27, 89);
-  FValueEdit.SetBounds(6, EditTop, Max(24, EditRight - 6), 23);
+  EditTop := Min(Height - EditHeight - 14, 89);
+  FValueEdit.SetBounds(6, EditTop, Max(24, EditRight - 6), EditHeight);
 end;
 
 function TAul2VolumeControl.FormatValue(Value: Double): string;

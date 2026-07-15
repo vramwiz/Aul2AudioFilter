@@ -314,8 +314,8 @@ begin
     Exit;
 
   ControlGap := Scale(6);
-  // ノブ内部は固定ピクセル描画のため、DPI拡大で値欄との間隔を広げない。
-  ControlHeight := 126;
+  // ノブ描画の103pxは固定し、DPIで高くなる値欄の分だけカードを下へ延ばす。
+  ControlHeight := 103 + Scale(23);
   ColumnCount := Max(1, (ContentWidth + ControlGap) div (Scale(64) + ControlGap));
   ColumnCount := Min(ColumnCount, VisibleControlCount);
   ControlWidth := (ContentWidth - ControlGap * (ColumnCount - 1)) div ColumnCount;
