@@ -141,7 +141,8 @@ begin
   Controls[2] := WetControl;
   Controls[3] := FeedbackControl;
   ControlGap := Scale(6);
-  ControlHeight := Scale(126);
+  // ノブ内部は固定ピクセル描画のため、DPI拡大で値欄との間隔を広げない。
+  ControlHeight := 126;
   ColumnCount := Max(1, (ContentWidth + ControlGap) div (Scale(64) + ControlGap));
   ColumnCount := Min(ColumnCount, Length(Controls));
   ControlWidth := (ContentWidth - ControlGap * (ColumnCount - 1)) div ColumnCount;
@@ -396,27 +397,27 @@ begin
   RegisterMouseEnter(ModeCombo);
 
   TimeControl := TAul2VolumeControl.Create(ControllerForm);
-  TimeControl.Parent := RootPanel;
   TimeControl.Configure('Time', 1, 1000, 'ms');
   TimeControl.Font.Assign(ControllerForm.Font);
+  TimeControl.Parent := RootPanel;
   RegisterMouseEnter(TimeControl);
 
   DryControl := TAul2VolumeControl.Create(ControllerForm);
-  DryControl.Parent := RootPanel;
   DryControl.Configure('Dry', 0, 2);
   DryControl.Font.Assign(ControllerForm.Font);
+  DryControl.Parent := RootPanel;
   RegisterMouseEnter(DryControl);
 
   WetControl := TAul2VolumeControl.Create(ControllerForm);
-  WetControl.Parent := RootPanel;
   WetControl.Configure('Wet', 0, 2);
   WetControl.Font.Assign(ControllerForm.Font);
+  WetControl.Parent := RootPanel;
   RegisterMouseEnter(WetControl);
 
   FeedbackControl := TAul2VolumeControl.Create(ControllerForm);
-  FeedbackControl.Parent := RootPanel;
   FeedbackControl.Configure('Feedback', 0, 0.95);
   FeedbackControl.Font.Assign(ControllerForm.Font);
+  FeedbackControl.Parent := RootPanel;
   RegisterMouseEnter(FeedbackControl);
 
   ApplyEmptyDelayState;

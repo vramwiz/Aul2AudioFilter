@@ -17,6 +17,9 @@
 - Controllerの肥大化を避けるため、連続数値パラメーターの描画を `Source\Aul2AudioControllerVolumeControl.pas` の `TAul2VolumeControl` へ分離した。
 - Delay仮GUIの `Time(ms)` / `Dry` / `Wet` / `Feedback` のラベルとEditを、黒い立体ノブ、テーマ色の位置線、値欄を持つ表示専用コントロールへ置き換えた。
 - 初期案の三角マーカーは廃止し、影付きの少し太い指示線へ変更した。外周ベベル、左上のハイライト、右下の陰影、内側の段階的な明度差を追加して円の立体感を強めた。
+- ノブ下部の描画値欄を小型の読み取り専用 `TEdit` へ置き換え、単位はEditの右側へ独立表示した。単位がないパラメーターはEditが下部幅を広く使う。
+- TEdit追加直後の起動時クラッシュは、Parent接続前の `LayoutValueEdit` が `ClientWidth` / `ClientHeight` を読み、Handle生成を要求して `InvalidControlOperation` になったことが例外履歴から判明した。生成中の配置計算をHandle不要の `Width` / `Height` へ変更し、子Editとノブのプロパティを完全に設定してからParentへ接続する順序および未生成ガードも維持した。
+- 実機画像を基に、DPI拡大で広がっていたノブと数値Editの間隔を固定描画基準で詰めた。ノブ外側の最小角・最大角には短い終端線を追加し、回し切り位置を視覚化した。
 - 読み込んだ数値を値域へ正規化して270度のノブ角へ反映する。今回、ドラッグ、ホイール、直接入力、数値項目のObject書き込みは接続していない。
 - Controller側は4コントロールの生成、値設定、DPIスケール、横幅に応じた折り返し配置だけを担当する。`Use` と `Stereo Mode` の既存同期は維持した。
 - `Aul2AudioController.dproj` のDebug Win64ビルドが警告0・エラー0で成功し、`Aul2AudioController.aux2` へコピーされた。

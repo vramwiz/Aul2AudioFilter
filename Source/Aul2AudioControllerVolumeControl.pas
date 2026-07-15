@@ -7,7 +7,9 @@ interface
 uses
   System.Classes,
   Vcl.Controls,
-  Vcl.Graphics;
+  Vcl.Forms,
+  Vcl.Graphics,
+  Vcl.StdCtrls;
 
 type
   TAul2VolumeControl = class(TCustomControl)
@@ -18,7 +20,9 @@ type
     FMinimum: Double;
     FUnitText: string;
     FValue: Double;
+    FValueEdit: TEdit;
     FValueText: string;
+    procedure LayoutValueEdit;
     procedure SetAccentColor(const Value: TColor);
     procedure SetDisplayName(const Value: string);
     procedure SetMaximum(const Value: Double);
@@ -28,6 +32,7 @@ type
     procedure SetValueText(const Value: string);
   protected
     procedure Paint; override;
+    procedure Resize; override;
   public
     constructor Create(AOwner: TComponent); override;
     // 表示名、値域、単位を一度に設定する。現段階では表示だけを行う。
@@ -92,9 +97,42 @@ begin
   Canvas.Polyline(Points);
 end;
 
+procedure DrawKnobLimitMark(Canvas: TCanvas; const Center: TPoint; Radius,
+  Degree: Integer);
+var
+  Angle    : Double;
+  InnerPoint: TPoint;
+  OuterPoint: TPoint;
+begin
+  Angle := DegToRad(Degree);
+  InnerPoint := Point(
+    Center.X + Round(Cos(Angle) * (Radius + 2)),
+    Center.Y + Round(Sin(Angle) * (Radius + 2)));
+  OuterPoint := Point(
+    Center.X + Round(Cos(Angle) * (Radius + 7)),
+    Center.Y + Round(Sin(Angle) * (Radius + 7)));
+  Canvas.Pen.Style := psSolid;
+  Canvas.Pen.Width := 2;
+  Canvas.Pen.Color := RGB(118, 122, 127);
+  Canvas.MoveTo(InnerPoint.X, InnerPoint.Y);
+  Canvas.LineTo(OuterPoint.X, OuterPoint.Y);
+end;
+
 constructor TAul2VolumeControl.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+
+  // Parent接続や寸法変更でResize/Paintが発火する前に、子Editを完全に構築する。
+  FValueEdit := TEdit.Create(Self);
+  FValueEdit.ReadOnly := True;
+  FValueEdit.TabStop := False;
+  FValueEdit.Text := '0';
+  FValueEdit.Alignment := taCenter;
+  FValueEdit.BorderStyle := bsSingle;
+  FValueEdit.Color := RGB(19, 21, 24);
+  FValueEdit.Font.Color := RGB(248, 248, 248);
+  FValueEdit.ParentFont := True;
+
   Width := 72;
   Height := 126;
   Color := RGB(31, 34, 38);
@@ -107,6 +145,33 @@ begin
   FMaximum := 1;
   FValue := 0;
   FValueText := '0';
+  FValueEdit.Parent := Self;
+  LayoutValueEdit;
+end;
+
+procedure TAul2VolumeControl.LayoutValueEdit;
+var
+  EditRight: Integer;
+  EditTop  : Integer;
+  FontPPI  : Integer;
+  UnitWidth: Integer;
+begin
+  if not Assigned(FValueEdit) then
+    Exit;
+
+  // Handle生成前のResize/Configureからも呼ばれるため、Canvasには触れない。
+  FontPPI := Font.PixelsPerInch;
+  if FontPPI <= 0 then
+    FontPPI := 96;
+  if FUnitText <> '' then
+    UnitWidth := Max(MulDiv(18, FontPPI, 96),
+      MulDiv(Length(FUnitText) * 7 + 5, FontPPI, 96))
+  else
+    UnitWidth := 0;
+  // ClientWidth/ClientHeightはHandleを要求するため、Parent接続前は保存済み寸法を使う。
+  EditRight := Width - 6 - UnitWidth;
+  EditTop := Min(Height - 27, 89);
+  FValueEdit.SetBounds(6, EditTop, Max(24, EditRight - 6), 23);
 end;
 
 procedure TAul2VolumeControl.Configure(const DisplayName: string; Minimum, Maximum: Double;
@@ -159,6 +224,7 @@ begin
   if FUnitText = Value then
     Exit;
   FUnitText := Value;
+  LayoutValueEdit;
   Invalidate;
 end;
 
@@ -182,11 +248,19 @@ begin
     Exit;
 
   FValueText := Value;
+  if Assigned(FValueEdit) then
+    FValueEdit.Text := Value;
   FormatSettings := TFormatSettings.Create;
   FormatSettings.DecimalSeparator := '.';
   if TryStrToFloat(Trim(Value), NumberValue, FormatSettings) then
     FValue := EnsureRange(NumberValue, FMinimum, FMaximum);
   Invalidate;
+end;
+
+procedure TAul2VolumeControl.Resize;
+begin
+  inherited;
+  LayoutValueEdit;
 end;
 
 procedure TAul2VolumeControl.Paint;
@@ -199,7 +273,7 @@ var
   LineStart   : TPoint;
   Ratio       : Double;
   TextRect    : TRect;
-  ValueLabel  : string;
+  UnitLeft    : Integer;
 begin
   inherited;
   Canvas.Brush.Color := Color;
@@ -221,6 +295,9 @@ begin
   KnobRadius := Min(ClientWidth div 2 - 7, 27);
   KnobRadius := Max(KnobRadius, 18);
   Center := Point(ClientWidth div 2, 57);
+
+  DrawKnobLimitMark(Canvas, Center, KnobRadius, 135);
+  DrawKnobLimitMark(Canvas, Center, KnobRadius, 405);
 
   Canvas.Pen.Style := psClear;
   Canvas.Brush.Color := RGB(10, 11, 12);
@@ -271,22 +348,17 @@ begin
   Canvas.Brush.Color := ScaleColor(FAccentColor, 5, 4);
   Canvas.Ellipse(LineEnd.X - 2, LineEnd.Y - 2, LineEnd.X + 3, LineEnd.Y + 3);
 
-  TextRect := Rect(6, ClientHeight - 31, ClientWidth - 6, ClientHeight - 8);
-  Canvas.Pen.Width := 1;
-  Canvas.Pen.Color := RGB(72, 76, 82);
-  Canvas.Brush.Style := bsSolid;
-  Canvas.Brush.Color := RGB(19, 21, 24);
-  Canvas.RoundRect(TextRect.Left, TextRect.Top, TextRect.Right, TextRect.Bottom, 5, 5);
-
-  ValueLabel := FValueText;
-  if FUnitText <> '' then
-    ValueLabel := ValueLabel + ' ' + FUnitText;
-  Canvas.Font.Style := [];
-  Canvas.Font.Color := RGB(248, 248, 248);
-  Canvas.Brush.Style := bsClear;
-  InflateRect(TextRect, -3, -1);
-  DrawText(Canvas.Handle, PChar(ValueLabel), -1, TextRect,
-    DT_CENTER or DT_SINGLELINE or DT_END_ELLIPSIS or DT_VCENTER);
+  if (FUnitText <> '') and Assigned(FValueEdit) then
+  begin
+    UnitLeft := FValueEdit.Left + FValueEdit.Width + 3;
+    TextRect := Rect(UnitLeft, FValueEdit.Top, ClientWidth - 4,
+      FValueEdit.Top + FValueEdit.Height);
+    Canvas.Font.Style := [];
+    Canvas.Font.Color := RGB(188, 192, 197);
+    Canvas.Brush.Style := bsClear;
+    DrawText(Canvas.Handle, PChar(FUnitText), -1, TextRect,
+      DT_LEFT or DT_SINGLELINE or DT_END_ELLIPSIS or DT_VCENTER);
+  end;
 end;
 
 end.
