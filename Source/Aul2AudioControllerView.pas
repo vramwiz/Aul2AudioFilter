@@ -59,6 +59,14 @@ type
       MousePos: TPoint): Boolean; override;
   end;
 
+  TRoundedPanel = class(TPanel)
+  private
+    procedure UpdateRoundedRegion;
+  protected
+    procedure CreateWnd; override;
+    procedure Resize; override;
+  end;
+
   TFormAudioController = class(TForm)
   public
     constructor Create(AOwner: TComponent); override;
@@ -85,9 +93,9 @@ var
   EffectCombo    : TEffectComboBox;
   LampSwitchHost : TPanel;
   UseLamp        : TAul2LampSwitch;
-  UseDescriptionHost: TPanel;
+  UseDescriptionHost: TRoundedPanel;
   UseDescriptionLabel: TLabel;
-  ModeHost       : TPanel;
+  ModeHost       : TRoundedPanel;
   ModeLabel      : TLabel;
   ModeCombo      : TComboBox;
   VolumeControls : array[0..CONTROLLER_MAX_VOLUME_COUNT - 1] of TAul2VolumeControl;
@@ -128,6 +136,29 @@ begin
     Change;
   end;
   Result := True;
+end;
+
+procedure TRoundedPanel.UpdateRoundedRegion;
+var
+  Region: HRGN;
+begin
+  if not HandleAllocated or (ClientWidth <= 1) or (ClientHeight <= 1) then
+    Exit;
+  Region := CreateRoundRectRgn(0, 0, ClientWidth + 1, ClientHeight + 1, 7, 7);
+  if SetWindowRgn(Handle, Region, True) = 0 then
+    DeleteObject(Region);
+end;
+
+procedure TRoundedPanel.CreateWnd;
+begin
+  inherited;
+  UpdateRoundedRegion;
+end;
+
+procedure TRoundedPanel.Resize;
+begin
+  inherited;
+  UpdateRoundedRegion;
 end;
 
 function Scale(Value: Integer): Integer;
@@ -777,7 +808,7 @@ begin
   UseLamp.Parent := LampSwitchHost;
   RegisterMouseEnter(UseLamp);
 
-  UseDescriptionHost := TPanel.Create(ControllerForm);
+  UseDescriptionHost := TRoundedPanel.Create(ControllerForm);
   UseDescriptionHost.BevelOuter := bvNone;
   UseDescriptionHost.Caption := '';
   UseDescriptionHost.Color := RGB(34, 37, 41);
@@ -789,8 +820,10 @@ begin
   UseDescriptionLabel.Parent := UseDescriptionHost;
   UseDescriptionLabel.AutoSize := False;
   UseDescriptionLabel.Layout := tlCenter;
+  UseDescriptionLabel.Font.Assign(ControllerForm.Font);
+  UseDescriptionLabel.Font.Height := UseDescriptionLabel.Font.Height - Scale(2);
 
-  ModeHost := TPanel.Create(ControllerForm);
+  ModeHost := TRoundedPanel.Create(ControllerForm);
   ModeHost.BevelOuter := bvNone;
   ModeHost.Caption := '';
   ModeHost.Color := RGB(34, 37, 41);

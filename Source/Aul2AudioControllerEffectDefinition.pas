@@ -63,12 +63,12 @@ type
 const
   // 筐体、ボリュームカード、ノブ位置線、文字の色。TColorは$00BBGGRR形式。
   EFFECT_COLORS: array[0..CONTROLLER_EFFECT_COUNT - 1] of TControllerEffectColors = (
-    (PedalColor: $00BED2D8; VolumeColor: $00E6B912; IndicatorColor: $00171717; TextColor: $00F2F2F2), // Delay
-    (PedalColor: $00C5CED2; VolumeColor: $00D1E1E9; IndicatorColor: $00171717; TextColor: $00171717), // EQ
-    (PedalColor: $00A85C07; VolumeColor: $00A6A6A6; IndicatorColor: $00171717; TextColor: $00171717), // Compressor
+    (PedalColor: $00BED2D8; VolumeColor: $00E6B912; IndicatorColor: $00DDEBF0; TextColor: $00171717), // Delay
+    (PedalColor: $00C5CED2; VolumeColor: $00D1E1E9; IndicatorColor: $00DCE4E8; TextColor: $00171717), // EQ
+    (PedalColor: $00A85C07; VolumeColor: $00B8B8B8; IndicatorColor: $00D8A15F; TextColor: $00171717), // Compressor
     (PedalColor: $004F00C0; VolumeColor: $00191717; IndicatorColor: $00F2F2F2; TextColor: $00F2F2F2), // Voice Drive
     (PedalColor: $002173F3; VolumeColor: $00171717; IndicatorColor: $00F2F2F2; TextColor: $00F2F2F2), // Distortion
-    (PedalColor: $00D0CDC9; VolumeColor: $00EDEDED; IndicatorColor: $00171717; TextColor: $00171717), // Noise
+    (PedalColor: $00D0CDC9; VolumeColor: $00EDEDED; IndicatorColor: $00E7E5E2; TextColor: $00171717), // Noise
     (PedalColor: $0048429E; VolumeColor: $00252525; IndicatorColor: $00F2F2F2; TextColor: $00F2F2F2), // Bit Crusher
     (PedalColor: $00888B19; VolumeColor: $00171717; IndicatorColor: $00F2F2F2; TextColor: $00F2F2F2), // Tremble
     (PedalColor: $0095B8C5; VolumeColor: $00202020; IndicatorColor: $00F2F2F2; TextColor: $00F2F2F2), // Wobble
@@ -76,13 +76,13 @@ const
     (PedalColor: $001C1917; VolumeColor: $00171717; IndicatorColor: $00F2F2F2; TextColor: $00F2F2F2), // Ring Mod
     (PedalColor: $002B2A28; VolumeColor: $00171717; IndicatorColor: $00F2F2F2; TextColor: $00F2F2F2), // Muffle
     (PedalColor: $00A85407; VolumeColor: $001C1816; IndicatorColor: $00F2F2F2; TextColor: $00F2F2F2), // Whisper
-    (PedalColor: $002C2929; VolumeColor: $00D1D1D1; IndicatorColor: $00171717; TextColor: $00171717), // Auto Gain
-    (PedalColor: $00D7B994; VolumeColor: $00E5DCE1; IndicatorColor: $00171717; TextColor: $00171717), // Noise Gate
+    (PedalColor: $002C2929; VolumeColor: $00D1D1D1; IndicatorColor: $008D8A8A; TextColor: $00171717), // Auto Gain
+    (PedalColor: $00D7B994; VolumeColor: $00E5DCE1; IndicatorColor: $00EEDABF; TextColor: $00171717), // Noise Gate
     (PedalColor: $00161412; VolumeColor: $00171717; IndicatorColor: $00F2F2F2; TextColor: $00F2F2F2), // Ghost
-    (PedalColor: $00D0AE9B; VolumeColor: $00EAEAEA; IndicatorColor: $00171717; TextColor: $00171717), // Chorus
+    (PedalColor: $00D0AE9B; VolumeColor: $00EAEAEA; IndicatorColor: $00EAD4C8; TextColor: $00171717), // Chorus
     (PedalColor: $00464346; VolumeColor: $001F1D1D; IndicatorColor: $00F2F2F2; TextColor: $00F2F2F2), // Reverb
     (PedalColor: $00242120; VolumeColor: $004A4745; IndicatorColor: $00F2F2F2; TextColor: $00F2F2F2), // Output
-    (PedalColor: $00E1C408; VolumeColor: $00F2F2F2; IndicatorColor: $00171717; TextColor: $00171717)  // Limiter
+    (PedalColor: $00E1C408; VolumeColor: $00F2F2F2; IndicatorColor: $00ECDC61; TextColor: $00171717)  // Limiter
   );
   THEME_MAX_BRIGHTNESS      = 96;
   BACKGROUND_MAX_BRIGHTNESS = 112;
