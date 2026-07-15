@@ -13,7 +13,6 @@ uses
 type
   TAul2LampSwitch = class(TCustomControl)
   private
-    FCaption: string;
     FChecked: Boolean;
     FHover: Boolean;
     FPanelColor: TColor;
@@ -21,7 +20,6 @@ type
     FTextColor: TColor;
     procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
     procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
-    procedure SetCaption(const Value: string);
     procedure SetChecked(Value: Boolean);
     procedure SetPanelColor(const Value: TColor);
     procedure SetTextColor(const Value: TColor);
@@ -36,7 +34,6 @@ type
   published
     property Align;
     property Anchors;
-    property Caption: string read FCaption write SetCaption;
     property Checked: Boolean read FChecked write SetChecked default False;
     property Color;
     property Enabled;
@@ -66,17 +63,8 @@ begin
   DoubleBuffered := True;
   Cursor := crHandPoint;
   TabStop := True;
-  FCaption := 'Effect';
   FPanelColor := RGB(34, 37, 41);
   FTextColor := RGB(236, 236, 236);
-end;
-
-procedure TAul2LampSwitch.SetCaption(const Value: string);
-begin
-  if FCaption = Value then
-    Exit;
-  FCaption := Value;
-  Invalidate;
 end;
 
 procedure TAul2LampSwitch.SetChecked(Value: Boolean);
@@ -167,9 +155,12 @@ procedure TAul2LampSwitch.Paint;
 var
   BodyRect: TRect;
   LedCenter: TPoint;
+  StateText: string;
   TextRect: TRect;
 begin
   inherited;
+  // 前回の文字描画で透明にしたブラシを戻し、再描画時の黒抜けを防ぐ。
+  Canvas.Brush.Style := bsSolid;
   Canvas.Brush.Color := Color;
   Canvas.FillRect(ClientRect);
 
@@ -180,10 +171,8 @@ begin
     Canvas.Pen.Color := RGB(88, 92, 98)
   else
     Canvas.Pen.Color := RGB(55, 59, 64);
-  if FPressed then
-    Canvas.Brush.Color := RGB(24, 26, 29)
-  else
-    Canvas.Brush.Color := FPanelColor;
+  // 押下中もエフェクター固有の面色を維持し、黒い点滅に見せない。
+  Canvas.Brush.Color := FPanelColor;
   Canvas.RoundRect(BodyRect.Left, BodyRect.Top, BodyRect.Right, BodyRect.Bottom, 7, 7);
 
   LedCenter := Point(17, ClientHeight div 2);
@@ -218,8 +207,12 @@ begin
   else
     Canvas.Font.Color := RGB(126, 126, 126);
   Canvas.Brush.Style := bsClear;
+  if FChecked then
+    StateText := 'ON'
+  else
+    StateText := 'OFF';
   TextRect := Rect(36, 1, ClientWidth - 8, ClientHeight - 1);
-  DrawText(Canvas.Handle, PChar(FCaption), -1, TextRect,
+  DrawText(Canvas.Handle, PChar(StateText), -1, TextRect,
     DT_LEFT or DT_SINGLELINE or DT_END_ELLIPSIS or DT_VCENTER);
 end;
 

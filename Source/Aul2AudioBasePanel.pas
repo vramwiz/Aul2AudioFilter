@@ -296,6 +296,7 @@ var
   LayerW: Integer;
   LayerH: Integer;
   SendW: Integer;
+  StatusGap: Integer;
   StatusH: Integer;
   StatusW: Integer;
   X: Integer;
@@ -347,8 +348,13 @@ begin
       SettingsW := Width - Margin * 2;
       LayerW := SettingsW;
       SendW := SettingsW;
-      StatusH := ScalePx(28);
-      LayerH := Height - PanelH - ScalePx(32) - StatusH - Margin * 5;
+      StatusGap := ScalePx(2);
+      if FStatusLabel.Caption = '' then
+        StatusH := ScalePx(4)
+      else
+        StatusH := ScalePx(18);
+      LayerH := Height - PanelH - ScalePx(32) - StatusH -
+        Margin * 4 - StatusGap;
       if LayerH < ScalePx(60) then
         LayerH := ScalePx(60);
 
@@ -358,7 +364,7 @@ begin
       SetBoundsIfChanged(FCreateButton, Margin, FLayerPanel.Top +
         FLayerPanel.Height + Margin, SendW, ScalePx(32));
       SetBoundsIfChanged(FStatusLabel, Margin, FCreateButton.Top +
-        FCreateButton.Height + Margin, SettingsW, StatusH);
+        FCreateButton.Height + StatusGap, SettingsW, StatusH);
     end
     else
     begin
@@ -430,6 +436,7 @@ begin
   finally
     FLayerList.Items.EndUpdate;
   end;
+  SetStatus('');
 end;
 
 function TAul2AudioBasePanel.GetSelectedLayer: Integer;
@@ -455,6 +462,9 @@ end;
 procedure TAul2AudioBasePanel.SetStatus(const Text: string);
 begin
   FStatusLabel.Caption := Text;
+  FLastLayoutWidth := -1;
+  FLastLayoutHeight := -1;
+  Resize;
 end;
 
 procedure TAul2AudioBasePanel.CreateButtonClick(Sender: TObject);

@@ -47,6 +47,8 @@ const
   CONTROLLER_PRESET_ITEM_NAME  = 'エフェクトプリセットの管理';
   CONTROLLER_BASE_ITEM_INDEX   = CONTROLLER_EFFECT_COUNT + 1;
   CONTROLLER_BASE_ITEM_NAME    = '波形表示オブジェクトの配置';
+  CONTROLLER_IDLE_BACKGROUND_COLOR = TColor($00292624); // RGB(36, 38, 41)
+  CONTROLLER_IDLE_TEXT_COLOR       = TColor($0078CDE8); // RGB(232, 205, 120)
 
 type
   TControlAccess = class(TControl);
@@ -83,6 +85,9 @@ var
   EffectCombo    : TEffectComboBox;
   LampSwitchHost : TPanel;
   UseLamp        : TAul2LampSwitch;
+  UseDescriptionHost: TPanel;
+  UseDescriptionLabel: TLabel;
+  ModeHost       : TPanel;
   ModeLabel      : TLabel;
   ModeCombo      : TComboBox;
   VolumeControls : array[0..CONTROLLER_MAX_VOLUME_COUNT - 1] of TAul2VolumeControl;
@@ -169,7 +174,11 @@ begin
   UseLamp.Color := BackgroundColor;
   UseLamp.PanelColor := Definition.VolumeColor;
   UseLamp.TextColor := Definition.TextColor;
-  ModeLabel.Color := BackgroundColor;
+  UseDescriptionHost.Color := Definition.VolumeColor;
+  UseDescriptionLabel.Color := Definition.VolumeColor;
+  UseDescriptionLabel.Font.Color := Definition.TextColor;
+  ModeHost.Color := Definition.VolumeColor;
+  ModeLabel.Color := Definition.VolumeColor;
   ModeLabel.Font.Color := Definition.TextColor;
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
   begin
@@ -219,8 +228,6 @@ var
   ControlLeft : Integer;
   ControlTop  : Integer;
   ControlWidth: Integer;
-  EditLeft    : Integer;
-  EditWidth   : Integer;
   LabelWidth  : Integer;
   LeftMargin  : Integer;
   RowHeight   : Integer;
@@ -234,14 +241,10 @@ begin
   LabelWidth := Scale(96);
   RowHeight := Scale(34);
   ContentWidth := RootPanel.ClientWidth - LeftMargin * 2;
-  EditLeft := LeftMargin + LabelWidth;
-  EditWidth := ContentWidth - LabelWidth;
-  if EditWidth < Scale(80) then
-    EditWidth := Scale(80);
 
   EffectCombo.SetBounds(LeftMargin, Scale(6), ContentWidth, Scale(27));
-  SyncMessageLabel.SetBounds(LeftMargin, Scale(24), ContentWidth,
-    Max(Scale(72), RootPanel.ClientHeight - Scale(48)));
+  SyncMessageLabel.SetBounds(LeftMargin, Scale(42), ContentWidth,
+    Max(Scale(72), RootPanel.ClientHeight - Scale(54)));
   if IsBasePanelSelected then
   begin
     BasePanel.SetBounds(0, Scale(37), RootPanel.ClientWidth,
@@ -256,13 +259,19 @@ begin
   end;
 
   LampSwitchHost.SetBounds(LeftMargin, Scale(37), ContentWidth, Scale(28));
-  UseLamp.SetBounds(0, 0, ContentWidth, Scale(28));
+  UseLamp.SetBounds(0, 0, Scale(76), Scale(28));
+  UseDescriptionHost.SetBounds(Scale(86), 0,
+    Max(1, ContentWidth - Scale(86)), Scale(28));
+  UseDescriptionLabel.SetBounds(Scale(8), Scale(3),
+    Max(1, UseDescriptionHost.ClientWidth - Scale(16)), Scale(22));
 
   TopPosition := Scale(69);
-  if ModeCombo.Visible then
+  if ModeHost.Visible then
   begin
-    ModeLabel.SetBounds(LeftMargin, TopPosition + Scale(4), LabelWidth, Scale(23));
-    ModeCombo.SetBounds(EditLeft, TopPosition, EditWidth, Scale(25));
+    ModeHost.SetBounds(LeftMargin, TopPosition, ContentWidth, Scale(33));
+    ModeLabel.SetBounds(Scale(8), Scale(5), LabelWidth - Scale(8), Scale(23));
+    ModeCombo.SetBounds(LabelWidth, Scale(4),
+      Max(1, ContentWidth - LabelWidth - Scale(4)), Scale(25));
     Inc(TopPosition, RowHeight);
   end;
 
@@ -299,10 +308,11 @@ var
   ControlIndex: Integer;
 begin
   ControllerSynchronized := False;
-  EffectCombo.Visible := False;
+  ControllerForm.Color := CONTROLLER_IDLE_BACKGROUND_COLOR;
+  RootPanel.Color := CONTROLLER_IDLE_BACKGROUND_COLOR;
+  EffectCombo.Visible := True;
   LampSwitchHost.Visible := False;
-  ModeLabel.Visible := False;
-  ModeCombo.Visible := False;
+  ModeHost.Visible := False;
   BasePanel.Visible := False;
   PresetPanel.Visible := False;
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
@@ -346,6 +356,9 @@ begin
   EffectCombo.Invalidate;
   StatusLabel.Invalidate;
   UseLamp.Invalidate;
+  UseDescriptionHost.Invalidate;
+  UseDescriptionLabel.Invalidate;
+  ModeHost.Invalidate;
   ModeLabel.Invalidate;
   ModeCombo.Invalidate;
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
@@ -364,9 +377,10 @@ begin
   try
     if IsBasePanelSelected then
     begin
+      ControllerSynchronized := False;
+      SyncMessageLabel.Visible := False;
       LampSwitchHost.Visible := False;
-      ModeLabel.Visible := False;
-      ModeCombo.Visible := False;
+      ModeHost.Visible := False;
       for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
         VolumeControls[ControlIndex].Visible := False;
       PresetPanel.Visible := False;
@@ -382,9 +396,10 @@ begin
 
     if IsPresetPanelSelected then
     begin
+      ControllerSynchronized := False;
+      SyncMessageLabel.Visible := False;
       LampSwitchHost.Visible := False;
-      ModeLabel.Visible := False;
-      ModeCombo.Visible := False;
+      ModeHost.Visible := False;
       for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
         VolumeControls[ControlIndex].Visible := False;
       BasePanel.Visible := False;
@@ -404,11 +419,10 @@ begin
     BasePanel.Visible := False;
     PresetPanel.Visible := False;
     LampSwitchHost.Visible := True;
-    UseLamp.Caption := Definition.LampCaption;
+    UseDescriptionLabel.Caption := Definition.LampCaption;
     UseLamp.Enabled := Definition.UseItemName <> '';
     ModeLabel.Caption := Definition.SelectControl.DisplayName;
-    ModeLabel.Visible := Definition.SelectControl.Visible;
-    ModeCombo.Visible := Definition.SelectControl.Visible;
+    ModeHost.Visible := Definition.SelectControl.Visible;
     ModeCombo.Items.BeginUpdate;
     try
       ModeCombo.Items.Clear;
@@ -611,9 +625,14 @@ begin
   StatusLabel.Caption := 'Selected: ' + EffectCombo.Items[EffectCombo.ItemIndex];
   StatusLabel.Font.Color := RGB(112, 180, 232);
   StatusLabel.Invalidate;
-  ConfigureCurrentEffect;
-  if not IsBasePanelSelected and not IsPresetPanelSelected then
+  if IsBasePanelSelected or IsPresetPanelSelected then
+    ConfigureCurrentEffect
+  else
+  begin
+    ShowUnsynchronizedState;
+    LayoutControllerView;
     RefreshEffectState;
+  end;
 end;
 
 function IsCursorInsideController: Boolean;
@@ -721,7 +740,7 @@ begin
   SyncMessageLabel.Alignment := taCenter;
   SyncMessageLabel.Layout := tlCenter;
   SyncMessageLabel.WordWrap := True;
-  SyncMessageLabel.Font.Color := RGB(205, 205, 205);
+  SyncMessageLabel.Font.Color := CONTROLLER_IDLE_TEXT_COLOR;
   RegisterMouseEnter(SyncMessageLabel);
 
   EffectCombo := TEffectComboBox.Create(ControllerForm);
@@ -753,20 +772,41 @@ begin
   RegisterMouseEnter(LampSwitchHost);
 
   UseLamp := TAul2LampSwitch.Create(ControllerForm);
-  UseLamp.Caption := '遅延音を加える';
   UseLamp.Font.Assign(ControllerForm.Font);
   UseLamp.OnClick := EventTarget.UseLampClick;
   UseLamp.Parent := LampSwitchHost;
   RegisterMouseEnter(UseLamp);
 
+  UseDescriptionHost := TPanel.Create(ControllerForm);
+  UseDescriptionHost.BevelOuter := bvNone;
+  UseDescriptionHost.Caption := '';
+  UseDescriptionHost.Color := RGB(34, 37, 41);
+  UseDescriptionHost.ParentBackground := False;
+  UseDescriptionHost.Parent := LampSwitchHost;
+  RegisterMouseEnter(UseDescriptionHost);
+
+  CreateLabel(UseDescriptionLabel, '遅延音を加える');
+  UseDescriptionLabel.Parent := UseDescriptionHost;
+  UseDescriptionLabel.AutoSize := False;
+  UseDescriptionLabel.Layout := tlCenter;
+
+  ModeHost := TPanel.Create(ControllerForm);
+  ModeHost.BevelOuter := bvNone;
+  ModeHost.Caption := '';
+  ModeHost.Color := RGB(34, 37, 41);
+  ModeHost.ParentBackground := False;
+  ModeHost.Parent := RootPanel;
+  RegisterMouseEnter(ModeHost);
+
   CreateLabel(ModeLabel, 'Stereo Mode');
+  ModeLabel.Parent := ModeHost;
   ModeCombo := TComboBox.Create(ControllerForm);
   ModeCombo.Style := csDropDownList;
   ModeCombo.Color := RGB(42, 45, 49);
   ModeCombo.Font.Assign(ControllerForm.Font);
   ModeCombo.Font.Color := RGB(250, 250, 250);
   ModeCombo.ParentFont := False;
-  ModeCombo.Parent := RootPanel;
+  ModeCombo.Parent := ModeHost;
   ModeCombo.Items.Add('Normal');
   ModeCombo.Items.Add('Ping-Pong');
   ModeCombo.ItemIndex := 0;
@@ -796,7 +836,6 @@ begin
   MouseTimer.OnTimer := EventTarget.MouseBoundaryTimer;
   MouseTimer.Enabled := True;
 
-  ConfigureCurrentEffect;
   ShowUnsynchronizedState;
   LayoutControllerView;
   ControllerForm.Show;
@@ -881,6 +920,9 @@ begin
   EffectCombo := nil;
   LampSwitchHost := nil;
   UseLamp := nil;
+  UseDescriptionHost := nil;
+  UseDescriptionLabel := nil;
+  ModeHost := nil;
   ModeLabel := nil;
   ModeCombo := nil;
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do

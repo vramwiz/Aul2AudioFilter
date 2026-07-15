@@ -63,7 +63,7 @@
 - `Source\Aul2AudioControllerLampSwitch.pas`: エフェクターON/OFF用のギターエフェクター風LEDスイッチ。発光表示、全面クリック、キーボード操作を担当する。
 - `Source\Aul2AudioControllerVolumeControl.pas`: 連続数値パラメーター用の音響機器風ノブ、値欄、縦横ドラッグ、ホイール、直接入力を担当する。
 - `Source\Aul2AudioBasePanel.pas`: Controllerの `波形表示オブジェクトの配置` UI。解像度設定、レイヤーリスト、選択レイヤー生成ボタン、D&Dエイリアス生成を担当する。Monitor用の横配置も復活可能な形で残す。
-- `Source\Aul2AudioPresetPanel.pas`: Controllerの `エフェクトプリセットの管理` UI。選択Objectの保存、一覧の名前編集、グループ制御（音声）のD&D生成を担当する。Monitor用の横配置も復活可能な形で残す。
+- `Source\Aul2AudioPresetPanel.pas`: Controllerの `エフェクトプリセットの管理` UI。選択Objectのプリセット登録、一覧の名前編集、グループ制御（音声）のD&D生成を担当する。Monitor用の横配置も復活可能な形で残す。
 - `Source\Aul2AudioPresetModel.pas`: ユーザープリセットとエイリアス要素のRTTIモデル、二重セクションINIの保存と読み込みを担当する。
 - `Source\Aul2AudioBaseAlias.pas`: `.aul2base` 仮想ファイル名と AviUtl2 エイリアス文字列/一時 `.object` ファイル生成。
 - `Source\Aul2AudioBaseCreate.pas`: `CreateObjectFromAlias` による選択レイヤーへの直接配置。
@@ -141,9 +141,9 @@
 - `エコー` と `反響` は用途が近いが、プリセット間の差別化は不要とする。現状値のまま維持し、追加調整の対象にしない。
 - `Pitch` は簡易方式のため、声素材で `男性` / `女性` のぶつ切れや不自然さを継続確認する。
 - `風邪`、`遠く` は専用プリセットとしては未追加。必要になったら既存エフェクトの組み合わせで検討する。
-- ユーザープリセットは `Aul2AudioController` の `エフェクトプリセットの管理` へ移行済み。選択中の `グループ制御（音声）` を保存し、一覧からタイムラインへD&Dして再利用する。選択中Objectへ設定を読み込む機能は実装しない。
-- Controllerは未同期時にエフェクター画面や選択欄を表示せず、対象Objectの選択案内だけを表示する。選択対象から設定を正常に読み込めた後に初めて操作画面を表示し、同期を失った場合は案内表示へ戻す。
-- 別件の検証候補: ユーザープリセットの選択方式パラメーターが、保存、起動時再読込、タイムラインへのD&D生成後まで正しく維持されるか確認する。現行実装はエイリアスの `Key=Value` を文字列のまま保持して再構築するため、`Dly: Stereo Mode=Normal` / `Ping-Pong` などの表示値もコード上は保持できる。まず Delay の Stereo Mode で実機確認し、必要に応じてほかの Select 項目へ展開する。
+- ユーザープリセットは `Aul2AudioController` の `エフェクトプリセットの管理` へ移行済み。選択中の `グループ制御（音声）` を登録し、一覧からタイムラインへD&Dして再利用する。選択中Objectへ設定を読み込む機能は実装しない。
+- Controllerは選択欄を常時表示する。未同期時はエフェクター操作部だけを隠して選択欄の下へ対象Objectの選択案内を表示し、正常に読み込めた後に操作画面を表示する。Preset／View配置は同期状態に関係なく利用でき、エフェクターへ戻った時に再同期する。
+- 別件の検証候補: ユーザープリセットの選択方式パラメーターが、登録、起動時再読込、タイムラインへのD&D生成後まで正しく維持されるか確認する。現行実装はエイリアスの `Key=Value` を文字列のまま保持して再構築するため、`Dly: Stereo Mode=Normal` / `Ping-Pong` などの表示値もコード上は保持できる。まず Delay の Stereo Mode で実機確認し、必要に応じてほかの Select 項目へ展開する。
 - 外部 AI からの提案として、`Wobble` / `Pitch` のランダム性を強める方向を検討候補にする。周期 LFO だけでなく、古いテープのワウ・フラッターのような不規則なピッチ揺れを想定する。
 - 外部 AI からの提案として、Lo-Fi 系の質感強化を検討候補にする。`BitCrusher` に加えて、8kHz / 11kHz 相当へ落とすダウンサンプリング的な音を想定する。
 - 外部 AI からの提案として、複数レイヤー/グループ制御時の負荷と競合を継続確認する。`Source Layer` の個別指定で干渉回避できるが、`Auto` の安定性と多重トラック時の軽量化は確認候補に残す。
@@ -222,10 +222,10 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 ## Aul2AudioController 現状
 
 - 全20エフェクトの設定操作に加え、選択リスト末尾に `エフェクトプリセットの管理`、`波形表示オブジェクトの配置` をこの順で表示する。
-- `エフェクトプリセットの管理` は保存、削除、起動時読込、名前のインライン編集、`Ctrl+Up` / `Ctrl+Down` の並べ替え、タイムラインへのD&Dを提供する。
+- `エフェクトプリセットの管理` は登録、インライン確認付き削除、起動時読込、名前のインライン編集、`Ctrl+Up` / `Ctrl+Down` の並べ替え、タイムラインへのD&Dを提供する。削除確認は選択変更やページ再表示などで必ず解除する。
 - プリセット保存先はドキュメントの `Aul2AudioFilter\UserPresets.ini`。エイリアスをRTTIモデルへ分解し、二重セクション形式の可読なINIとして管理する。
 - `波形表示オブジェクトの配置` はWidth、Height、Seconds、FPS、配置レイヤーを受け取り、Sendまたはレイヤー一覧のD&Dで `Aul2Audio View` 用オブジェクトを配置する。
-- Controllerは縦長・正方形を基本とし、Presetは一覧の下に保存・削除、View配置は設定欄の下にレイヤー一覧とSendを置く。
+- Controllerは縦長・正方形を基本とし、Presetは一覧の下に登録・削除、View配置は設定欄の下にレイヤー一覧とSendを置く。
 
 ## Aul2AudioBaseInput / Base 現状
 

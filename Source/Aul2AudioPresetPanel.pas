@@ -28,18 +28,26 @@ type
     FPresetList : TListBoxEdit;
     FSaveButton : TButton;
     FDeleteButton: TButton;
+    FDeleteOkButton: TButton;
+    FDeleteCancelButton: TButton;
     FStatusLabel : TLabel;
     FShortcuts  : TShortcutAction;
     FInitialized: Boolean;
     FLayoutMode : TAul2AudioPresetLayout;
     FPresets    : TAul2AudioUserPresetList;
+    FDeleteConfirmIndex: Integer;
     procedure CreateControls;
+    procedure PresetListClick(Sender: TObject);
     procedure PresetListDblClick(Sender: TObject);
     procedure PresetListEdited(Sender: TObject; Index: Integer; var NewText: string);
     procedure PresetListKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure MoveSelectedPreset(Offset: Integer);
     procedure SaveButtonClick(Sender: TObject);
     procedure DeleteButtonClick(Sender: TObject);
+    procedure DeleteOkButtonClick(Sender: TObject);
+    procedure DeleteCancelButtonClick(Sender: TObject);
+    procedure BeginDeleteConfirmation(Index: Integer);
+    procedure CancelDeleteConfirmation;
     procedure DragRequest(Sender: TObject; FileNames: TStringList);
     procedure LoadPresets;
     procedure SavePresets;
@@ -142,6 +150,7 @@ begin
     end);
   FInitialized := False;
   FLayoutMode := aplHorizontal;
+  FDeleteConfirmIndex := -1;
 end;
 
 procedure TAul2AudioPresetPanel.SetLayoutMode(Value: TAul2AudioPresetLayout);
@@ -197,6 +206,9 @@ procedure TAul2AudioPresetPanel.RefreshLayout;
 begin
   if not FInitialized then
     Exit;
+  // 別ページから戻った時に、以前の削除確認を持ち越さない。
+  CancelDeleteConfirmation;
+  FStatusLabel.Caption := '';
   Resize;
   // VCLのVisible値がTrueのままネイティブ子ウィンドウだけ隠れる場合も強制的に復旧する。
   if HandleAllocated then
@@ -239,17 +251,28 @@ begin
   FPresetList.Color := RGB(32, 32, 32);
   FPresetList.Font.Color := RGB(230, 230, 230);
   FPresetList.ItemHeight := 24;
+  FPresetList.OnClick := PresetListClick;
   FPresetList.OnDblClick := PresetListDblClick;
   FPresetList.OnEdited := PresetListEdited;
   FPresetList.OnKeyDown := PresetListKeyDown;
   FSaveButton := TButton.Create(Self);
   FSaveButton.Parent := Self;
-  FSaveButton.Caption := '保存';
+  FSaveButton.Caption := '登録';
   FSaveButton.OnClick := SaveButtonClick;
   FDeleteButton := TButton.Create(Self);
   FDeleteButton.Parent := Self;
   FDeleteButton.Caption := '削除';
   FDeleteButton.OnClick := DeleteButtonClick;
+  FDeleteOkButton := TButton.Create(Self);
+  FDeleteOkButton.Parent := Self;
+  FDeleteOkButton.Caption := 'OK';
+  FDeleteOkButton.Visible := False;
+  FDeleteOkButton.OnClick := DeleteOkButtonClick;
+  FDeleteCancelButton := TButton.Create(Self);
+  FDeleteCancelButton.Parent := Self;
+  FDeleteCancelButton.Caption := 'キャンセル';
+  FDeleteCancelButton.Visible := False;
+  FDeleteCancelButton.OnClick := DeleteCancelButtonClick;
   FStatusLabel := TLabel.Create(Self);
   FStatusLabel.Parent := Self;
   FStatusLabel.AutoSize := False;
@@ -261,6 +284,7 @@ end;
 
 procedure TAul2AudioPresetPanel.PresetListKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
+  CancelDeleteConfirmation;
   if FPresetList.IsEditing then
     Exit;
   FShortcuts.KeyDown(Key, Shift);
@@ -271,6 +295,7 @@ var
   Index   : Integer;
   NewIndex: Integer;
 begin
+  CancelDeleteConfirmation;
   Index := FPresetList.ItemIndex;
   NewIndex := Index + Offset;
   if (Index < 0) or (Index >= FPresets.Count) or
@@ -295,7 +320,8 @@ var
 begin
   inherited;
   if (FListBorder = nil) or (FPresetList = nil) or (FSaveButton = nil) or
-     (FDeleteButton = nil) or (FStatusLabel = nil) then
+     (FDeleteButton = nil) or (FDeleteOkButton = nil) or
+     (FDeleteCancelButton = nil) or (FStatusLabel = nil) then
     Exit;
 
   ListTop := 12;
@@ -303,7 +329,12 @@ begin
   begin
     ButtonGap := 8;
     ButtonWidth := Max(1, (ClientWidth - 24 - ButtonGap) div 2);
-    ListHeight := Max(32, ClientHeight - 112);
+    if FDeleteConfirmIndex >= 0 then
+      ListHeight := Max(32, ClientHeight - 112)
+    else if FStatusLabel.Caption <> '' then
+      ListHeight := Max(32, ClientHeight - 84)
+    else
+      ListHeight := Max(32, ClientHeight - 70);
     ButtonTop := ListTop + ListHeight + 8;
     StatusTop := ButtonTop + 38;
     FListBorder.SetBounds(12, ListTop, Max(1, ClientWidth - 24), ListHeight);
@@ -312,6 +343,10 @@ begin
       ButtonWidth, 30);
     FStatusLabel.SetBounds(12, StatusTop, Max(1, ClientWidth - 24),
       Max(1, ClientHeight - StatusTop - 8));
+    FDeleteOkButton.SetBounds(12, StatusTop + 20, ButtonWidth,
+      Max(1, ClientHeight - StatusTop - 28));
+    FDeleteCancelButton.SetBounds(12 + ButtonWidth + ButtonGap,
+      StatusTop + 20, ButtonWidth, Max(1, ClientHeight - StatusTop - 28));
   end
   else
   begin
@@ -323,6 +358,8 @@ begin
     FDeleteButton.SetBounds(ButtonLeft, ListTop + 38, 92, 30);
     FStatusLabel.SetBounds(ButtonLeft, ListTop + 76, 92,
       Max(1, ListHeight - 76));
+    FDeleteOkButton.SetBounds(ButtonLeft, ListTop + 116, 43, 26);
+    FDeleteCancelButton.SetBounds(ButtonLeft + 49, ListTop + 116, 43, 26);
   end;
 
   FPresetList.SetBounds(1, 1, Max(1, FListBorder.ClientWidth - 2),
@@ -337,6 +374,18 @@ begin
   FDeleteButton.BringToFront;
   FStatusLabel.Visible := True;
   FStatusLabel.BringToFront;
+  FDeleteOkButton.Visible := FDeleteConfirmIndex >= 0;
+  FDeleteCancelButton.Visible := FDeleteConfirmIndex >= 0;
+  if FDeleteOkButton.Visible then
+  begin
+    FDeleteOkButton.BringToFront;
+    FDeleteCancelButton.BringToFront;
+  end;
+end;
+
+procedure TAul2AudioPresetPanel.PresetListClick(Sender: TObject);
+begin
+  CancelDeleteConfirmation;
 end;
 
 procedure TAul2AudioPresetPanel.SaveButtonClick(Sender: TObject);
@@ -347,11 +396,13 @@ var
 begin
   if not CaptureSelectedObjectAlias(AliasText) then
   begin
-    FStatusLabel.Caption := '保存するObjectを選択してください。';
+    FStatusLabel.Caption := '登録するObjectを選択してください。';
+    Resize;
     Exit;
   end;
 
   FStatusLabel.Caption := '';
+  Resize;
   PresetName := NewPresetName;
   Preset := FPresets.AddNew;
   Preset.Name := PresetName;
@@ -365,14 +416,63 @@ end;
 
 procedure TAul2AudioPresetPanel.DeleteButtonClick(Sender: TObject);
 var
-  Index   : Integer;
-  NewIndex: Integer;
+  Index: Integer;
 begin
-  FStatusLabel.Caption := '';
+  CancelDeleteConfirmation;
   Index := FPresetList.ItemIndex;
   if (Index < 0) or (Index >= FPresets.Count) then
   begin
     FStatusLabel.Caption := '削除するプリセットを選択してください。';
+    Resize;
+    Exit;
+  end;
+
+  BeginDeleteConfirmation(Index);
+end;
+
+procedure TAul2AudioPresetPanel.BeginDeleteConfirmation(Index: Integer);
+begin
+  if (Index < 0) or (Index >= FPresets.Count) then
+    Exit;
+  FDeleteConfirmIndex := Index;
+  FStatusLabel.Caption := '「' + FPresets[Index].Name + '」を削除しますか？';
+  FSaveButton.Enabled := False;
+  FDeleteButton.Enabled := False;
+  Resize;
+end;
+
+procedure TAul2AudioPresetPanel.CancelDeleteConfirmation;
+var
+  WasConfirming: Boolean;
+begin
+  WasConfirming := FDeleteConfirmIndex >= 0;
+  FDeleteConfirmIndex := -1;
+  FSaveButton.Enabled := True;
+  FDeleteButton.Enabled := True;
+  FDeleteOkButton.Visible := False;
+  FDeleteCancelButton.Visible := False;
+  if FDeleteOkButton.HandleAllocated then
+    ShowWindow(FDeleteOkButton.Handle, SW_HIDE);
+  if FDeleteCancelButton.HandleAllocated then
+    ShowWindow(FDeleteCancelButton.Handle, SW_HIDE);
+  if WasConfirming then
+  begin
+    FStatusLabel.Caption := '';
+    Resize;
+  end;
+end;
+
+procedure TAul2AudioPresetPanel.DeleteOkButtonClick(Sender: TObject);
+var
+  Index   : Integer;
+  NewIndex: Integer;
+begin
+  Index := FDeleteConfirmIndex;
+  CancelDeleteConfirmation;
+  if (Index < 0) or (Index >= FPresets.Count) then
+  begin
+    FStatusLabel.Caption := '削除対象が変更されました。もう一度選択してください。';
+    Resize;
     Exit;
   end;
 
@@ -384,6 +484,11 @@ begin
   else
     NewIndex := Min(Index, FPresets.Count - 1);
   FPresetList.ItemIndex := NewIndex;
+end;
+
+procedure TAul2AudioPresetPanel.DeleteCancelButtonClick(Sender: TObject);
+begin
+  CancelDeleteConfirmation;
 end;
 
 function TAul2AudioPresetPanel.NewPresetName: string;
@@ -412,6 +517,7 @@ procedure TAul2AudioPresetPanel.PresetListDblClick(Sender: TObject);
 var
   Index: Integer;
 begin
+  CancelDeleteConfirmation;
   Index := FPresetList.ItemIndex;
   if (Index < 0) or (Index >= FPresets.Count) then
     Exit;
@@ -421,6 +527,7 @@ end;
 
 procedure TAul2AudioPresetPanel.PresetListEdited(Sender: TObject; Index: Integer; var NewText: string);
 begin
+  CancelDeleteConfirmation;
   if (Index < 0) or (Index >= FPresets.Count) then
     Exit;
 
@@ -527,6 +634,7 @@ procedure TAul2AudioPresetPanel.DragRequest(Sender: TObject; FileNames: TStringL
 var
   FileName: string;
 begin
+  CancelDeleteConfirmation;
   FileName := SaveSelectedPresetAlias;
   if FileName = '' then
     Exit;
