@@ -35,6 +35,7 @@ type
     FMaximum: Double;
     FMinimum: Double;
     FOnValueChange: TVolumeValueChangeEvent;
+    FPanelColor: TColor;
     FStep: Double;
     FUnitText: string;
     FValue: Double;
@@ -52,6 +53,7 @@ type
     procedure SetDisplayName(const Value: string);
     procedure SetMaximum(const Value: Double);
     procedure SetMinimum(const Value: Double);
+    procedure SetPanelColor(const Value: TColor);
     procedure SetEditText(const Value: string);
     procedure SetUnitText(const Value: string);
     procedure SetValue(const Value: Double);
@@ -76,12 +78,14 @@ type
     property AccentColor: TColor read FAccentColor write SetAccentColor default $00D88A38;
     property Align;
     property Anchors;
+    property Color;
     property DisplayName: string read FDisplayName write SetDisplayName;
     property Enabled;
     property Font;
     property Maximum: Double read FMaximum write SetMaximum;
     property Minimum: Double read FMinimum write SetMinimum;
     property OnValueChange: TVolumeValueChangeEvent read FOnValueChange write FOnValueChange;
+    property PanelColor: TColor read FPanelColor write SetPanelColor default $00292522;
     property ParentFont;
     property ShowHint;
     property UnitText: string read FUnitText write SetUnitText;
@@ -179,6 +183,7 @@ begin
   Cursor := crSizeAll;
   TabStop := True;
   FAccentColor := RGB(56, 138, 216);
+  FPanelColor := RGB(34, 37, 41);
   FDisplayName := 'Value';
   FMinimum := 0;
   FMaximum := 1;
@@ -401,6 +406,14 @@ begin
   Invalidate;
 end;
 
+procedure TAul2VolumeControl.SetPanelColor(const Value: TColor);
+begin
+  if FPanelColor = Value then
+    Exit;
+  FPanelColor := Value;
+  Invalidate;
+end;
+
 procedure TAul2VolumeControl.SetUnitText(const Value: string);
 begin
   if FUnitText = Value then
@@ -549,7 +562,7 @@ begin
 
   CardRect := Rect(1, 1, ClientWidth - 1, ClientHeight - 1);
   Canvas.Pen.Color := RGB(58, 62, 68);
-  Canvas.Brush.Color := RGB(34, 37, 41);
+  Canvas.Brush.Color := FPanelColor;
   Canvas.RoundRect(CardRect.Left, CardRect.Top, CardRect.Right, CardRect.Bottom, 9, 9);
 
   Canvas.Font.Assign(Font);

@@ -1,4 +1,4 @@
-unit Aul2AudioControllerView;
+﻿unit Aul2AudioControllerView;
 
 // ControllerのVCLフォーム、Delay取得、表示専用パラメーター配置を担当する。
 
@@ -26,6 +26,7 @@ procedure NotifyControllerMouseEnter;
 implementation
 
 uses
+  Winapi.UxTheme,
   System.Classes,
   System.Math,
   System.SysUtils,
@@ -34,11 +35,18 @@ uses
   Vcl.Forms,
   Vcl.Graphics,
   Vcl.StdCtrls,
+  Aul2AudioControllerLampSwitch,
   Aul2AudioControllerSync,
   Aul2AudioControllerVolumeControl;
 
 type
   TControlAccess = class(TControl);
+
+  TEffectComboBox = class(TComboBox)
+  protected
+    function DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
+      MousePos: TPoint): Boolean; override;
+  end;
 
   TFormAudioController = class(TForm)
   public
@@ -48,19 +56,21 @@ type
   TControllerEventTarget = class(TComponent)
   public
     procedure DelayVolumeChange(Sender: TObject; const ValueText: string; var Accept: Boolean);
+    procedure EffectComboChange(Sender: TObject);
     procedure ModeComboChange(Sender: TObject);
     procedure MouseBoundaryTimer(Sender: TObject);
     procedure ControllerMouseEnter(Sender: TObject);
-    procedure UseCheckClick(Sender: TObject);
+    procedure UseLampClick(Sender: TObject);
   end;
 
 var
   ClientWindow   : HWND;
   ControllerForm : TFormAudioController;
   RootPanel      : TPanel;
-  TitleLabel     : TLabel;
   StatusLabel    : TLabel;
-  UseCheck       : TCheckBox;
+  EffectCombo    : TEffectComboBox;
+  LampSwitchHost : TPanel;
+  UseLamp        : TAul2LampSwitch;
   ModeLabel      : TLabel;
   ModeCombo      : TComboBox;
   TimeControl    : TAul2VolumeControl;
@@ -89,6 +99,28 @@ begin
   Color := RGB(28, 30, 33);
 end;
 
+function TEffectComboBox.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
+  MousePos: TPoint): Boolean;
+var
+  NewIndex: Integer;
+begin
+  if DroppedDown or (Items.Count = 0) or (WheelDelta = 0) then
+    Exit(inherited DoMouseWheel(Shift, WheelDelta, MousePos));
+
+  NewIndex := ItemIndex;
+  if WheelDelta > 0 then
+    Dec(NewIndex)
+  else
+    Inc(NewIndex);
+  NewIndex := EnsureRange(NewIndex, 0, Items.Count - 1);
+  if NewIndex <> ItemIndex then
+  begin
+    ItemIndex := NewIndex;
+    Change;
+  end;
+  Result := True;
+end;
+
 function Scale(Value: Integer): Integer;
 begin
   if Assigned(ControllerForm) then
@@ -101,6 +133,80 @@ procedure RegisterMouseEnter(Control: TControl);
 begin
   if Assigned(Control) and Assigned(EventTarget) then
     TControlAccess(Control).OnMouseEnter := EventTarget.ControllerMouseEnter;
+end;
+
+procedure ApplyDarkComboStyle(Combo: TComboBox);
+begin
+  Combo.Color := RGB(42, 45, 49);
+  Combo.Font.Assign(ControllerForm.Font);
+  Combo.Font.Color := RGB(250, 250, 250);
+  Combo.ParentFont := False;
+  Combo.HandleNeeded;
+  SetWindowTheme(Combo.Handle, '', '');
+end;
+
+function GetEffectThemeColor(EffectIndex: Integer): TColor;
+begin
+  case EffectIndex of
+    0:  Result := RGB(20, 31, 44); // Delay
+    1:  Result := RGB(20, 38, 29); // EQ
+    2:  Result := RGB(43, 38, 20); // Compressor
+    3:  Result := RGB(45, 27, 18); // Voice Drive
+    4:  Result := RGB(45, 22, 22); // Distortion
+    5:  Result := RGB(32, 34, 37); // Noise
+    6:  Result := RGB(31, 24, 45); // Bit Crusher
+    7:  Result := RGB(21, 38, 38); // Tremble
+    8:  Result := RGB(44, 21, 39); // Wobble
+    9:  Result := RGB(42, 22, 45); // Pitch
+    10: Result := RGB(20, 37, 42); // Ring Mod
+    11: Result := RGB(40, 31, 22); // Muffle
+    12: Result := RGB(27, 31, 40); // Whisper
+    13: Result := RGB(22, 40, 27); // Auto Gain
+    14: Result := RGB(27, 29, 32); // Noise Gate
+    15: Result := RGB(34, 27, 43); // Ghost
+    16: Result := RGB(19, 38, 44); // Chorus
+    17: Result := RGB(35, 24, 45); // Reverb
+    18: Result := RGB(25, 33, 40); // Output
+    19: Result := RGB(45, 34, 17); // Limiter
+  else
+    Result := RGB(28, 30, 33);
+  end;
+end;
+
+function LightenThemeColor(Color: TColor; Amount: Integer): TColor;
+begin
+  Color := ColorToRGB(Color);
+  Result := RGB(
+    Min(255, GetRValue(Color) + Amount),
+    Min(255, GetGValue(Color) + Amount),
+    Min(255, GetBValue(Color) + Amount));
+end;
+
+procedure ApplyEffectTheme(EffectIndex: Integer);
+var
+  PanelColor: TColor;
+  ThemeColor: TColor;
+begin
+  if not Assigned(ControllerForm) or not Assigned(RootPanel) or not Assigned(UseLamp) then
+    Exit;
+
+  ThemeColor := GetEffectThemeColor(EffectIndex);
+  PanelColor := LightenThemeColor(ThemeColor, 10);
+  ControllerForm.Color := ThemeColor;
+  RootPanel.Color := ThemeColor;
+  LampSwitchHost.Color := ThemeColor;
+  UseLamp.Color := ThemeColor;
+  UseLamp.PanelColor := PanelColor;
+  ModeLabel.Color := ThemeColor;
+  TimeControl.Color := ThemeColor;
+  TimeControl.PanelColor := PanelColor;
+  DryControl.Color := ThemeColor;
+  DryControl.PanelColor := PanelColor;
+  WetControl.Color := ThemeColor;
+  WetControl.PanelColor := PanelColor;
+  FeedbackControl.Color := ThemeColor;
+  FeedbackControl.PanelColor := PanelColor;
+  RootPanel.Invalidate;
 end;
 
 procedure LayoutControllerView;
@@ -134,14 +240,14 @@ begin
   if EditWidth < Scale(80) then
     EditWidth := Scale(80);
 
-  TitleLabel.SetBounds(LeftMargin, Scale(14), ContentWidth, Scale(22));
-  StatusLabel.SetBounds(LeftMargin, Scale(39), ContentWidth, Scale(20));
-  UseCheck.SetBounds(LeftMargin, Scale(68), ContentWidth, Scale(24));
+  EffectCombo.SetBounds(LeftMargin, Scale(6), ContentWidth, Scale(27));
+  LampSwitchHost.SetBounds(LeftMargin, Scale(37), ContentWidth, Scale(28));
+  UseLamp.SetBounds(0, 0, ContentWidth, Scale(28));
 
-  TopPosition := Scale(102);
+  TopPosition := Scale(69);
   ModeLabel.SetBounds(LeftMargin, TopPosition + Scale(4), LabelWidth, Scale(23));
   ModeCombo.SetBounds(EditLeft, TopPosition, EditWidth, Scale(25));
-  Inc(TopPosition, RowHeight + Scale(2));
+  Inc(TopPosition, RowHeight);
 
   Controls[0] := TimeControl;
   Controls[1] := DryControl;
@@ -165,7 +271,7 @@ end;
 
 procedure ApplyEmptyDelayState;
 begin
-  UseCheck.Checked := False;
+  UseLamp.Checked := False;
   ModeCombo.ItemIndex := 0;
   TimeControl.ValueText := '0';
   DryControl.ValueText := '0';
@@ -175,9 +281,9 @@ end;
 
 procedure RepaintDelayControls;
 begin
-  TitleLabel.Invalidate;
+  EffectCombo.Invalidate;
   StatusLabel.Invalidate;
-  UseCheck.Invalidate;
+  UseLamp.Invalidate;
   ModeLabel.Invalidate;
   ModeCombo.Invalidate;
   TimeControl.Invalidate;
@@ -219,7 +325,7 @@ begin
     ReadResult := CaptureSelectedDelayState(State);
     if ReadResult = cdrrLoaded then
     begin
-      UseCheck.Checked := State.Use;
+      UseLamp.Checked := State.Use;
       if (State.StereoMode >= 0) and (State.StereoMode < ModeCombo.Items.Count) then
         ModeCombo.ItemIndex := State.StereoMode
       else
@@ -258,22 +364,22 @@ begin
   end;
 end;
 
-procedure TControllerEventTarget.UseCheckClick(Sender: TObject);
+procedure TControllerEventTarget.UseLampClick(Sender: TObject);
 var
   Success: Boolean;
 begin
-  if Refreshing or (UseCheck.Checked = LastUse) then
+  if Refreshing or (UseLamp.Checked = LastUse) then
     Exit;
 
-  if UseCheck.Checked then
+  if UseLamp.Checked then
     Success := SetSelectedDelayItem('Dly: Use', '1')
   else
     Success := SetSelectedDelayItem('Dly: Use', '0');
 
   if Success then
-    LastUse := UseCheck.Checked
+    LastUse := UseLamp.Checked
   else
-    UseCheck.Checked := LastUse;
+    UseLamp.Checked := LastUse;
   ShowWriteStatus(Success, 'Dly: Use');
 end;
 
@@ -316,6 +422,16 @@ begin
 
   Accept := SetSelectedDelayItem(ItemName, ValueText);
   ShowWriteStatus(Accept, ItemName);
+end;
+
+procedure TControllerEventTarget.EffectComboChange(Sender: TObject);
+begin
+  if not Assigned(EffectCombo) or (EffectCombo.ItemIndex < 0) then
+    Exit;
+  StatusLabel.Caption := 'Selected: ' + EffectCombo.Items[EffectCombo.ItemIndex] + ' (preview only)';
+  StatusLabel.Font.Color := RGB(112, 180, 232);
+  StatusLabel.Invalidate;
+  ApplyEffectTheme(EffectCombo.ItemIndex);
 end;
 
 function IsCursorInsideController: Boolean;
@@ -362,7 +478,7 @@ begin
   LabelControl.Font.Color := RGB(232, 232, 232);
   LabelControl.ParentColor := False;
   LabelControl.ParentFont := False;
-  LabelControl.Transparent := False;
+  LabelControl.Transparent := True;
   RegisterMouseEnter(LabelControl);
 end;
 
@@ -397,36 +513,75 @@ begin
   RootPanel.DoubleBuffered := True;
   RegisterMouseEnter(RootPanel);
 
-  CreateLabel(TitleLabel, 'Delay controller preview');
-  TitleLabel.Font.Style := [fsBold];
-  TitleLabel.Font.Color := RGB(232, 232, 232);
-
   CreateLabel(StatusLabel, 'Move the mouse into this window to read');
   StatusLabel.Font.Color := RGB(170, 170, 170);
+  StatusLabel.Visible := False;
 
-  UseCheck := TCheckBox.Create(ControllerForm);
-  UseCheck.Parent := RootPanel;
-  UseCheck.Caption := 'Use';
-  UseCheck.Enabled := True;
-  UseCheck.TabStop := False;
-  UseCheck.Font.Color := RGB(245, 245, 245);
-  UseCheck.ParentFont := False;
-  UseCheck.OnClick := EventTarget.UseCheckClick;
-  RegisterMouseEnter(UseCheck);
+  EffectCombo := TEffectComboBox.Create(ControllerForm);
+  EffectCombo.Style := csDropDownList;
+  EffectCombo.Color := RGB(42, 45, 49);
+  EffectCombo.Font.Assign(ControllerForm.Font);
+  EffectCombo.Font.Color := RGB(250, 250, 250);
+  EffectCombo.ParentFont := False;
+  // Items.AddはHandleを要求するため、項目登録より先にParentへ接続する。
+  EffectCombo.Parent := RootPanel;
+  EffectCombo.Items.Add('Delay');
+  EffectCombo.Items.Add('EQ');
+  EffectCombo.Items.Add('Compressor');
+  EffectCombo.Items.Add('Voice Drive');
+  EffectCombo.Items.Add('Distortion');
+  EffectCombo.Items.Add('Noise');
+  EffectCombo.Items.Add('Bit Crusher');
+  EffectCombo.Items.Add('Tremble');
+  EffectCombo.Items.Add('Wobble');
+  EffectCombo.Items.Add('Pitch');
+  EffectCombo.Items.Add('Ring Mod');
+  EffectCombo.Items.Add('Muffle');
+  EffectCombo.Items.Add('Whisper');
+  EffectCombo.Items.Add('Auto Gain');
+  EffectCombo.Items.Add('Noise Gate');
+  EffectCombo.Items.Add('Ghost');
+  EffectCombo.Items.Add('Chorus');
+  EffectCombo.Items.Add('Reverb');
+  EffectCombo.Items.Add('Output');
+  EffectCombo.Items.Add('Limiter');
+  EffectCombo.ItemIndex := 0;
+  EffectCombo.OnChange := EventTarget.EffectComboChange;
+  ApplyDarkComboStyle(EffectCombo);
+  RegisterMouseEnter(EffectCombo);
+
+  // 現在のUseと、将来の電源ボタン・表示灯を載せる領域を確保する。
+  LampSwitchHost := TPanel.Create(ControllerForm);
+  LampSwitchHost.BevelOuter := bvNone;
+  LampSwitchHost.Caption := '';
+  LampSwitchHost.Color := RGB(28, 30, 33);
+  LampSwitchHost.ParentBackground := False;
+  LampSwitchHost.Parent := RootPanel;
+  LampSwitchHost.Visible := True;
+  RegisterMouseEnter(LampSwitchHost);
+
+  UseLamp := TAul2LampSwitch.Create(ControllerForm);
+  UseLamp.Caption := '遅延音を加える';
+  UseLamp.Font.Assign(ControllerForm.Font);
+  UseLamp.OnClick := EventTarget.UseLampClick;
+  UseLamp.Parent := LampSwitchHost;
+  RegisterMouseEnter(UseLamp);
 
   CreateLabel(ModeLabel, 'Stereo Mode');
   ModeCombo := TComboBox.Create(ControllerForm);
-  ModeCombo.Parent := RootPanel;
   ModeCombo.Style := csDropDownList;
+  ModeCombo.Color := RGB(42, 45, 49);
+  ModeCombo.Font.Assign(ControllerForm.Font);
+  ModeCombo.Font.Color := RGB(250, 250, 250);
+  ModeCombo.ParentFont := False;
+  ModeCombo.Parent := RootPanel;
   ModeCombo.Items.Add('Normal');
   ModeCombo.Items.Add('Ping-Pong');
   ModeCombo.ItemIndex := 0;
   ModeCombo.Enabled := True;
   ModeCombo.TabStop := False;
-  ModeCombo.Color := RGB(42, 45, 49);
-  ModeCombo.Font.Color := RGB(250, 250, 250);
-  ModeCombo.ParentFont := False;
   ModeCombo.OnChange := EventTarget.ModeComboChange;
+  ApplyDarkComboStyle(ModeCombo);
   RegisterMouseEnter(ModeCombo);
 
   TimeControl := TAul2VolumeControl.Create(ControllerForm);
@@ -470,6 +625,7 @@ begin
   MouseTimer.OnTimer := EventTarget.MouseBoundaryTimer;
   MouseTimer.Enabled := True;
 
+  ApplyEffectTheme(EffectCombo.ItemIndex);
   LayoutControllerView;
   ControllerForm.Show;
   RootPanel.Visible := True;
@@ -544,9 +700,10 @@ begin
   FreeAndNil(ControllerForm);
   ClientWindow := 0;
   RootPanel := nil;
-  TitleLabel := nil;
   StatusLabel := nil;
-  UseCheck := nil;
+  EffectCombo := nil;
+  LampSwitchHost := nil;
+  UseLamp := nil;
   ModeLabel := nil;
   ModeCombo := nil;
   TimeControl := nil;

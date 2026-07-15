@@ -10,6 +10,7 @@ uses
   AviUtl2PluginTypes in 'Source\Lib\AviUtl2Plugin\AviUtl2PluginTypes.pas',
   AviUtl2PluginCore in 'Source\Lib\AviUtl2Plugin\AviUtl2PluginCore.pas',
   Aul2AudioControllerSync in 'Source\Aul2AudioControllerSync.pas',
+  Aul2AudioControllerLampSwitch in 'Source\Aul2AudioControllerLampSwitch.pas',
   Aul2AudioControllerVolumeControl in 'Source\Aul2AudioControllerVolumeControl.pas',
   Aul2AudioControllerView in 'Source\Aul2AudioControllerView.pas',
   Aul2AudioControllerPlugin in 'Source\Aul2AudioControllerPlugin.pas';
