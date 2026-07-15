@@ -78,6 +78,7 @@ var
   RootPanel      : TPanel;
   BasePanel      : TAul2AudioBasePanel;
   PresetPanel    : TAul2AudioPresetPanel;
+  SyncMessageLabel: TLabel;
   StatusLabel    : TLabel;
   EffectCombo    : TEffectComboBox;
   LampSwitchHost : TPanel;
@@ -91,6 +92,7 @@ var
   Refreshing     : Boolean;
   LastUse        : Boolean;
   LastSelectIndex: Integer;
+  ControllerSynchronized: Boolean;
 
 constructor TFormAudioController.Create(AOwner: TComponent);
 begin
@@ -238,6 +240,8 @@ begin
     EditWidth := Scale(80);
 
   EffectCombo.SetBounds(LeftMargin, Scale(6), ContentWidth, Scale(27));
+  SyncMessageLabel.SetBounds(LeftMargin, Scale(24), ContentWidth,
+    Max(Scale(72), RootPanel.ClientHeight - Scale(48)));
   if IsBasePanelSelected then
   begin
     BasePanel.SetBounds(0, Scale(37), RootPanel.ClientWidth,
@@ -286,6 +290,35 @@ begin
     VolumeControls[ControlIndex].SetBounds(ControlLeft, ControlTop, ControlWidth, ControlHeight);
     Inc(ColumnIndex);
   end;
+end;
+
+procedure ConfigureCurrentEffect; forward;
+
+procedure ShowUnsynchronizedState;
+var
+  ControlIndex: Integer;
+begin
+  ControllerSynchronized := False;
+  EffectCombo.Visible := False;
+  LampSwitchHost.Visible := False;
+  ModeLabel.Visible := False;
+  ModeCombo.Visible := False;
+  BasePanel.Visible := False;
+  PresetPanel.Visible := False;
+  for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
+    VolumeControls[ControlIndex].Visible := False;
+  SyncMessageLabel.Visible := True;
+  SyncMessageLabel.BringToFront;
+end;
+
+procedure ShowSynchronizedState;
+begin
+  if ControllerSynchronized then
+    Exit;
+  ControllerSynchronized := True;
+  SyncMessageLabel.Visible := False;
+  EffectCombo.Visible := True;
+  ConfigureCurrentEffect;
 end;
 
 procedure ApplyEmptyEffectState;
@@ -459,6 +492,9 @@ begin
     ReadResult := CaptureSelectedEffectState(Definition, State);
     if ReadResult = cerrLoaded then
     begin
+      ShowSynchronizedState;
+      // ConfigureCurrentEffect が変更した更新抑止状態を、読込処理中へ戻す。
+      Refreshing := True;
       UseLamp.Checked := State.Use;
       if Definition.SelectControl.Visible then
       begin
@@ -481,6 +517,7 @@ begin
     else
     begin
       ApplyEmptyEffectState;
+      ShowUnsynchronizedState;
       case ReadResult of
         cerrUnavailable:
           StatusLabel.Caption := 'Mouse enter detected: SDK unavailable';
@@ -678,6 +715,15 @@ begin
   StatusLabel.Font.Color := RGB(170, 170, 170);
   StatusLabel.Visible := False;
 
+  CreateLabel(SyncMessageLabel,
+    'エフェクタープラグインを追加した音声オブジェクト、または' + sLineBreak +
+    'グループ制御（音声）を選択してください');
+  SyncMessageLabel.Alignment := taCenter;
+  SyncMessageLabel.Layout := tlCenter;
+  SyncMessageLabel.WordWrap := True;
+  SyncMessageLabel.Font.Color := RGB(205, 205, 205);
+  RegisterMouseEnter(SyncMessageLabel);
+
   EffectCombo := TEffectComboBox.Create(ControllerForm);
   EffectCombo.Style := csDropDownList;
   EffectCombo.Color := RGB(42, 45, 49);
@@ -743,6 +789,7 @@ begin
 
   MouseInside := False;
   Refreshing := False;
+  ControllerSynchronized := False;
 
   MouseTimer := TTimer.Create(ControllerForm);
   MouseTimer.Interval := 100;
@@ -750,6 +797,8 @@ begin
   MouseTimer.Enabled := True;
 
   ConfigureCurrentEffect;
+  ShowUnsynchronizedState;
+  LayoutControllerView;
   ControllerForm.Show;
   RootPanel.Visible := True;
   RootPanel.BringToFront;
@@ -827,6 +876,7 @@ begin
   RootPanel := nil;
   BasePanel := nil;
   PresetPanel := nil;
+  SyncMessageLabel := nil;
   StatusLabel := nil;
   EffectCombo := nil;
   LampSwitchHost := nil;

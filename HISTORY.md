@@ -6,6 +6,7 @@
 
 ## 2026-07-15 View / Preset migration to Aul2AudioController
 
+- Controllerの起動直後と同期失敗時はエフェクター画面を隠し、サウンドエフェクターを追加した音声Objectまたはグループ制御（音声）の選択案内だけを表示するようにした。設定を正常に読み込めた時点で初めて選択欄と操作画面を表示する。
 - View表示オブジェクトの配置とユーザープリセット管理を、Aul2AudioMonitorの補助ページからAul2AudioControllerの選択画面へ移行した。
 - Controllerの選択リスト末尾は `エフェクトプリセットの管理`、`波形表示オブジェクトの配置` の順とし、縦長・正方形ウィンドウ向けの専用配置で既存パネル機能を共有する。
 - MonitorはWave／Spectrumの監視に専念させた。将来の復活を容易にするためView／Presetのコードと横配置は削除せず、`ENABLE_MONITOR_EDIT_PAGES = False` の間はツールバーボタン、ページ、編集パネルを生成しない。
