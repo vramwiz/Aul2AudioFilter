@@ -10,7 +10,7 @@ uses
 const
   MONITOR_WINDOW_NAME = 'Aul2AudioMonitor'; // フォームとクライアントで共有する表示名。
 
-// Monitorフォームを生成し、ParentWindowの子としてWave/Spectrum/Baseページを構築する。
+// Monitorフォームを生成し、ParentWindowの子としてWave/Spectrum/Spectrogramページを構築する。
 procedure CreateMonitorView(ParentWindow: HWND);
 // タイマー、共有メモリ、フォームを停止・解放し、表示用履歴を破棄する。
 procedure DestroyMonitorView;
@@ -33,6 +33,7 @@ uses
   Vcl.StdCtrls,
   Vcl.ToolWin,
   Aul2AudioMonitorPaint,
+  Aul2AudioMonitorSpectrogram,
   Aul2AudioMonitorShared,
   Aul2AudioMonitorSpectrumShared,
   Aul2AudioViewFrameShared,
@@ -51,6 +52,7 @@ type
   TAudioMonitorPage = (
     ampWave,
     ampSpectrum,
+    ampSpectrogram,
     ampBase,
     ampPreset
   );
@@ -65,6 +67,7 @@ type
     procedure ReadTimerTick(Sender: TObject);
     procedure WavePaint(Sender: TObject);
     procedure SpectrumPaint(Sender: TObject);
+    procedure SpectrogramPaint(Sender: TObject);
   end;
 
 var
@@ -75,11 +78,13 @@ var
   ToolBar     : TToolBar;
   ButtonWave  : TToolButton;
   ButtonSpectrum: TToolButton;
+  ButtonSpectrogram: TToolButton;
   ButtonBase  : TToolButton;
   ButtonPreset: TToolButton;
   StateLabel  : TLabel;
   PanelWave   : TPanel;
   PanelSpectrum: TPanel;
+  PanelSpectrogram: TPanel;
   PanelBase   : TPanel;
   PanelPreset : TPanel;
   BasePanel   : TAul2AudioBasePanel;
@@ -87,6 +92,7 @@ var
   InfoLabel   : TLabel;
   WavePaintBox: TPaintBox;
   SpectrumPaintBox: TPaintBox;
+  SpectrogramPaintBox: TPaintBox;
   ReadTimer   : TTimer;
   TimerTarget : TMonitorTimerTarget;
   ToolBarManager: TToolBarPanelManager;
@@ -113,6 +119,7 @@ procedure ClearPlaybackHistory;
 begin
   PlaybackMonitorSnapshotValid := False;
   PlaybackSpectrumSnapshotValid := False;
+  ClearAudioSpectrogramHistory;
 end;
 
 procedure PositionStateLabel;
@@ -613,6 +620,9 @@ begin
     MonitorForm.Canvas.Font.Assign(ToolBar.Font);
     ToolButtonWidth := MonitorForm.Canvas.TextWidth(ButtonSpectrum.Caption) +
       MulDiv(24, MonitorForm.Font.PixelsPerInch, 96);
+    ToolButtonWidth := Max(ToolButtonWidth,
+      MonitorForm.Canvas.TextWidth(ButtonSpectrogram.Caption) +
+      MulDiv(24, MonitorForm.Font.PixelsPerInch, 96));
     if ENABLE_MONITOR_EDIT_PAGES and Assigned(ButtonPreset) then
       ToolButtonWidth := Max(ToolButtonWidth,
         MonitorForm.Canvas.TextWidth(ButtonPreset.Caption) +
@@ -620,10 +630,10 @@ begin
     ToolBar.ButtonWidth := ToolButtonWidth;
     ToolBar.ButtonHeight := MulDiv(28, MonitorForm.Font.PixelsPerInch, 96);
     if ENABLE_MONITOR_EDIT_PAGES then
-      ToolBar.Width := ToolButtonWidth * 4 +
+      ToolBar.Width := ToolButtonWidth * 5 +
         MulDiv(4, MonitorForm.Font.PixelsPerInch, 96)
     else
-      ToolBar.Width := ToolButtonWidth * 2 +
+      ToolBar.Width := ToolButtonWidth * 3 +
         MulDiv(4, MonitorForm.Font.PixelsPerInch, 96);
     ToolBar.Height := ToolBar.ButtonHeight;
     ToolBar.Realign;
@@ -647,6 +657,9 @@ begin
   if Assigned(SpectrumPaintBox) then
     SpectrumPaintBox.SetBounds(0, 0, PanelSpectrum.Width, PanelSpectrum.Height);
 
+  if Assigned(SpectrogramPaintBox) then
+    SpectrogramPaintBox.SetBounds(0, 0, PanelSpectrogram.Width, PanelSpectrogram.Height);
+
   PositionStateLabel;
 end;
 
@@ -668,6 +681,9 @@ begin
 
   if Assigned(SpectrumPaintBox) and SpectrumPaintBox.Visible and PanelSpectrum.Visible then
     SpectrumPaintBox.Invalidate;
+
+  if Assigned(SpectrogramPaintBox) and SpectrogramPaintBox.Visible and PanelSpectrogram.Visible then
+    SpectrogramPaintBox.Invalidate;
 end;
 
 procedure DrawBuffered(PaintBox: TPaintBox; DrawProc: TProc<TCanvas, TRect>);
@@ -776,6 +792,43 @@ begin
     end);
 end;
 
+procedure TMonitorTimerTarget.SpectrogramPaint(Sender: TObject);
+var
+  PaintBox: TPaintBox;
+  SpectrumState: PAul2AudioMonitorSpectrumState;
+  DisplaySpectrumState: PAul2AudioMonitorSpectrumState;
+  SpectrumSnapshot: TAul2AudioMonitorSpectrumState;
+begin
+  if not (Sender is TPaintBox) then
+    Exit;
+
+  PaintBox := TPaintBox(Sender);
+  // 非表示ページの再配置などでPaintが届いても履歴更新と描画を行わない。
+  if not PaintBox.Visible or not Assigned(PanelSpectrogram) or
+     not PanelSpectrogram.Visible then
+    Exit;
+
+  if IsEncodingDisplay then
+  begin
+    PaintBox.Canvas.Brush.Color := RGB(36, 36, 36);
+    PaintBox.Canvas.FillRect(PaintBox.ClientRect);
+    Exit;
+  end;
+
+  try
+    SpectrumState := GetSpectrumSharedMemory.State;
+  except
+    SpectrumState := nil;
+  end;
+  DisplaySpectrumState := SelectSpectrumSnapshot(SpectrumState, SpectrumSnapshot);
+
+  DrawBuffered(PaintBox,
+    procedure(Canvas: TCanvas; Rect: TRect)
+    begin
+      DrawAudioSpectrogramCanvas(Canvas, Rect, DisplaySpectrumState, IsPlaybackDisplay);
+    end);
+end;
+
 procedure CreateMonitorView(ParentWindow: HWND);
 var
   Rect: TRect;
@@ -827,10 +880,10 @@ begin
   ToolBar.ButtonWidth := MulDiv(74, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.ButtonHeight := ToolBar.Height;
   if ENABLE_MONITOR_EDIT_PAGES then
-    ToolBar.Width := ToolBar.ButtonWidth * 4 +
+    ToolBar.Width := ToolBar.ButtonWidth * 5 +
       MulDiv(12, MonitorForm.Font.PixelsPerInch, 96)
   else
-    ToolBar.Width := ToolBar.ButtonWidth * 2 +
+    ToolBar.Width := ToolBar.ButtonWidth * 3 +
       MulDiv(12, MonitorForm.Font.PixelsPerInch, 96);
   ToolBar.EdgeBorders := [];
   ToolBar.ShowCaptions := True;
@@ -853,17 +906,23 @@ begin
   ButtonSpectrum.Top := 0;
   ButtonSpectrum.Parent := ToolBar;
 
+  ButtonSpectrogram := TToolButton.Create(MonitorForm);
+  ButtonSpectrogram.Caption := 'Spectrogram';
+  ButtonSpectrogram.Left := ToolBar.ButtonWidth * 2;
+  ButtonSpectrogram.Top := 0;
+  ButtonSpectrogram.Parent := ToolBar;
+
   if ENABLE_MONITOR_EDIT_PAGES then
   begin
     ButtonBase := TToolButton.Create(MonitorForm);
     ButtonBase.Caption := 'View';
-    ButtonBase.Left := ToolBar.ButtonWidth * 2;
+    ButtonBase.Left := ToolBar.ButtonWidth * 3;
     ButtonBase.Top := 0;
     ButtonBase.Parent := ToolBar;
 
     ButtonPreset := TToolButton.Create(MonitorForm);
     ButtonPreset.Caption := 'Preset';
-    ButtonPreset.Left := ToolBar.ButtonWidth * 3;
+    ButtonPreset.Left := ToolBar.ButtonWidth * 4;
     ButtonPreset.Top := 0;
     ButtonPreset.Parent := ToolBar;
   end;
@@ -896,6 +955,14 @@ begin
   PanelSpectrum.Caption := '';
   PanelSpectrum.Color := RGB(36, 36, 36);
   PanelSpectrum.ParentBackground := False;
+
+  PanelSpectrogram := TPanel.Create(MonitorForm);
+  PanelSpectrogram.Parent := RootPanel;
+  PanelSpectrogram.Align := alClient;
+  PanelSpectrogram.BevelOuter := bvNone;
+  PanelSpectrogram.Caption := '';
+  PanelSpectrogram.Color := RGB(36, 36, 36);
+  PanelSpectrogram.ParentBackground := False;
 
   if ENABLE_MONITOR_EDIT_PAGES then
   begin
@@ -944,6 +1011,12 @@ begin
   SpectrumPaintBox.OnPaint := TimerTarget.SpectrumPaint;
   SpectrumPaintBox.BringToFront;
 
+  SpectrogramPaintBox := TPaintBox.Create(MonitorForm);
+  SpectrogramPaintBox.Parent := PanelSpectrogram;
+  SpectrogramPaintBox.Align := alClient;
+  SpectrogramPaintBox.OnPaint := TimerTarget.SpectrogramPaint;
+  SpectrogramPaintBox.BringToFront;
+
   if ENABLE_MONITOR_EDIT_PAGES then
   begin
     BasePanel := TAul2AudioBasePanel.Create(MonitorForm);
@@ -965,6 +1038,7 @@ begin
   ToolBarManager.ToolBarHotColor := RGB(58, 58, 58);
   ToolBarManager.AddPanel(PanelWave);
   ToolBarManager.AddPanel(PanelSpectrum);
+  ToolBarManager.AddPanel(PanelSpectrogram);
   if ENABLE_MONITOR_EDIT_PAGES then
   begin
     ToolBarManager.AddPanel(PanelBase);
@@ -1025,6 +1099,9 @@ begin
   if Assigned(SpectrumPaintBox) then
     SpectrumPaintBox.OnPaint := nil;
 
+  if Assigned(SpectrogramPaintBox) then
+    SpectrogramPaintBox.OnPaint := nil;
+
   if Assigned(MonitorForm) then
   begin
     MonitorForm.Hide;
@@ -1042,11 +1119,13 @@ begin
   ToolBar := nil;
   ButtonWave := nil;
   ButtonSpectrum := nil;
+  ButtonSpectrogram := nil;
   ButtonBase := nil;
   ButtonPreset := nil;
   StateLabel := nil;
   PanelWave := nil;
   PanelSpectrum := nil;
+  PanelSpectrogram := nil;
   PanelBase := nil;
   PanelPreset := nil;
   BasePanel := nil;
@@ -1054,6 +1133,7 @@ begin
   InfoLabel := nil;
   WavePaintBox := nil;
   SpectrumPaintBox := nil;
+  SpectrogramPaintBox := nil;
   TimerTarget := nil;
   ClientWindow := 0;
   LastViewWidth := 0;

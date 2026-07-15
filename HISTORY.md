@@ -4,6 +4,14 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-15 Aul2AudioMonitor Input/Output spectrogram
+
+- Monitorのツールバーへ`Spectrogram`を追加し、エフェクト処理前のInputと処理後のOutputを上下2段で表示するようにした。
+- Filter側がすでに共有している64バンドの`InputBands` / `OutputBands`を再利用し、FFT処理や共有メモリ構造は追加していない。
+- Spectrogramページの表示中だけ約20fpsで最大128列を蓄積し、約6.4秒の履歴として描画する。Wave／Spectrum表示中は履歴更新も描画も行わない。
+- 描画負荷を抑えるため、128×64ピクセルの32bitビットマップへ直接色を書き、表示領域へ拡大する方式にした。
+- Release Win64ビルドが警告0・エラー0で成功した。AviUtl2が起動中のため、`Aul2AudioMonitor.aux2`への差し替えは保留した。
+
 ## 2026-07-15 Controller release package inclusion
 
 - `Setup\make_release_zip.bat`から呼ばれる配布スクリプトへ`Aul2AudioController.aux2`の存在チェックとコピー処理を追加した。

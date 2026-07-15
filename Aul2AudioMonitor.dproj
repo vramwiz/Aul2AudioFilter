@@ -131,6 +131,7 @@
         <DCCReference Include="Source\Aul2AudioPresetModel.pas"/>
         <DCCReference Include="Source\Lib\PresetSupport\Serialization\Section\SectionFileManager.pas"/>
         <DCCReference Include="Source\Aul2AudioMonitorPaint.pas"/>
+        <DCCReference Include="Source\Aul2AudioMonitorSpectrogram.pas"/>
         <DCCReference Include="Source\Aul2AudioMonitorView.pas"/>
         <DCCReference Include="Source\Aul2AudioMonitorPlugin.pas"/>
         <BuildConfiguration Include="Base">

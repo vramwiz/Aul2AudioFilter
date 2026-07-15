@@ -56,6 +56,7 @@
 - `Aul2AudioView.dpr`: `Aul2AudioBaseInput` の上に載せる MV 用表示フィルタープラグイン入口。
 - `Aul2AudioView.dproj`: 表示用フィルタープラグインの Delphi Win64 Debug / Release ビルド設定。出力先は `Aul2AudioFilter` と同じ配布フォルダ。
 - `Source\Aul2AudioMonitorPlugin.pas`: `Aul2AudioMonitor` の拡張メニュー登録、AviUtl2 クライアントウィンドウ登録、フォーム表示管理。
+- `Source\Aul2AudioMonitorSpectrogram.pas`: 既存の処理前/処理後64バンド解析値から、表示中だけ約6.4秒のスペクトログラム履歴を蓄積して上下2段で描画する。
 - `Source\Aul2AudioControllerPlugin.pas`: `Aul2AudioController` の拡張メニュー登録、AviUtl2 クライアントウィンドウ登録、マウス進入時の同期発火とフォーム表示管理。
 - `Source\Aul2AudioControllerEffectDefinition.pas`: 全20エフェクターの名前、日本語LED表記、配色、選択項目、ノブ範囲、Alias項目名を一元管理する。
 - `Source\Aul2AudioControllerSync.pas`: 選択中Objectのエイリアス取得、対象フィルター探索、選択中エフェクターの定義に基づく読み込みと項目単位の書き込みを担当する。
@@ -179,7 +180,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 `Aul2AudioMonitor` は `.dll` を `.aux2` にコピーする。Release では元の `.dll` と `.rsm` を削除する。
 `Aul2AudioController` も `.dll` を `.aux2` にコピーし、Release では元の `.dll` と `.rsm` を削除する。
 
-`Aul2AudioMonitor` は AviUtl2 の編集メニューに `Aul2AudioMonitor` を追加し、Wave / Spectrum を切り替えて表示する拡張プラグインとして本採用する。
+`Aul2AudioMonitor` は AviUtl2 の編集メニューに `Aul2AudioMonitor` を追加し、Wave / Spectrum / Spectrogram を切り替えて表示する拡張プラグインとして本採用する。
 フィルター側は `Local\Aul2AudioMonitorState` と `Local\Aul2AudioMonitorSpectrum` へ常時表示用データを書き出す。検証用の `ENABLE_AUDIO_MONITOR_SHARED_MEMORY` const と分岐は削除済み。
 `Aul2AudioMonitor` 側は 50ms タイマーで共有メモリを読み、初期表示は `Spectrum`。数値中心の疎通確認表示はちらつきが大きいため通常表示から外し、描画表示を主にする。`Spectrum` 右側には小型の縦 Peak Meter と Stereo Balance を常時表示する。
 
@@ -211,8 +212,9 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 
 - `Aul2AudioMonitor.aux2` は `Aul2AudioFilter.auf2` と同時配布する表示用拡張プラグイン。
 - `.auf2` 側は共有メモリへ表示用データを常時書き出し、`.aux2` 側は描画/UI だけを担当する。
-- 表示は `Wave` / `Spectrum` のツールバー構成。初期表示は `Spectrum`。View配置とPreset管理はControllerへ移行済み。
+- 表示は `Wave` / `Spectrum` / `Spectrogram` のツールバー構成。初期表示は `Spectrum`。View配置とPreset管理はControllerへ移行済み。
 - `Wave` は 256 点程度の時間波形表示。`Spectrum` は 64 バンドの周波数表示で、入力はグリーン、出力はアンバー。
+- `Spectrogram` は既存の入力/出力64バンドを約20fpsで最大128列保持し、約6.4秒の変化をInput/Outputの上下2段で表示する。選択中だけ履歴更新と描画を行う。
 - `Spectrum` 右側には Peak Meter と Stereo Balance を表示する。
 - 共有メモリは基本状態/時間波形用の `Local\Aul2AudioMonitorState` と、スペクトラム用の `Local\Aul2AudioMonitorSpectrum` に分ける。
 - 生の音声サンプル全体は共有メモリに載せない。Wave、Spectrum、Meter、Stereo は表示用に軽量集計した値だけを使う。

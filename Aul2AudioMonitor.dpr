@@ -24,6 +24,7 @@ uses
   Aul2AudioPresetModel in 'Source\Aul2AudioPresetModel.pas',
   SectionFileManager in 'Source\Lib\PresetSupport\Serialization\Section\SectionFileManager.pas',
   Aul2AudioMonitorPaint in 'Source\Aul2AudioMonitorPaint.pas',
+  Aul2AudioMonitorSpectrogram in 'Source\Aul2AudioMonitorSpectrogram.pas',
   Aul2AudioMonitorView in 'Source\Aul2AudioMonitorView.pas',
   Aul2AudioMonitorPlugin in 'Source\Aul2AudioMonitorPlugin.pas';
 
