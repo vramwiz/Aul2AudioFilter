@@ -16,6 +16,7 @@ uses
   ShortcutAction in 'Source\Lib\ShortcutAction\ShortcutAction.pas',
   Aul2AudioMonitorShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas',
   Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
+  Aul2AudioMonitorVectorShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorVectorShared.pas',
   Aul2AudioViewFrameShared in 'Source\Lib\AudioMonitor\Aul2AudioViewFrameShared.pas',
   Aul2AudioBaseAlias in 'Source\Aul2AudioBaseAlias.pas',
   Aul2AudioBaseCreate in 'Source\Aul2AudioBaseCreate.pas',
@@ -25,6 +26,7 @@ uses
   SectionFileManager in 'Source\Lib\PresetSupport\Serialization\Section\SectionFileManager.pas',
   Aul2AudioMonitorPaint in 'Source\Aul2AudioMonitorPaint.pas',
   Aul2AudioMonitorSpectrogram in 'Source\Aul2AudioMonitorSpectrogram.pas',
+  Aul2AudioMonitorVectorscope in 'Source\Aul2AudioMonitorVectorscope.pas',
   Aul2AudioMonitorView in 'Source\Aul2AudioMonitorView.pas',
   Aul2AudioMonitorPlugin in 'Source\Aul2AudioMonitorPlugin.pas';
 

@@ -4,6 +4,16 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-15 Aul2AudioMonitor Input/Output vectorscope
+
+- Monitorのツールバーへ`Vectorscope`を追加し、エフェクト処理前のInputと処理後のOutputについて、L/Rの広がりと位相傾向を並べて比較できるようにした。
+- 専用共有メモリ`Local\Aul2AudioMonitorVector`へ各64組のL/R代表点とレイヤー別128件の履歴を保持し、既存のWave/Spectrum共有構造のバージョンは変更していない。
+- Vectorscopeページが表示中のときだけMonitorから要求時刻を通知し、Filterは要求が250ms以内の間だけ、既存の音声バッファ読み取りから代表点を採取するようにした。FFTや追加の全サンプル走査は行わない。
+- Inputをグリーン、Outputをアンバーとし、両方を同じ自動倍率で描画する。モノラルは縦、逆相成分は横へ広がる一般的な45度回転表示とした。
+- FilterとMonitorのDebug／Release Win64ビルドが、警告0・エラー0で成功した。Release版を`Aul2AudioFilter.auf2`と`Aul2AudioMonitor.aux2`へ反映した。
+- 編集停止中は音声コールバックが継続しないため、Vectorscope描画側の2.5秒鮮度判定で表示が消えていた。共有状態が有効な間は最後の表示を保持するよう、Wave／Spectrumと同じ編集時の扱いへ修正した。
+- ユーザー実機確認により、再生中の動作と編集停止中の表示保持が正常であることを確認した。READMEの「モニターのモード」へ`Vectorscope`の用途と見方を追加した。
+
 ## 2026-07-15 Aul2AudioMonitor Input/Output spectrogram
 
 - Monitorのツールバーへ`Spectrogram`を追加し、エフェクト処理前のInputと処理後のOutputを上下2段で表示するようにした。
