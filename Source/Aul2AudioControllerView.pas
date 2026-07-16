@@ -42,6 +42,7 @@ uses
   Aul2AudioControllerEqGraph,
   Aul2AudioControllerEffectDefinition,
   Aul2AudioControllerLampSwitch,
+  Aul2AudioControllerLimiterGraph,
   Aul2AudioControllerNoiseGateGraph,
   Aul2AudioControllerSync,
   Aul2AudioControllerVolumeControl,
@@ -110,6 +111,7 @@ var
   DistortionGraph: TAul2ControllerDistortionGraph;
   BitCrusherGraph: TAul2ControllerBitCrusherGraph;
   NoiseGateGraph  : TAul2ControllerNoiseGateGraph;
+  LimiterGraph    : TAul2ControllerLimiterGraph;
   VolumeControls : array[0..CONTROLLER_MAX_VOLUME_COUNT - 1] of TAul2VolumeControl;
   MouseTimer     : TTimer;
   EventTarget    : TControllerEventTarget;
@@ -242,6 +244,8 @@ begin
     BitCrusherGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(NoiseGateGraph) then
     NoiseGateGraph.AccentColor := Definition.IndicatorColor;
+  if Assigned(LimiterGraph) then
+    LimiterGraph.AccentColor := Definition.IndicatorColor;
   RootPanel.Invalidate;
 end;
 
@@ -417,6 +421,28 @@ begin
     Assigned(UseLamp) and UseLamp.Checked);
 end;
 
+procedure UpdateLimiterGraph(ChangedIndex: Integer = -1;
+  const ChangedValueText: string = '');
+var
+  Index : Integer;
+  Values: array[0..2] of Double;
+begin
+  if not Assigned(LimiterGraph) or not Assigned(EffectCombo) or
+     (EffectCombo.ItemIndex <> 19) then
+    Exit;
+
+  for Index := Low(Values) to High(Values) do
+    if Assigned(VolumeControls[Index]) then
+      Values[Index] := VolumeControls[Index].Value
+    else
+      Values[Index] := 0;
+  if (ChangedIndex >= Low(Values)) and (ChangedIndex <= High(Values)) then
+    TryStrToFloat(ChangedValueText, Values[ChangedIndex], FormatSettings);
+
+  LimiterGraph.SetLimiter(Values[0], Values[1], Values[2],
+    Assigned(UseLamp) and UseLamp.Checked);
+end;
+
 procedure UpdateEffectGraph(ChangedIndex: Integer = -1; const ChangedValueText: string = '');
 begin
   UpdateDelayGraph(ChangedIndex, ChangedValueText);
@@ -425,6 +451,7 @@ begin
   UpdateDistortionGraph(ChangedIndex, ChangedValueText);
   UpdateBitCrusherGraph(ChangedIndex, ChangedValueText);
   UpdateNoiseGateGraph(ChangedIndex, ChangedValueText);
+  UpdateLimiterGraph(ChangedIndex, ChangedValueText);
 end;
 
 procedure LayoutControllerView;
@@ -464,6 +491,7 @@ begin
   DistortionGraph.Visible := False;
   BitCrusherGraph.Visible := False;
   NoiseGateGraph.Visible := False;
+  LimiterGraph.Visible := False;
   SyncMessageLabel.SetBounds(LeftMargin, Scale(42), ContentWidth,
     Max(Scale(72), RootPanel.ClientHeight - Scale(54)));
   if IsBasePanelSelected then
@@ -527,7 +555,7 @@ begin
   GraphWidth := Min(Scale(300), ContentWidth);
   GraphHeight := Scale(150);
   GraphLeft := LeftMargin + (ContentWidth - GraphWidth) div 2;
-  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 4, 6, 14]) and
+  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 4, 6, 14, 19]) and
      (GraphWidth >= Scale(180)) and
      (GraphTop + GraphHeight + Scale(6) <= RootPanel.ClientHeight) then
   begin
@@ -556,10 +584,15 @@ begin
       BitCrusherGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
       BitCrusherGraph.Visible := True;
     end
-    else
+    else if EffectCombo.ItemIndex = 14 then
     begin
       NoiseGateGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
       NoiseGateGraph.Visible := True;
+    end
+    else
+    begin
+      LimiterGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
+      LimiterGraph.Visible := True;
     end;
   end;
 end;
@@ -586,6 +619,7 @@ begin
   DistortionGraph.Visible := False;
   BitCrusherGraph.Visible := False;
   NoiseGateGraph.Visible := False;
+  LimiterGraph.Visible := False;
   SyncMessageLabel.Visible := True;
   SyncMessageLabel.BringToFront;
 end;
@@ -638,6 +672,7 @@ begin
   DistortionGraph.Invalidate;
   BitCrusherGraph.Invalidate;
   NoiseGateGraph.Invalidate;
+  LimiterGraph.Invalidate;
   RootPanel.Update;
 end;
 
@@ -664,6 +699,7 @@ begin
       DistortionGraph.Visible := False;
       BitCrusherGraph.Visible := False;
       NoiseGateGraph.Visible := False;
+      LimiterGraph.Visible := False;
       PresetPanel.Visible := False;
       BasePanel.Visible := True;
       BasePanel.BringToFront;
@@ -689,6 +725,7 @@ begin
       DistortionGraph.Visible := False;
       BitCrusherGraph.Visible := False;
       NoiseGateGraph.Visible := False;
+      LimiterGraph.Visible := False;
       BasePanel.Visible := False;
       PresetPanel.Visible := True;
       PresetPanel.BringToFront;
@@ -1151,6 +1188,12 @@ begin
   NoiseGateGraph.Visible := False;
   RegisterMouseEnter(NoiseGateGraph);
 
+  LimiterGraph := TAul2ControllerLimiterGraph.Create(ControllerForm);
+  LimiterGraph.Font.Assign(ControllerForm.Font);
+  LimiterGraph.Parent := RootPanel;
+  LimiterGraph.Visible := False;
+  RegisterMouseEnter(LimiterGraph);
+
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
   begin
     VolumeControls[ControlIndex] := TAul2VolumeControl.Create(ControllerForm);
@@ -1266,6 +1309,7 @@ begin
   DistortionGraph := nil;
   BitCrusherGraph := nil;
   NoiseGateGraph := nil;
+  LimiterGraph := nil;
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
     VolumeControls[ControlIndex] := nil;
   MouseTimer := nil;

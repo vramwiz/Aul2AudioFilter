@@ -4,6 +4,13 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-17 Aul2AudioController Limiter graph
+
+- Controllerの次の補助表示として、`Aul2AudioControllerLimiterGraph.pas`を追加した。横軸と縦軸を-60～+12dBとし、Ceilingまでは無加工、超過部分はDSPと同じくWetをCeilingへ制限してDryとMixする定常入出力特性を描画する。
+- 無加工基準線、Ceiling位置、超過時に抑制される領域の塗り、Mix、Releaseを表示する。Releaseはピーク後のゲイン回復時間なのでカーブ形状を変えない。UseがOFFでも設定形状を暗く残し、ノブ操作、設定読込、Use変更、リサイズへ追従する。
+- 初回のAviUtl2実機表示ではカーブと文字は良好だったが、抑制領域の塗りが背景へ沈んでほとんど見えなかったため、塗りをアクセント色の20%から38%へ明るくした。
+- `Aul2AudioController.dproj`のRelease Win64ビルドは警告・エラーなしで成功し、`Aul2AudioController.aux2`へ反映した。AviUtl2上の実表示確認は未実施。
+
 ## 2026-07-17 Aul2AudioController NoiseGate graph
 
 - Controllerの次の補助表示として、`Aul2AudioControllerNoiseGateGraph.pas`を追加した。横軸を入力-80～0dB、縦軸を出力-160～0dBとし、DSPと同じくThreshold未満では入力へFloor dBを加え、Threshold以上では無加工となる定常入出力特性を描画する。
