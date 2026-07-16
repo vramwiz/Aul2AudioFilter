@@ -35,6 +35,7 @@ uses
   Vcl.Forms,
   Vcl.Graphics,
   Vcl.StdCtrls,
+  Aul2AudioControllerDelayGraph,
   Aul2AudioControllerEffectDefinition,
   Aul2AudioControllerLampSwitch,
   Aul2AudioControllerSync,
@@ -98,6 +99,7 @@ var
   ModeHost       : TRoundedPanel;
   ModeLabel      : TLabel;
   ModeCombo      : TComboBox;
+  DelayGraph     : TAul2ControllerDelayGraph;
   VolumeControls : array[0..CONTROLLER_MAX_VOLUME_COUNT - 1] of TAul2VolumeControl;
   MouseTimer     : TTimer;
   EventTarget    : TControllerEventTarget;
@@ -218,6 +220,8 @@ begin
     VolumeControls[ControlIndex].AccentColor := Definition.IndicatorColor;
     VolumeControls[ControlIndex].TextColor := Definition.TextColor;
   end;
+  if Assigned(DelayGraph) then
+    DelayGraph.AccentColor := Definition.IndicatorColor;
   RootPanel.Invalidate;
 end;
 
@@ -248,6 +252,36 @@ begin
     (EffectCombo.ItemIndex = CONTROLLER_PRESET_ITEM_INDEX);
 end;
 
+procedure UpdateDelayGraph(ChangedIndex: Integer = -1; const ChangedValueText: string = '');
+var
+  Feedback: Double;
+  Dry     : Double;
+  TimeMs  : Double;
+  Values  : array[0..3] of Double;
+  Wet     : Double;
+  Index   : Integer;
+begin
+  if not Assigned(DelayGraph) or not Assigned(EffectCombo) or
+     (EffectCombo.ItemIndex <> 0) then
+    Exit;
+
+  for Index := Low(Values) to High(Values) do
+    if Assigned(VolumeControls[Index]) then
+      Values[Index] := VolumeControls[Index].Value
+    else
+      Values[Index] := 0;
+  if (ChangedIndex >= Low(Values)) and (ChangedIndex <= High(Values)) then
+    TryStrToFloat(ChangedValueText, Values[ChangedIndex], FormatSettings);
+
+  TimeMs := Values[0];
+  Dry := Values[1];
+  Wet := Values[2];
+  Feedback := Values[3];
+  DelayGraph.SetDelay(TimeMs, Dry, Wet, Feedback,
+    Assigned(ModeCombo) and (ModeCombo.ItemIndex = 1),
+    Assigned(UseLamp) and UseLamp.Checked);
+end;
+
 procedure LayoutControllerView;
 var
   ContentWidth: Integer;
@@ -259,8 +293,13 @@ var
   ControlLeft : Integer;
   ControlTop  : Integer;
   ControlWidth: Integer;
+  GraphHeight : Integer;
+  GraphLeft   : Integer;
+  GraphTop    : Integer;
+  GraphWidth  : Integer;
   LabelWidth  : Integer;
   LeftMargin  : Integer;
+  RowCount    : Integer;
   RowHeight   : Integer;
   TopPosition : Integer;
   VisibleControlCount: Integer;
@@ -274,6 +313,7 @@ begin
   ContentWidth := RootPanel.ClientWidth - LeftMargin * 2;
 
   EffectCombo.SetBounds(LeftMargin, Scale(6), ContentWidth, Scale(27));
+  DelayGraph.Visible := False;
   SyncMessageLabel.SetBounds(LeftMargin, Scale(42), ContentWidth,
     Max(Scale(72), RootPanel.ClientHeight - Scale(54)));
   if IsBasePanelSelected then
@@ -330,6 +370,20 @@ begin
     VolumeControls[ControlIndex].SetBounds(ControlLeft, ControlTop, ControlWidth, ControlHeight);
     Inc(ColumnIndex);
   end;
+
+  RowCount := (VisibleControlCount + ColumnCount - 1) div ColumnCount;
+  GraphTop := TopPosition + RowCount * ControlHeight +
+    Max(0, RowCount - 1) * ControlGap + Scale(10);
+  GraphWidth := Min(Scale(300), ContentWidth);
+  GraphHeight := Scale(150);
+  GraphLeft := LeftMargin + (ContentWidth - GraphWidth) div 2;
+  if ControllerSynchronized and (EffectCombo.ItemIndex = 0) and
+     (GraphWidth >= Scale(180)) and
+     (GraphTop + GraphHeight + Scale(6) <= RootPanel.ClientHeight) then
+  begin
+    DelayGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
+    DelayGraph.Visible := True;
+  end;
 end;
 
 procedure ConfigureCurrentEffect; forward;
@@ -348,6 +402,7 @@ begin
   PresetPanel.Visible := False;
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
     VolumeControls[ControlIndex].Visible := False;
+  DelayGraph.Visible := False;
   SyncMessageLabel.Visible := True;
   SyncMessageLabel.BringToFront;
 end;
@@ -394,6 +449,7 @@ begin
   ModeCombo.Invalidate;
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
     VolumeControls[ControlIndex].Invalidate;
+  DelayGraph.Invalidate;
   RootPanel.Update;
 end;
 
@@ -414,6 +470,7 @@ begin
       ModeHost.Visible := False;
       for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
         VolumeControls[ControlIndex].Visible := False;
+      DelayGraph.Visible := False;
       PresetPanel.Visible := False;
       BasePanel.Visible := True;
       BasePanel.BringToFront;
@@ -433,6 +490,7 @@ begin
       ModeHost.Visible := False;
       for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
         VolumeControls[ControlIndex].Visible := False;
+      DelayGraph.Visible := False;
       BasePanel.Visible := False;
       PresetPanel.Visible := True;
       PresetPanel.BringToFront;
@@ -556,6 +614,8 @@ begin
       end;
       LastUse := State.Use;
       LastSelectIndex := State.SelectIndex;
+      UpdateDelayGraph;
+      LayoutControllerView;
       StatusLabel.Caption := Definition.DisplayName + ' loaded';
       StatusLabel.Font.Color := RGB(112, 232, 142);
     end
@@ -602,7 +662,10 @@ begin
     Success := SetSelectedEffectItem(Definition.UseItemName, '0');
 
   if Success then
-    LastUse := UseLamp.Checked
+  begin
+    LastUse := UseLamp.Checked;
+    UpdateDelayGraph;
+  end
   else
     UseLamp.Checked := LastUse;
   ShowWriteStatus(Success, Definition.UseItemName);
@@ -622,7 +685,10 @@ begin
   Success := SetSelectedEffectItem(Definition.SelectControl.ItemName,
     ModeCombo.Items[ModeCombo.ItemIndex]);
   if Success then
-    LastSelectIndex := ModeCombo.ItemIndex
+  begin
+    LastSelectIndex := ModeCombo.ItemIndex;
+    UpdateDelayGraph;
+  end
   else
     ModeCombo.ItemIndex := LastSelectIndex;
   ShowWriteStatus(Success, Definition.SelectControl.ItemName);
@@ -646,6 +712,8 @@ begin
   ItemName := Definition.Volumes[ControlIndex].ItemName;
 
   Accept := SetSelectedEffectItem(ItemName, ValueText);
+  if Accept then
+    UpdateDelayGraph(ControlIndex, ValueText);
   ShowWriteStatus(Accept, ItemName);
 end;
 
@@ -849,6 +917,12 @@ begin
   ApplyDarkComboStyle(ModeCombo);
   RegisterMouseEnter(ModeCombo);
 
+  DelayGraph := TAul2ControllerDelayGraph.Create(ControllerForm);
+  DelayGraph.Font.Assign(ControllerForm.Font);
+  DelayGraph.Parent := RootPanel;
+  DelayGraph.Visible := False;
+  RegisterMouseEnter(DelayGraph);
+
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
   begin
     VolumeControls[ControlIndex] := TAul2VolumeControl.Create(ControllerForm);
@@ -958,6 +1032,7 @@ begin
   ModeHost := nil;
   ModeLabel := nil;
   ModeCombo := nil;
+  DelayGraph := nil;
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
     VolumeControls[ControlIndex] := nil;
   MouseTimer := nil;

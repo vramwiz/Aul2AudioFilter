@@ -22,6 +22,7 @@ uses
   Aul2AudioControllerSync in 'Source\Aul2AudioControllerSync.pas',
   Aul2AudioControllerLampSwitch in 'Source\Aul2AudioControllerLampSwitch.pas',
   Aul2AudioControllerVolumeControl in 'Source\Aul2AudioControllerVolumeControl.pas',
+  Aul2AudioControllerDelayGraph in 'Source\Aul2AudioControllerDelayGraph.pas',
   Aul2AudioControllerView in 'Source\Aul2AudioControllerView.pas',
   Aul2AudioControllerPlugin in 'Source\Aul2AudioControllerPlugin.pas';
 
