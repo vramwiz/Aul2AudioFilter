@@ -29,6 +29,7 @@ uses
   Aul2AudioViewRenderPixelWave in 'Source\Aul2AudioViewRenderPixelWave.pas',
   Aul2AudioViewRenderPulseWave in 'Source\Aul2AudioViewRenderPulseWave.pas',
   Aul2AudioViewRenderRadialWaveform3D in 'Source\Aul2AudioViewRenderRadialWaveform3D.pas',
+  Aul2AudioViewRenderSpectrumLandscape3D in 'Source\Aul2AudioViewRenderSpectrumLandscape3D.pas',
   Aul2AudioViewVector in 'Source\Aul2AudioViewVector.pas',
   Aul2AudioViewRenderVectorscope in 'Source\Aul2AudioViewRenderVectorscope.pas',
   Aul2AudioViewRender in 'Source\Aul2AudioViewRender.pas',

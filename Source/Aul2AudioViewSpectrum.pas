@@ -7,6 +7,9 @@ interface
 uses
   Aul2AudioMonitorSpectrumShared;
 
+type
+  TAudioViewSpectrumHistory = array of TAudioMonitorSpectrumData;
+
 // スペクトラム共有メモリを開き、描画値を取得できる状態にする。
 procedure InitializeViewSpectrum;
 // スペクトラム共有メモリと ViewFrame 共有メモリを解放し、平滑化履歴を無効にする。
@@ -20,6 +23,10 @@ procedure UpdateViewSpectrumLatestForEdit(Smooth: Integer; out Bands: TAudioMoni
   out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single; SourceLayer: Integer);
 // Monitorが通知した編集状態を返す。0=Edit、1=Play、2=Encode。
 function GetViewEditState: Integer;
+// 現在フレーム以前の同一レイヤーのスペクトラムを新しい順で返す。
+procedure GetViewSpectrumHistory(CurrentFrame, SourceLayer, MaxCount: Integer;
+  out History: TAudioViewSpectrumHistory; out Valid: Boolean;
+  out SourceMinHz, SourceMaxHz: Single);
 
 implementation
 
@@ -277,6 +284,120 @@ begin
       SmoothBand(DisplayBands[Band], State^.OutputBands[Band], Smooth);
 
   Bands := DisplayBands;
+  Valid := True;
+end;
+
+procedure GetViewSpectrumHistory(CurrentFrame, SourceLayer, MaxCount: Integer;
+  out History: TAudioViewSpectrumHistory; out Valid: Boolean;
+  out SourceMinHz, SourceMaxHz: Single);
+type
+  THistoryEntry = record
+    Frame: Integer;
+    UpdateTick: UInt64;
+    Bands: TAudioMonitorSpectrumData;
+    MinHz: Single;
+    MaxHz: Single;
+  end;
+var
+  Entries: array of THistoryEntry;
+  State: PAul2AudioMonitorSpectrumState;
+  Selected: PAul2AudioMonitorSpectrumState;
+  InternalLayer: Integer;
+  Index: Integer;
+  EntryIndex: Integer;
+  SortIndex: Integer;
+  Count: Integer;
+  Temp: THistoryEntry;
+begin
+  SetLength(History, 0);
+  Valid := False;
+  SourceMinHz := 20.0;
+  SourceMaxHz := 20000.0;
+  MaxCount := Max(1, Min(AUDIO_MONITOR_SPECTRUM_HISTORY_COUNT, MaxCount));
+
+  if SpectrumMemory = nil then
+    InitializeViewSpectrum;
+  if (SpectrumMemory = nil) or (SpectrumMemory.Root = nil) then
+    Exit;
+
+  UpdateViewFrame(CurrentFrame);
+  InternalLayer := ResolveSourceLayer(SourceLayer);
+  if InternalLayer = AUDIO_MONITOR_LAYER_AUTO then
+  begin
+    Selected := SelectSpectrumState(CurrentFrame, InternalLayer);
+    if (Selected = nil) and (GetViewEditState = 0) then
+      Selected := SpectrumMemory.State;
+    if not SpectrumStateUsable(Selected) then
+      Exit;
+    InternalLayer := Selected^.SourceLayer;
+  end;
+  if (InternalLayer < 0) or (InternalLayer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+
+  SetLength(Entries, AUDIO_MONITOR_SPECTRUM_HISTORY_COUNT);
+  Count := 0;
+  for Index := 0 to AUDIO_MONITOR_SPECTRUM_HISTORY_LAST do
+  begin
+    State := SpectrumMemory.GetHistoryStateForLayer(InternalLayer, Index);
+    if not SpectrumStateUsable(State) or not StateMatchesFrame(State, CurrentFrame) then
+      Continue;
+    if (CurrentFrame >= 0) and (StateDisplayFrame(State) > CurrentFrame) then
+      Continue;
+
+    EntryIndex := -1;
+    for SortIndex := 0 to Count - 1 do
+      if Entries[SortIndex].Frame = StateDisplayFrame(State) then
+      begin
+        EntryIndex := SortIndex;
+        Break;
+      end;
+    if (EntryIndex >= 0) and (Entries[EntryIndex].UpdateTick >= State^.UpdateTick) then
+      Continue;
+    if EntryIndex < 0 then
+    begin
+      EntryIndex := Count;
+      Inc(Count);
+    end;
+    Entries[EntryIndex].Frame := StateDisplayFrame(State);
+    Entries[EntryIndex].UpdateTick := State^.UpdateTick;
+    Entries[EntryIndex].Bands := State^.OutputBands;
+    Entries[EntryIndex].MinHz := State^.MinHz;
+    Entries[EntryIndex].MaxHz := State^.MaxHz;
+  end;
+
+  // 編集停止中に同期履歴が取れない場合は、指定レイヤーの最新値を最低1列として使う。
+  if (Count = 0) and (GetViewEditState = 0) then
+  begin
+    State := SpectrumMemory.GetStateForLayer(InternalLayer);
+    if SpectrumStateUsable(State) then
+    begin
+      Entries[0].Frame := StateDisplayFrame(State);
+      Entries[0].UpdateTick := State^.UpdateTick;
+      Entries[0].Bands := State^.OutputBands;
+      Entries[0].MinHz := State^.MinHz;
+      Entries[0].MaxHz := State^.MaxHz;
+      Count := 1;
+    end;
+  end;
+
+  // 現在に近い履歴から奥へ並べられるよう、絶対フレームの降順へ整列する。
+  for Index := 0 to Count - 2 do
+    for SortIndex := Index + 1 to Count - 1 do
+      if Entries[SortIndex].Frame > Entries[Index].Frame then
+      begin
+        Temp := Entries[Index];
+        Entries[Index] := Entries[SortIndex];
+        Entries[SortIndex] := Temp;
+      end;
+
+  Count := Min(Count, MaxCount);
+  if Count <= 0 then
+    Exit;
+  SetLength(History, Count);
+  for Index := 0 to Count - 1 do
+    History[Index] := Entries[Index].Bands;
+  SourceMinHz := Max(1.0, Entries[0].MinHz);
+  SourceMaxHz := Max(SourceMinHz + 1.0, Entries[0].MaxHz);
   Valid := True;
 end;
 

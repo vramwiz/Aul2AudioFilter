@@ -27,7 +27,7 @@ uses
 
 var
   GViewTypeSelect  : TFILTER_ITEM_SELECT;
-  GViewTypeList    : array[0..10] of TFILTER_ITEM_SELECT_ITEM;
+  GViewTypeList    : array[0..11] of TFILTER_ITEM_SELECT_ITEM;
   GViewStyleSelect : TFILTER_ITEM_SELECT;
   GViewStyleList   : array[0..2] of TFILTER_ITEM_SELECT_ITEM;
   GViewDensityTrack: TFILTER_ITEM_TRACK;
@@ -186,6 +186,7 @@ begin
     AddSelectList(GViewTypeList, 'Vectorscope', VIEW_TYPE_VECTORSCOPE);
     AddSelectList(GViewTypeList, 'Circular Bars (3D)', VIEW_TYPE_CIRCULAR_BARS_3D);
     AddSelectList(GViewTypeList, 'Radial Waveform (3D)', VIEW_TYPE_RADIAL_WAVEFORM_3D);
+    AddSelectList(GViewTypeList, 'Spectrum Landscape (3D)', VIEW_TYPE_SPECTRUM_LANDSCAPE_3D);
     AddSelect(GViewTypeSelect, 'Type', VIEW_TYPE_EQUALIZER_BARS, @GViewTypeList[0]);
 
     ClearSelectList;
