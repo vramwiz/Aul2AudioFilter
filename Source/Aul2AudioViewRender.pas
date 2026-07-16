@@ -25,6 +25,7 @@ uses
   Aul2AudioViewRenderPulseWave,
   Aul2AudioViewRenderRadialWaveform3D,
   Aul2AudioViewRenderSpectrumLandscape3D,
+  Aul2AudioViewRenderSpectrumWaterfall3D,
   Aul2AudioViewRenderWaveformTunnel3D,
   Aul2AudioViewRenderVectorscope,
   Aul2AudioViewRenderWaveLine;
@@ -165,6 +166,24 @@ begin
     GetMem(Buffer, BufferSize);
     try
       DrawWaveLine(Buffer, Width, Height, Settings, CurrentFrame);
+      OutputImageData(Video, Buffer, Width, Height);
+    finally
+      FreeMem(Buffer);
+    end;
+    Exit;
+  end;
+
+  if Settings.ViewType = VIEW_TYPE_SPECTRUM_WATERFALL_3D then
+  begin
+    if DrawSpectrumWaterfall3D(Video, Settings, CurrentFrame) then
+    begin
+      Result := False;
+      Exit;
+    end;
+    BufferSize := NativeUInt(Width) * NativeUInt(Height) * SizeOf(TPIXEL_RGBA);
+    GetMem(Buffer, BufferSize);
+    try
+      DrawFilledSpectrum(Buffer, Width, Height, Settings, CurrentFrame);
       OutputImageData(Video, Buffer, Width, Height);
     finally
       FreeMem(Buffer);

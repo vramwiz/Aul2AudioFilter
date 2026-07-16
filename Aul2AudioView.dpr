@@ -30,6 +30,7 @@ uses
   Aul2AudioViewRenderPulseWave in 'Source\Aul2AudioViewRenderPulseWave.pas',
   Aul2AudioViewRenderRadialWaveform3D in 'Source\Aul2AudioViewRenderRadialWaveform3D.pas',
   Aul2AudioViewRenderSpectrumLandscape3D in 'Source\Aul2AudioViewRenderSpectrumLandscape3D.pas',
+  Aul2AudioViewRenderSpectrumWaterfall3D in 'Source\Aul2AudioViewRenderSpectrumWaterfall3D.pas',
   Aul2AudioViewRenderWaveformTunnel3D in 'Source\Aul2AudioViewRenderWaveformTunnel3D.pas',
   Aul2AudioViewVector in 'Source\Aul2AudioViewVector.pas',
   Aul2AudioViewRenderVectorscope in 'Source\Aul2AudioViewRenderVectorscope.pas',

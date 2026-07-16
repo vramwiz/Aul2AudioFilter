@@ -4,6 +4,16 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-16 Aul2Audio View Spectrum Waterfall 3D completion note
+
+- 13番目のView Typeとして`Spectrum Waterfall (3D)`を追加した。既存のレイヤー別スペクトラム履歴を最大32列取得し、履歴同士を接続しない独立した細い帯としてZ方向へ並べ、`draw_poly()`で直接描画する。共有メモリの構造と容量は変更していない。
+- `Spectrum Landscape (3D)`が隣接履歴を面で接続した地形を作るのに対し、Waterfallは各履歴を独立させ、等高線・走査線に近い表示とした。`Solid`は周波数方向へ連続したリボン、`Blocks`は周波数方向も分割したタイル列として描く。
+- 再生中はView内の流動履歴へ現在スペクトラムを追加し、無音を高さ0の帯として有音帯を奥へ流す。編集中は現在カーソル以前の共有履歴を毎回取得し直し、同期履歴がない場合は指定レイヤーの最新値、それも無効または全ゼロなら最後の有効形状を保持する。Play／Encode中の本当の無音は保持しない。
+- `Density`は周波数分割数と最大履歴列数、`Spacing`は履歴帯の間隔と`Blocks`のタイル間隔、`Thickness`は帯のZ方向幅として反映した。X/Y/Z Scale、色、`Source Layer`、周波数軸、Low/High Hz、High Boostも反映した。円形座標を持たないため`Base Radius`は使用しない。
+- `Smooth`は平滑化済みの先頭スペクトラムだけでなく履歴方向にも適用し、隣接する帯の急な高さ差を抑えるようにした。
+- `draw_poly()`が利用できない場合または描画に失敗した場合は、同じスペクトラムを使う`Filled Spectrum`へフォールバックする。Type選択リストは13選択肢とnil終端1件の計14要素へ拡張した。
+- `Aul2AudioView.dproj`のRelease Win64ビルドが警告・エラーなしで成功し、`Aul2AudioView.auf2`へ反映した。AviUtl2上の表示と各パラメーターをユーザー実機確認済みとし、`Spectrum Waterfall (3D)`を完成扱いとした。
+
 ## 2026-07-16 Aul2Audio View Waveform Tunnel 3D completion note
 
 - 12番目のView Typeとして`Waveform Tunnel (3D)`を追加した。既存のレイヤー別時間波形履歴を最大32断面取得し、各波形を円形断面へ変換してZ方向へ並べ、`draw_poly()`で直接描画する。共有メモリの構造と容量は変更していない。

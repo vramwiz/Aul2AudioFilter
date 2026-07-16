@@ -18,6 +18,7 @@ const
   VIEW_TYPE_RADIAL_WAVEFORM_3D = 9;
   VIEW_TYPE_SPECTRUM_LANDSCAPE_3D = 10;
   VIEW_TYPE_WAVEFORM_TUNNEL_3D = 11;
+  VIEW_TYPE_SPECTRUM_WATERFALL_3D = 12;
 
   // 描画タイプが対応する場合だけ Blocks を使い、それ以外は Solid と同じ連続描画にする。
   VIEW_STYLE_SOLID  = 0;
