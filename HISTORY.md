@@ -4,6 +4,17 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-16 Aul2Audio View Waveform Tunnel 3D completion note
+
+- 12番目のView Typeとして`Waveform Tunnel (3D)`を追加した。既存のレイヤー別時間波形履歴を最大32断面取得し、各波形を円形断面へ変換してZ方向へ並べ、`draw_poly()`で直接描画する。共有メモリの構造と容量は変更していない。
+- `Solid`は履歴断面間を内外面で接続し、手前と奥の端面も持つ厚み付きトンネルとした。`Blocks`は前後・内外面を持つ独立リング列とした。
+- `Density`は円周分割数と最大履歴断面数、`Spacing`は断面間隔、`Thickness`は`Solid`の壁厚または`Blocks`のリング奥行き、`Base Radius`は基準半径として反映した。X/Y/Z Scale、色、`Source Layer`も反映した。スペクトラム専用設定は使用しない。
+- `Smooth`は平滑化済みの先頭波形だけでなく履歴方向にも適用し、断面間の急な形状差を抑えるようにした。
+- 再生中はView内の流動履歴へ現在波形を追加し、無音をゼロ断面として有音断面を奥へ流す。編集中は共有メモリ履歴をカーソル位置以前の新しい順へ毎回組み直し、カーソル移動へ追従する。
+- 初期版では編集停止中に再生用ローカル履歴を固定表示していたため形状が更新されなかった。時間波形側へ`GetViewWaveHistory`を追加し、`Spectrum Landscape (3D)`と同じ履歴再取得方式へ修正した。同期履歴がない編集時は指定レイヤーの最新値、それも無効または全ゼロなら最後の有効形状を保持する。Play／Encode中の本当の無音は保持しない。
+- `draw_poly()`が利用できない場合または描画に失敗した場合は、同じ時間波形を使う`Wave Line`へフォールバックする。Type選択リストは12選択肢とnil終端1件の計13要素へ拡張した。
+- `Aul2AudioView.dproj`のRelease Win64ビルドが警告・エラーなしで成功し、`Aul2AudioView.auf2`へ反映した。AviUtl2上で再生中の流動、編集カーソル追従、`Solid` / `Blocks`、履歴Smooth、Spacing、Thickness、Base Radius、X/Y/Z Scale、色をユーザー実機確認済みとし、`Waveform Tunnel (3D)`を完成扱いとした。
+
 ## 2026-07-16 Aul2Audio View Spectrum Landscape 3D completion note
 
 - 11番目のView Typeとして`Spectrum Landscape (3D)`を追加した。既存のレイヤー別スペクトラム履歴を現在フレーム以前の新しい順へ並べ、周波数=X、振幅=Y、時間履歴=Zの四角形グリッドを`draw_poly()`で直接描画する。

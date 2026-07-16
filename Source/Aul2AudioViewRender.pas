@@ -25,6 +25,7 @@ uses
   Aul2AudioViewRenderPulseWave,
   Aul2AudioViewRenderRadialWaveform3D,
   Aul2AudioViewRenderSpectrumLandscape3D,
+  Aul2AudioViewRenderWaveformTunnel3D,
   Aul2AudioViewRenderVectorscope,
   Aul2AudioViewRenderWaveLine;
 
@@ -145,6 +146,25 @@ begin
     GetMem(Buffer, BufferSize);
     try
       DrawFilledSpectrum(Buffer, Width, Height, Settings, CurrentFrame);
+      OutputImageData(Video, Buffer, Width, Height);
+    finally
+      FreeMem(Buffer);
+    end;
+    Exit;
+  end;
+
+  if Settings.ViewType = VIEW_TYPE_WAVEFORM_TUNNEL_3D then
+  begin
+    if DrawWaveformTunnel3D(Video, Settings, CurrentFrame) then
+    begin
+      Result := False;
+      Exit;
+    end;
+    // 3D描画が利用できない場合も、同じ時間波形を使う既存表示へ戻す。
+    BufferSize := NativeUInt(Width) * NativeUInt(Height) * SizeOf(TPIXEL_RGBA);
+    GetMem(Buffer, BufferSize);
+    try
+      DrawWaveLine(Buffer, Width, Height, Settings, CurrentFrame);
       OutputImageData(Video, Buffer, Width, Height);
     finally
       FreeMem(Buffer);

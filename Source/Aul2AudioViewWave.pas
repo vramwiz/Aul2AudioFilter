@@ -7,6 +7,9 @@ interface
 uses
   Aul2AudioMonitorShared;
 
+type
+  TAudioViewWaveHistory = array of TAudioMonitorWaveData;
+
 // 波形共有メモリを開き、描画値を取得できる状態にする。
 procedure InitializeViewWave;
 // 波形共有メモリと ViewFrame 共有メモリを解放し、平滑化履歴を無効にする。
@@ -17,6 +20,9 @@ procedure UpdateViewWave(Smooth: Integer; out Wave, WaveMin, WaveMax: TAudioMoni
 // 編集時に同期履歴がない場合、指定レイヤーの最新波形を返す。
 procedure UpdateViewWaveLatestForEdit(Smooth: Integer; out Wave, WaveMin, WaveMax: TAudioMonitorWaveData;
   out Valid: Boolean; SourceLayer: Integer);
+// 現在フレーム以前の同一レイヤーの時間波形を新しい順で返す。
+procedure GetViewWaveHistory(CurrentFrame, SourceLayer, MaxCount: Integer;
+  out History: TAudioViewWaveHistory; out Valid: Boolean);
 
 implementation
 
@@ -33,6 +39,23 @@ var
   DisplayWaveMin   : TAudioMonitorWaveData;
   DisplayWaveMax   : TAudioMonitorWaveData;
   DisplayWaveValid: Boolean;
+
+function GetWaveEditState: Integer;
+var
+  State: PAul2AudioViewFrameState;
+begin
+  Result := 0;
+  try
+    if ViewFrameMemory = nil then
+      ViewFrameMemory := TAul2AudioViewFrameSharedMemory.Create;
+    State := ViewFrameMemory.State;
+    if State <> nil then
+      Result := State^.EditState;
+  except
+    FreeAndNil(ViewFrameMemory);
+    Result := 0;
+  end;
+end;
 
 procedure InitializeViewWave;
 begin
@@ -290,6 +313,109 @@ begin
   Wave := DisplayWave;
   WaveMin := DisplayWaveMin;
   WaveMax := DisplayWaveMax;
+  Valid := True;
+end;
+
+procedure GetViewWaveHistory(CurrentFrame, SourceLayer, MaxCount: Integer;
+  out History: TAudioViewWaveHistory; out Valid: Boolean);
+type
+  THistoryEntry = record
+    Frame: Integer;
+    UpdateTick: UInt64;
+    Wave: TAudioMonitorWaveData;
+  end;
+var
+  Entries: array of THistoryEntry;
+  State: PAul2AudioMonitorState;
+  Selected: PAul2AudioMonitorState;
+  InternalLayer: Integer;
+  Index: Integer;
+  EntryIndex: Integer;
+  SortIndex: Integer;
+  Count: Integer;
+  Temp: THistoryEntry;
+begin
+  SetLength(History, 0);
+  Valid := False;
+  MaxCount := Max(1, Min(AUDIO_MONITOR_HISTORY_COUNT, MaxCount));
+
+  if WaveMemory = nil then
+    InitializeViewWave;
+  if (WaveMemory = nil) or (WaveMemory.Root = nil) then
+    Exit;
+
+  UpdateViewFrame(CurrentFrame);
+  InternalLayer := ResolveSourceLayer(SourceLayer);
+  if InternalLayer = AUDIO_MONITOR_LAYER_AUTO then
+  begin
+    Selected := SelectWaveState(CurrentFrame, InternalLayer);
+    if (Selected = nil) and (GetWaveEditState = 0) then
+      Selected := WaveMemory.State;
+    if not WaveStateUsable(Selected) then
+      Exit;
+    InternalLayer := Selected^.SourceLayer;
+  end;
+  if (InternalLayer < 0) or (InternalLayer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+
+  SetLength(Entries, AUDIO_MONITOR_HISTORY_COUNT);
+  Count := 0;
+  for Index := 0 to AUDIO_MONITOR_HISTORY_LAST do
+  begin
+    State := WaveMemory.GetHistoryStateForLayer(InternalLayer, Index);
+    if not WaveStateUsable(State) or not StateMatchesFrame(State, CurrentFrame) then
+      Continue;
+    if (CurrentFrame >= 0) and (StateDisplayFrame(State) > CurrentFrame) then
+      Continue;
+
+    EntryIndex := -1;
+    for SortIndex := 0 to Count - 1 do
+      if Entries[SortIndex].Frame = StateDisplayFrame(State) then
+      begin
+        EntryIndex := SortIndex;
+        Break;
+      end;
+    if (EntryIndex >= 0) and (Entries[EntryIndex].UpdateTick >= State^.UpdateTick) then
+      Continue;
+    if EntryIndex < 0 then
+    begin
+      EntryIndex := Count;
+      Inc(Count);
+    end;
+    Entries[EntryIndex].Frame := StateDisplayFrame(State);
+    Entries[EntryIndex].UpdateTick := State^.UpdateTick;
+    Entries[EntryIndex].Wave := State^.OutputWave;
+  end;
+
+  // 編集停止中に同期履歴が取れない場合は、指定レイヤーの最新値を最低1列として使う。
+  if (Count = 0) and (GetWaveEditState = 0) then
+  begin
+    State := WaveMemory.GetStateForLayer(InternalLayer);
+    if WaveStateUsable(State) then
+    begin
+      Entries[0].Frame := StateDisplayFrame(State);
+      Entries[0].UpdateTick := State^.UpdateTick;
+      Entries[0].Wave := State^.OutputWave;
+      Count := 1;
+    end;
+  end;
+
+  // 現在に近い断面を手前へ置けるよう、絶対フレームの降順へ整列する。
+  for Index := 0 to Count - 2 do
+    for SortIndex := Index + 1 to Count - 1 do
+      if Entries[SortIndex].Frame > Entries[Index].Frame then
+      begin
+        Temp := Entries[Index];
+        Entries[Index] := Entries[SortIndex];
+        Entries[SortIndex] := Temp;
+      end;
+
+  Count := Min(Count, MaxCount);
+  if Count <= 0 then
+    Exit;
+  SetLength(History, Count);
+  for Index := 0 to Count - 1 do
+    History[Index] := Entries[Index].Wave;
   Valid := True;
 end;
 
