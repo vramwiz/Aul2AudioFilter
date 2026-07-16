@@ -20,8 +20,6 @@ procedure UpdateViewSpectrumLatestForEdit(Smooth: Integer; out Bands: TAudioMoni
   out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single; SourceLayer: Integer);
 // Monitorが通知した編集状態を返す。0=Edit、1=Play、2=Encode。
 function GetViewEditState: Integer;
-// 直近のスペクトラム履歴選択結果を3D診断ログ向けに返す。
-function LastViewSpectrumDiagnostic: string;
 
 implementation
 
@@ -37,12 +35,6 @@ var
   ViewFrameMemory : TAul2AudioViewFrameSharedMemory;
   DisplayBands    : TAudioMonitorSpectrumData;
   DisplayBandsValid: Boolean;
-  GLastSpectrumDiagnostic: string;
-
-function LastViewSpectrumDiagnostic: string;
-begin
-  Result := GLastSpectrumDiagnostic;
-end;
 
 procedure InitializeViewSpectrum;
 begin
@@ -253,7 +245,6 @@ var
   State: PAul2AudioMonitorSpectrumState;
   Band: Integer;
   InternalLayer: Integer;
-  RawPeak: Single;
 begin
   FillChar(Bands, SizeOf(Bands), 0);
   Valid := False;
@@ -264,23 +255,14 @@ begin
     InitializeViewSpectrum;
 
   if SpectrumMemory = nil then
-  begin
-    GLastSpectrumDiagnostic := Format('select=no-memory current=%d sourceLayer=%d edit=%d',
-      [CurrentFrame, SourceLayer, GetViewEditState]);
     Exit;
-  end;
 
   UpdateViewFrame(CurrentFrame);
 
   InternalLayer := ResolveSourceLayer(SourceLayer);
   State := SelectSpectrumState(CurrentFrame, InternalLayer);
   if State = nil then
-  begin
-    GLastSpectrumDiagnostic := Format(
-      'select=no-state current=%d sourceLayer=%d internalLayer=%d edit=%d displayValid=%d',
-      [CurrentFrame, SourceLayer, InternalLayer, GetViewEditState, Ord(DisplayBandsValid)]);
     Exit;
-  end;
 
   SourceMinHz := Max(1.0, State^.MinHz);
   SourceMaxHz := Max(SourceMinHz + 1.0, State^.MaxHz);
@@ -296,16 +278,6 @@ begin
 
   Bands := DisplayBands;
   Valid := True;
-  RawPeak := 0.0;
-  for Band := 0 to AUDIO_MONITOR_SPECTRUM_BAND_LAST do
-    RawPeak := Max(RawPeak, State^.OutputBands[Band]);
-  GLastSpectrumDiagnostic := Format(
-    'select=state current=%d sourceLayer=%d internalLayer=%d stateLayer=%d '+
-    'displayFrame=%d range=%d..%d distance=%d tick=%d rawPeak=%.6f edit=%d',
-    [CurrentFrame, SourceLayer, InternalLayer, State^.SourceLayer,
-     StateDisplayFrame(State), State^.SourceFrameS, State^.SourceFrameE,
-     StateFrameDistance(State, CurrentFrame), Int64(State^.UpdateTick), RawPeak,
-     GetViewEditState]);
 end;
 
 procedure UpdateViewSpectrumLatestForEdit(Smooth: Integer; out Bands: TAudioMonitorSpectrumData;
@@ -314,7 +286,6 @@ var
   State: PAul2AudioMonitorSpectrumState;
   Band: Integer;
   InternalLayer: Integer;
-  RawPeak: Single;
 begin
   FillChar(Bands, SizeOf(Bands), 0);
   Valid := False;
@@ -324,12 +295,7 @@ begin
   if SpectrumMemory = nil then
     InitializeViewSpectrum;
   if SpectrumMemory = nil then
-  begin
-    GLastSpectrumDiagnostic := Format(
-      'select=latest-edit-no-memory sourceLayer=%d edit=%d',
-      [SourceLayer, GetViewEditState]);
     Exit;
-  end;
 
   InternalLayer := ResolveSourceLayer(SourceLayer);
   if InternalLayer = AUDIO_MONITOR_LAYER_AUTO then
@@ -337,12 +303,7 @@ begin
   else
     State := SpectrumMemory.GetStateForLayer(InternalLayer);
   if not SpectrumStateUsable(State) then
-  begin
-    GLastSpectrumDiagnostic := Format(
-      'select=latest-edit-no-state sourceLayer=%d internalLayer=%d edit=%d',
-      [SourceLayer, InternalLayer, GetViewEditState]);
     Exit;
-  end;
 
   SourceMinHz := Max(1.0, State^.MinHz);
   SourceMaxHz := Max(SourceMinHz + 1.0, State^.MaxHz);
@@ -357,15 +318,6 @@ begin
 
   Bands := DisplayBands;
   Valid := True;
-  RawPeak := 0.0;
-  for Band := 0 to AUDIO_MONITOR_SPECTRUM_BAND_LAST do
-    RawPeak := Max(RawPeak, State^.OutputBands[Band]);
-  GLastSpectrumDiagnostic := Format(
-    'select=latest-edit sourceLayer=%d internalLayer=%d stateLayer=%d '+
-    'displayFrame=%d range=%d..%d tick=%d rawPeak=%.6f edit=%d',
-    [SourceLayer, InternalLayer, State^.SourceLayer, StateDisplayFrame(State),
-     State^.SourceFrameS, State^.SourceFrameE, Int64(State^.UpdateTick), RawPeak,
-     GetViewEditState]);
 end;
 
 end.

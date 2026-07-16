@@ -16,9 +16,7 @@ implementation
 
 uses
   System.Math,
-  System.SysUtils,
   Aul2AudioMonitorSpectrumShared,
-  Aul2AudioViewDiagnostics,
   Aul2AudioViewRenderUtils,
   Aul2AudioViewSpectrum;
 
@@ -45,11 +43,10 @@ begin
 end;
 
 procedure ResolveEditBands(var Bands: TAudioMonitorSpectrumData; var BandsValid: Boolean;
-  var SourceMinHz, SourceMaxHz: Single; SourceLayer: Integer; out CacheUsed: Boolean);
+  var SourceMinHz, SourceMaxHz: Single; SourceLayer: Integer);
 var
   Peak: Single;
 begin
-  CacheUsed := False;
   if SourceLayer <> LastEditSourceLayer then
   begin
     LastEditBandsValid := False;
@@ -72,7 +69,6 @@ begin
     BandsValid := True;
     SourceMinHz := LastEditSourceMinHz;
     SourceMaxHz := LastEditSourceMaxHz;
-    CacheUsed := True;
   end;
 end;
 
@@ -185,11 +181,6 @@ var
   XScale: Single;
   ZScale: Single;
   Value: Single;
-  InputPeak: Single;
-  OutputPeak: Single;
-  InputValid: Boolean;
-  CacheUsed: Boolean;
-  DrawSucceeded: Boolean;
   R, G, B: Byte;
 begin
   Result := False;
@@ -201,11 +192,7 @@ begin
   if (not BandsValid) and (GetViewEditState = 0) then
     UpdateViewSpectrumLatestForEdit(Settings.Smooth, Bands, BandsValid,
       SourceMinHz, SourceMaxHz, Settings.SourceLayer);
-  InputValid := BandsValid;
-  InputPeak := PeakBandValue(Bands);
-  ResolveEditBands(Bands, BandsValid, SourceMinHz, SourceMaxHz, Settings.SourceLayer,
-    CacheUsed);
-  OutputPeak := PeakBandValue(Bands);
+  ResolveEditBands(Bands, BandsValid, SourceMinHz, SourceMaxHz, Settings.SourceLayer);
 
   Count := Max(8, Min(128, Settings.Density));
   Radius := Max(16.0, Min(Video^.Object_^.Width, Video^.Object_^.Height) *
@@ -258,26 +245,9 @@ begin
 
   SetLength(Vertices, VertexIndex);
   if Length(Vertices) = 0 then
-  begin
-    WriteView3DLog(Format(
-      'frame=%d objectFrame=%d range=%d..%d edit=%d inputValid=%d inputPeak=%.6f '+
-      'cacheValid=%d cacheUsed=%d outputValid=%d outputPeak=%.6f vertices=0 %s',
-      [CurrentFrame, Video^.Object_^.Frame, Video^.Object_^.FrameS, Video^.Object_^.FrameE,
-       GetViewEditState, Ord(InputValid), InputPeak, Ord(LastEditBandsValid), Ord(CacheUsed),
-       Ord(BandsValid), OutputPeak, LastViewSpectrumDiagnostic]));
     Exit;
-  end;
 
-  DrawSucceeded := Video^.DrawPoly(VERTEX_QUAD_COLOR, @Vertices[0], Length(Vertices), nil) <> 0;
-  Result := DrawSucceeded;
-  WriteView3DLog(Format(
-    'frame=%d objectFrame=%d range=%d..%d edit=%d inputValid=%d inputPeak=%.6f '+
-    'cacheValid=%d cacheUsed=%d outputValid=%d outputPeak=%.6f style=%d blocks=%d '+
-    'vertices=%d draw=%d %s',
-    [CurrentFrame, Video^.Object_^.Frame, Video^.Object_^.FrameS, Video^.Object_^.FrameE,
-     GetViewEditState, Ord(InputValid), InputPeak, Ord(LastEditBandsValid), Ord(CacheUsed),
-     Ord(BandsValid), OutputPeak, Settings.Style, BlockCount, Length(Vertices),
-     Ord(DrawSucceeded), LastViewSpectrumDiagnostic]));
+  Result := Video^.DrawPoly(VERTEX_QUAD_COLOR, @Vertices[0], Length(Vertices), nil) <> 0;
   if Result and Assigned(Video^.SetDefaultAnchor) then
     Video^.SetDefaultAnchor(Video^.Object_^.Width, Video^.Object_^.Height);
 end;

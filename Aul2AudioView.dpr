@@ -17,7 +17,6 @@ uses
   Aul2ColorUtils in 'Source\Lib\Color\Aul2ColorUtils.pas',
   Aul2ColorPalette in 'Source\Lib\Color\Aul2ColorPalette.pas',
   Aul2AudioViewParams in 'Source\Aul2AudioViewParams.pas',
-  Aul2AudioViewDiagnostics in 'Source\Aul2AudioViewDiagnostics.pas',
   Aul2AudioViewRenderUtils in 'Source\Aul2AudioViewRenderUtils.pas',
   Aul2AudioViewSpectrum in 'Source\Aul2AudioViewSpectrum.pas',
   Aul2AudioViewRenderEqualizer in 'Source\Aul2AudioViewRenderEqualizer.pas',

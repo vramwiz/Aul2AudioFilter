@@ -19,7 +19,6 @@ implementation
 uses
   System.SysUtils,
   Aul2AudioFilterGui,
-  Aul2AudioViewDiagnostics,
   Aul2AudioViewParams,
   Aul2AudioViewRender,
   Aul2AudioViewRenderEqualizer,
@@ -97,8 +96,6 @@ end;
 
 procedure InitializeViewPlugin;
 begin
-  ResetView3DLog;
-  WriteView3DLog('plugin initialized');
   // 状態を持つ描画系ユニットは DLL 終了時と対称になる順序で初期化する。
   InitializeEqualizerBars;
   InitializeViewWave;
