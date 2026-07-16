@@ -141,6 +141,7 @@
         <DCCReference Include="Source\Lib\SharedMemory\SharedMemoryBase.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioViewVectorShared.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterMonitorBridge.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPlugin.pas"/>
         <BuildConfiguration Include="Base">

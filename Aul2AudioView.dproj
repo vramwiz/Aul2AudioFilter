@@ -120,6 +120,7 @@
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioViewFrameShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioViewVectorShared.pas"/>
         <DCCReference Include="Source\Lib\AviUtl2GpuTextureOut.pas"/>
         <DCCReference Include="Source\Lib\Color\Aul2ColorUtils.pas"/>
         <DCCReference Include="Source\Lib\Color\Aul2ColorPalette.pas"/>
@@ -134,6 +135,8 @@
         <DCCReference Include="Source\Aul2AudioViewRenderWaveLine.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRenderPixelWave.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRenderPulseWave.pas"/>
+        <DCCReference Include="Source\Aul2AudioViewVector.pas"/>
+        <DCCReference Include="Source\Aul2AudioViewRenderVectorscope.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRender.pas"/>
         <DCCReference Include="Source\Aul2AudioViewPlugin.pas"/>
         <BuildConfiguration Include="Base">

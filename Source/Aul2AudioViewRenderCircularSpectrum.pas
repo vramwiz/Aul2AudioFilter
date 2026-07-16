@@ -41,7 +41,9 @@ begin
   if (Buffer = nil) or (X < 0) or (Y < 0) or (X >= Width) or (Y >= Height) then
     Exit;
 
-  P := @Buffer^[Y * Width + X];
+  // array[0..0]への可変添字はDebugの範囲検査対象になるため、実アドレスを直接計算する。
+  P := Pointer(NativeUInt(Buffer) +
+    NativeUInt(Y * Width + X) * SizeOf(TPIXEL_RGBA));
   P^.R := R;
   P^.G := G;
   P^.B := B;
@@ -104,12 +106,13 @@ end;
 
 function BandValue(const Settings: TAul2AudioViewSettings; Index, Count: Integer): Single;
 begin
-  Result := GetSpectrumDisplayValue(CurrentBands, CurrentBandsValid,
+  Result := GetSpectrumDisplayValueUnscaled(CurrentBands, CurrentBandsValid,
     CurrentSourceMinHz, CurrentSourceMaxHz, Settings, Index, Count);
 end;
 
 procedure DrawRadialSegment(Buffer: PPIXEL_RGBA; Width, Height: Integer;
-  CX, CY, Angle, InnerRadius, OuterRadius: Double; Thickness: Integer; R, G, B: Byte);
+  CX, CY, Angle, InnerRadius, OuterRadius, XScale, YScale: Double;
+  Thickness: Integer; R, G, B: Byte);
 var
   SinA: Double;
   CosA: Double;
@@ -120,16 +123,16 @@ begin
   SinA := Sin(Angle);
   CosA := Cos(Angle);
   DrawThickLine(Buffer, Width, Height,
-    CX + CosA * InnerRadius,
-    CY + SinA * InnerRadius,
-    CX + CosA * OuterRadius,
-    CY + SinA * OuterRadius,
+    CX + CosA * InnerRadius * XScale,
+    CY + SinA * InnerRadius * YScale,
+    CX + CosA * OuterRadius * XScale,
+    CY + SinA * OuterRadius * YScale,
     Thickness, R, G, B, 255);
 end;
 
 procedure DrawSolidCircular(Buffer: PPIXEL_RGBA; Width, Height: Integer;
   const Settings: TAul2AudioViewSettings; Count: Integer; CX, CY, InnerRadius,
-  OuterRadius: Double);
+  OuterRadius, XScale, YScale: Double);
 var
   I: Integer;
   Angle: Double;
@@ -147,13 +150,13 @@ begin
     BarOuter := InnerRadius + (OuterRadius - InnerRadius) * Value;
     GetViewColor(Settings, I, Count, R, G, B);
     DrawRadialSegment(Buffer, Width, Height, CX, CY, Angle, InnerRadius, BarOuter,
-      Max(1, Min(32, Settings.Thickness)), R, G, B);
+      XScale, YScale, Max(1, Min(32, Settings.Thickness)), R, G, B);
   end;
 end;
 
 procedure DrawBlockCircular(Buffer: PPIXEL_RGBA; Width, Height: Integer;
   const Settings: TAul2AudioViewSettings; Count: Integer; CX, CY, InnerRadius,
-  OuterRadius: Double);
+  OuterRadius, XScale, YScale: Double);
 var
   I: Integer;
   Block: Integer;
@@ -185,7 +188,7 @@ begin
       Radius1 := InnerRadius + Block * (BlockLen + Gap);
       Radius2 := Min(OuterRadius, Radius1 + BlockLen);
       DrawRadialSegment(Buffer, Width, Height, CX, CY, Angle, Radius1, Radius2,
-        Max(1, Min(32, Settings.Thickness)), R, G, B);
+        XScale, YScale, Max(1, Min(32, Settings.Thickness)), R, G, B);
     end;
   end;
 end;
@@ -200,6 +203,8 @@ var
   InnerRadius: Double;
   OuterRadius: Double;
   RadiusRatio: Double;
+  XScale: Double;
+  YScale: Double;
 begin
   if (Buffer = nil) or (Width <= 0) or (Height <= 0) then
     Exit;
@@ -216,13 +221,17 @@ begin
   RadiusRatio := Max(0.0, Min(0.92, Settings.BaseRadius / 100.0));
   InnerRadius := Max(0.0, MaxRadius * RadiusRatio);
   OuterRadius := MaxRadius;
+  XScale := Max(10, Min(500, Settings.XScale)) / 100.0;
+  YScale := Max(10, Min(500, Settings.YScale)) / 100.0;
   if OuterRadius <= InnerRadius then
     Exit;
 
   if Settings.Style = VIEW_STYLE_BLOCKS then
-    DrawBlockCircular(Buffer, Width, Height, Settings, Count, CX, CY, InnerRadius, OuterRadius)
+    DrawBlockCircular(Buffer, Width, Height, Settings, Count, CX, CY, InnerRadius,
+      OuterRadius, XScale, YScale)
   else
-    DrawSolidCircular(Buffer, Width, Height, Settings, Count, CX, CY, InnerRadius, OuterRadius);
+    DrawSolidCircular(Buffer, Width, Height, Settings, Count, CX, CY, InnerRadius,
+      OuterRadius, XScale, YScale);
 end;
 
 end.

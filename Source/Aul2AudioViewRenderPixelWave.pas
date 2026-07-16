@@ -118,9 +118,9 @@ begin
     begin
       // Blocks は min/max 包絡線の範囲を点で埋め、短時間ピークの幅を可視化する。
       YMin := CenterY - Round(
-        ApplyViewGain(InterpolateWave(CurrentWaveMin, I, PointCount), Settings) * HalfHeight);
+        ApplyYScale(InterpolateWave(CurrentWaveMin, I, PointCount), Settings) * HalfHeight);
       YMax := CenterY - Round(
-        ApplyViewGain(InterpolateWave(CurrentWaveMax, I, PointCount), Settings) * HalfHeight);
+        ApplyYScale(InterpolateWave(CurrentWaveMax, I, PointCount), Settings) * HalfHeight);
       if YMin > YMax then
       begin
         Y := YMin;
@@ -138,7 +138,7 @@ begin
     end
     else
     begin
-      Y := CenterY - Round(ApplyViewGain(InterpolateWave(CurrentWave, I, PointCount), Settings) * HalfHeight);
+      Y := CenterY - Round(ApplyYScale(InterpolateWave(CurrentWave, I, PointCount), Settings) * HalfHeight);
       DrawPixel(Buffer, Width, Height, X, Y, PixelSize, R, G, B, 255);
     end;
   end;

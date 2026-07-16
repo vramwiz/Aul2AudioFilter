@@ -12,6 +12,7 @@ uses
   Aul2AudioMonitorShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas',
   Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
   Aul2AudioViewFrameShared in 'Source\Lib\AudioMonitor\Aul2AudioViewFrameShared.pas',
+  Aul2AudioViewVectorShared in 'Source\Lib\AudioMonitor\Aul2AudioViewVectorShared.pas',
   AviUtl2GpuTextureOut in 'Source\Lib\AviUtl2GpuTextureOut.pas',
   Aul2ColorUtils in 'Source\Lib\Color\Aul2ColorUtils.pas',
   Aul2ColorPalette in 'Source\Lib\Color\Aul2ColorPalette.pas',
@@ -26,6 +27,8 @@ uses
   Aul2AudioViewRenderWaveLine in 'Source\Aul2AudioViewRenderWaveLine.pas',
   Aul2AudioViewRenderPixelWave in 'Source\Aul2AudioViewRenderPixelWave.pas',
   Aul2AudioViewRenderPulseWave in 'Source\Aul2AudioViewRenderPulseWave.pas',
+  Aul2AudioViewVector in 'Source\Aul2AudioViewVector.pas',
+  Aul2AudioViewRenderVectorscope in 'Source\Aul2AudioViewRenderVectorscope.pas',
   Aul2AudioViewRender in 'Source\Aul2AudioViewRender.pas',
   Aul2AudioViewPlugin in 'Source\Aul2AudioViewPlugin.pas';
 

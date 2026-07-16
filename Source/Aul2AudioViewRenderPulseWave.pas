@@ -113,10 +113,10 @@ begin
     X := Round(I * Max(0, Width - 1) / Max(1, PulseCount - 1));
     // Blocks は min/max 包絡線、Solid は中心波形からパルス高を求める。
     if Settings.Style = VIEW_STYLE_BLOCKS then
-      PulseH := Round(HalfHeight * ApplyViewGain(
+      PulseH := Round(HalfHeight * ApplyYScale(
         InterpolateWaveAbs(CurrentWaveMin, CurrentWaveMax, I, PulseCount), Settings))
     else
-      PulseH := Round(HalfHeight * ApplyViewGain(
+      PulseH := Round(HalfHeight * ApplyYScale(
         InterpolateWaveAbs(CurrentWave, CurrentWave, I, PulseCount), Settings));
 
     if PulseH <= 0 then

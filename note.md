@@ -8,7 +8,7 @@
 
 ## 現在の方針
 
-- 主要機能は完成しており、通常利用できる状態。現在の残課題は `Aul2Audio View` / `Aul2AudioMonitor` の再生同期の微調整だけとする。
+- 主要機能は完成しており、通常利用できる状態。現在、既知の必須課題はない。
 - 新しいエフェクト、プリセット、View Type、音質表現の追加は現在の課題に含めない。明確な要望が出た場合に改めて検討する。
 - 内部プロジェクト名は `Aul2AudioFilter`。
 - AviUtl2 上の表示名は「サウンドエフェクター」。
@@ -22,7 +22,7 @@
 - 複数音声素材へまとめて適用する場合は、AviUtl2 の通常の「グループ制御」ではなく「グループ制御（音声）」を使う。
 - 本プラグインは音楽制作向けではなく、声、セリフ、効果音素材に用途が伝わる加工をすばやくかける道具として設計する。
 - `Aul2Audio View` は `Source Layer` を最上段に置き、`Auto` または表示レイヤー `Layer 1`..`Layer 64` から解析元を選ぶ。
-- `Aul2Audio View` の `View Gain(%)` は描画だけを倍率調整する。`100` が等倍、範囲は `10..500` で、音声処理や解析値には影響させない。
+- `Aul2Audio View` の `X Scale` / `Y Scale` は描画座標または表示反応だけを倍率調整する。`100` が基準、範囲は `10..500` で、音声処理や解析値には影響させない。
 - 共有メモリ上は内部 0-based レイヤー別スロットで保持し、GUI と Monitor 表示では AviUtl2 の表示レイヤーに合わせて 1-based で扱う。
 - `Source Layer = Auto` は最後に更新されたレイヤーを表示し、レイヤー指定時はその表示レイヤー由来の波形/スペクトラムだけを読む。
 - エフェクトの GUI 並びは、プリセットを除き、実際に音声へ処理される順番へ揃える。利用者が上から順に音が変わると理解できる状態を保つ。
@@ -39,6 +39,7 @@
 - `無線` と `劣化` は `Noise` 使用時に無音化や AviUtl2 側の例外が出る可能性があったため、プリセットからは `Noise` を外している。
 - `FilterProcAudio` 全体は `try..except` で保護し、音声処理中の Delphi 例外が AviUtl2 まで漏れないようにしている。
 - 詳細な実装記録、検証ログ、プリセット試聴メモは `HISTORY.md` を参照する。
+- `Aul2Audio View` の `Vectorscope`、短辺基準の正方形描画、`X Scale` / `Y Scale` は実機確認済み。表示負荷も実用上問題ない。
 
 ## プロジェクト構成
 
@@ -72,9 +73,11 @@
 - `Source\Aul2AudioViewRenderWaveLine.pas`: `Wave Line` 表示タイプの描画を担当する。
 - `Source\Aul2AudioViewRenderPixelWave.pas`: `Pixel Wave` 表示タイプの描画を担当する。
 - `Source\Aul2AudioViewRenderPulseWave.pas`: `Pulse Wave` 表示タイプの描画を担当する。
+- `Source\Aul2AudioViewRenderVectorscope.pas`: `Vectorscope` の短辺基準座標、L/R変換、点列描画を担当する。
 - `Source\Aul2AudioViewRenderUtils.pas`: ピクセルクリア、矩形塗り、View 用色取得など、表示タイプ間で共有する小さな描画補助。
 - `Source\Aul2AudioViewSpectrum.pas`: `Local\Aul2AudioMonitorSpectrum` の読み取りとスムージングを担当する。スペクトラム系表示タイプで共有する。
 - `Source\Aul2AudioViewWave.pas`: `Local\Aul2AudioMonitorState` の時間波形読み取りを担当する。時間波形系表示タイプで共有する。
+- `Source\Aul2AudioViewVector.pas`: `Local\Aul2AudioViewVector` の履歴から現在フレームとレイヤーに対応するL/R代表点を選ぶ。
 - `Source\Lib\Color\Aul2ColorUtils.pas`: Syncroh2 の PianoRoll 色処理を参考に切り出した、RGB/HSV 変換と RGB / HSV短方向 / HSV長方向の補間ライブラリ。
 - `Source\Lib\Color\Aul2ColorPalette.pas`: View の色バリエーション候補をまとめたパレットライブラリ。`Color Variation` と `Color Blend` から利用する。
 - `Source\Lib\AviUtl2GpuTextureOut.pas`: Syncroh2 の PSDDraw と同じ考え方の任意 GPU texture 出力ヘルパー。初期状態では無効化し、通常は `SetImageData` で出力する。
@@ -91,7 +94,7 @@
 - `Source\Lib\ListBoxEdit`: Syncroh2からコピーしたインライン編集対応ListBox。Preset一覧のダブルクリック名前編集に使う。
 - `Source\Lib\PresetSupport\Serialization\Section`: ユーザープリセットINIの二重セクション管理に使う。
 - `Source\Lib\SharedMemory`: Syncroh2 から UTF-8 でコピーした共有メモリ基礎ライブラリ。
-- `Source\Lib\AudioMonitor`: `Aul2AudioFilter` と `Aul2AudioMonitor` で共有するモニター用共有メモリ構造体。
+- `Source\Lib\AudioMonitor`: Filter、Monitor、Viewで共有する表示用構造体。Vectorscope専用の小型共有履歴もここへ置く。
 - `Source\Legacy`: 現在のビルドでは使わない旧コピーの退避場所。
 - `Sample`: 正弦波、矩形波、インパルスなどの検証用 WAV を置く。
 - `Win64`: Delphi の Debug / Release 中間出力。
@@ -126,13 +129,6 @@
 - 新しいエフェクトを追加する場合は、原則として `Aul2AudioFilterPluginXxx.pas` を追加し、`AddXxxItems` と `ProcessXxx` を公開する。
 - エフェクト処理順は `Aul2AudioFilterPlugin.pas` の `FilterProcAudio` で管理する。
 - GUI 登録順は `GetFilterTable` 内の `AddXxxItems` 呼び出し順で管理し、原則として `FilterProcAudio` の `ProcessXxx` 呼び出し順と一致させる。
-
-## 残課題
-
-- `Aul2Audio View` / `Aul2AudioMonitor` の再生同期は現状でも実用上良好。必要に応じて表示タイミングだけを微調整する。
-- 同期調整では、共有メモリ履歴リング、フレーム距離優先選択、無音時の表示減衰を崩さない。
-- 同期以外に既知の必須課題はない。新しい要望は現在の残課題と分けて扱う。
-- 新しい実装や試聴結果が生じた場合、詳細な経緯は `HISTORY.md` へ追記する。
 
 ## ビルド方法
 
@@ -224,9 +220,11 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - `Aul2AudioView` は `Aul2AudioBaseInput` の上に載る MV 用表示フィルター。編集補助ではなく、音に反応する見た目を生成する用途。
 - 描画は背景透明、文字なし、枠なし、グリッドなしを基本にする。
 - 出力は安定優先で `Video^.SetImageData(Buffer, Width, Height)` を使う。GPU texture 出力はヘルパーだけ保持し、通常は無効。
-- 表示タイプは `Equalizer Bars` / `Mirror Bars` / `Filled Spectrum` / `Circular Spectrum` / `Wave Line` / `Pixel Wave` / `Pulse Wave` の 7 種類。
-- スペクトラム系は `Local\Aul2AudioMonitorSpectrum` の `OutputBands`、時間波形系は `Local\Aul2AudioMonitorState` の `OutputWave` / `OutputWaveMin` / `OutputWaveMax` を読む。
-- 共通パラメーターは `Type`, `Style`, `Density`, `Spacing`, `Thickness`, `Base Radius`, `Color`, `Color Variation`, `Color Blend`, `Smooth`。
+- 表示タイプは `Equalizer Bars` / `Mirror Bars` / `Filled Spectrum` / `Circular Spectrum` / `Wave Line` / `Pixel Wave` / `Pulse Wave` / `Vectorscope` の 8 種類。
+- スペクトラム系は `Local\Aul2AudioMonitorSpectrum`、時間波形系は `Local\Aul2AudioMonitorState`、`Vectorscope` は `Local\Aul2AudioViewVector` の処理後Output L/R代表点を読む。
+- 共通パラメーターは `Type`, `Style`, `Density`, `Spacing`, `Thickness`, `Base Radius`, `Smooth`, `X Scale`, `Y Scale`, 色、周波数範囲設定。
+- バー、面、時間波形は用意された画像の幅と高さを使って描画する。`Circular Spectrum` と `Vectorscope` は短辺から作る中央正方形を基準にし、変形は `X Scale` / `Y Scale` またはAviUtl2側で行う。
+- `Vectorscope` は `X=(L-R)/2`、`Y=(L+R)/2` を基本とし、通常小さいSide成分を見やすくするためX方向だけ固定10倍の表示感度を持つ。`Circular Spectrum` のX/Y感度は通常倍率。
 - `Color Variation` は `1 Color`, `2 Color`, `3 Color`, `Rainbow`, `Warm`, `Cool`, `Pastel`, `Neon`, `Mono`, `Sepia`, `Gold`, `Silver`, `Fire`, `Ice`, `Water`, `Aurora`, `Starlight`, `Sunset`, `Ocean`, `Forest`, `Cyber`, `Retro Game`。
 - `Color Blend` は `Auto`, `RGB`, `HSV Short`, `HSV Long`。`Auto` では周期的な色相回転を避ける設定にする。
 - `Equalizer Bars` / `Filled Spectrum` の描画マージンは `0`。必要になった場合は `VIEW_MARGIN_X` / `VIEW_MARGIN_Y` を設定項目へ昇格する。
@@ -239,6 +237,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 
 - View と Monitor は再生中も現在フレーム基準で同期が取れている。
 - 共有メモリは基本状態/時間波形用 version 8、スペクトラム用 version 6。各レイヤー 128 件の履歴リングを持つ。
+- `Vectorscope` 専用共有メモリはversion 2。64レイヤーの最新値と全レイヤー共通256件の履歴リングへ、処理後OutputのL/R代表点64組を保持する。
 - Filter 側は `AudioMonitorCaptureOutput` で最新スロットと履歴リングの両方へ書き込む。
 - View / Monitor 側は `SourceFrame` を描画フレーム基準へ正規化し、現在フレームに最も近い履歴を選ぶ。距離が同じ場合のみ `UpdateTick` をタイブレークに使う。
 - 詳細な工程、試行錯誤、検証結果は `HISTORY.md` の `Aul2AudioView / Monitor playback sync completion note` を参照する。

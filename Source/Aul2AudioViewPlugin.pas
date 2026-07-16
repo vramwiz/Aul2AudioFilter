@@ -22,11 +22,12 @@ uses
   Aul2AudioViewParams,
   Aul2AudioViewRender,
   Aul2AudioViewRenderEqualizer,
+  Aul2AudioViewVector,
   Aul2AudioViewWave;
 
 var
   GViewTypeSelect  : TFILTER_ITEM_SELECT;
-  GViewTypeList    : array[0..7] of TFILTER_ITEM_SELECT_ITEM;
+  GViewTypeList    : array[0..8] of TFILTER_ITEM_SELECT_ITEM;
   GViewStyleSelect : TFILTER_ITEM_SELECT;
   GViewStyleList   : array[0..2] of TFILTER_ITEM_SELECT_ITEM;
   GViewDensityTrack: TFILTER_ITEM_TRACK;
@@ -49,7 +50,8 @@ var
   GViewColorBlendSelect: TFILTER_ITEM_SELECT;
   GViewColorBlendList  : array[0..4] of TFILTER_ITEM_SELECT_ITEM;
   GViewSmoothTrack : TFILTER_ITEM_TRACK;
-  GViewGainTrack   : TFILTER_ITEM_TRACK;
+  GViewXScaleTrack : TFILTER_ITEM_TRACK;
+  GViewYScaleTrack : TFILTER_ITEM_TRACK;
   GViewResetButton : TFILTER_ITEM_BUTTON;
 
 function SetViewObjectItem(Edit: PEDIT_SECTION; Obj: OBJECT_HANDLE;
@@ -82,7 +84,8 @@ begin
   SetViewObjectItem(Edit, Obj, 'Thickness', UTF8String('2'));
   SetViewObjectItem(Edit, Obj, 'Base Radius', UTF8String('24'));
   SetViewObjectItem(Edit, Obj, 'Smooth', UTF8String('50'));
-  SetViewObjectItem(Edit, Obj, 'View Gain(%)', UTF8String('100'));
+  SetViewObjectItem(Edit, Obj, 'X Scale', UTF8String('100'));
+  SetViewObjectItem(Edit, Obj, 'Y Scale', UTF8String('100'));
   SetViewObjectItem(Edit, Obj, 'Spectrum Scale', UTF8String('0'));
   SetViewObjectItem(Edit, Obj, 'Low Hz', UTF8String('40'));
   SetViewObjectItem(Edit, Obj, 'High Hz', UTF8String('12000'));
@@ -94,6 +97,7 @@ begin
   // 状態を持つ描画系ユニットは DLL 終了時と対称になる順序で初期化する。
   InitializeEqualizerBars;
   InitializeViewWave;
+  InitializeViewVector;
 end;
 
 function ViewProcVideo(Video: PFILTER_PROC_VIDEO): Byte; cdecl;
@@ -109,7 +113,8 @@ begin
     Settings.Thickness := Round(GViewThicknessTrack.Value);
     Settings.BaseRadius := Round(GViewBaseRadiusTrack.Value);
     Settings.Smooth := Round(GViewSmoothTrack.Value);
-    Settings.ViewGain := Round(GViewGainTrack.Value);
+    Settings.XScale := Round(GViewXScaleTrack.Value);
+    Settings.YScale := Round(GViewYScaleTrack.Value);
     Settings.SourceLayer := GViewSourceLayerSelect.Value;
     Settings.SpectrumScale := GViewSpectrumScaleSelect.Value;
     Settings.SpectrumLowHz := Round(GViewSpectrumLowHzTrack.Value);
@@ -170,6 +175,7 @@ begin
     AddSelectList(GViewTypeList, 'Pulse Wave', VIEW_TYPE_PULSE_WAVE);
     AddSelectList(GViewTypeList, 'Circular Spectrum', VIEW_TYPE_CIRCULAR_SPECTRUM);
     AddSelectList(GViewTypeList, 'Mirror Bars', VIEW_TYPE_MIRROR_BARS);
+    AddSelectList(GViewTypeList, 'Vectorscope', VIEW_TYPE_VECTORSCOPE);
     AddSelect(GViewTypeSelect, 'Type', VIEW_TYPE_EQUALIZER_BARS, @GViewTypeList[0]);
 
     ClearSelectList;
@@ -182,7 +188,8 @@ begin
     AddTrack(GViewThicknessTrack, 'Thickness', 2, 1, 32, 1);
     AddTrack(GViewBaseRadiusTrack, 'Base Radius', 24, 0, 100, 1);
     AddTrack(GViewSmoothTrack, 'Smooth', 50, 0, 100, 1);
-    AddTrack(GViewGainTrack, 'View Gain(%)', 100, 10, 500, 1);
+    AddTrack(GViewXScaleTrack, 'X Scale', 100, 10, 500, 1);
+    AddTrack(GViewYScaleTrack, 'Y Scale', 100, 10, 500, 1);
 
     ClearSelectList;
     AddSelectList(GViewSpectrumScaleList, 'Log', VIEW_SPECTRUM_SCALE_LOG);
@@ -238,6 +245,7 @@ end;
 procedure FinalizeViewPlugin;
 begin
   // 共有メモリや表示履歴を初期化時と逆順に解放する。
+  FinalizeViewVector;
   FinalizeViewWave;
   FinalizeEqualizerBars;
 end;

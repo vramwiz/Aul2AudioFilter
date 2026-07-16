@@ -4,6 +4,17 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-16 Aul2Audio View Vectorscope and X/Y Scale
+
+- Monitor版Vectorscopeは削除したまま、MV用表示として`Aul2Audio View`へ8番目のType `Vectorscope`を追加した。処理後OutputのL/R代表点64組を点列で結び、同相信号を縦、左右差を横へ表示する。
+- 約180 KiBの専用共有メモリ`Local\Aul2AudioViewVector`を追加した。64レイヤーの最新値と全レイヤー共通256件の履歴を持ち、既存Viewと同じく現在フレームとの距離を優先して選択する。
+- Viewからの要求後だけ採取する方式は、音声が先読み済みの場合に履歴を生成できなかったため不採用とした。既存のOutput音声バッファから常時64組を取得する方式へ変更し、追加の`GetSampleData`、FFT、全サンプル走査は行わない。実機確認では負荷は実用上問題なかった。
+- 点だけではHD解像度で視認しにくいため、代表点を線で接続した。自動倍率は表示基準を曖昧にするため削除し、`X=(L-R)/2`、`Y=(L+R)/2`で正規化した。
+- `View Gain(%)`と試験中の`Side Gain(%)`を廃止し、共通パラメーター`X Scale` / `Y Scale`へ整理した。両方とも100を基準、範囲は10..500。Vectorscopeは小さいSide成分を見やすくするためX方向だけ固定10倍の感度とした。
+- バー、面、時間波形は画像全体を使い、正方形画角を期待する`Vectorscope`と`Circular Spectrum`は画像の短辺から作る中央正方形を基準にした。Circular Spectrumは通常感度のX/Y Scaleで円形座標を変形する。
+- Circular SpectrumがDebugビルドで透明になる問題は、独自の`array[0..0]`画素アクセスが範囲検査へ抵触していたことが原因だった。共通描画と同じ実アドレス計算へ変更して解消した。
+- 一時診断ログでType到達、共有履歴、同期選択、Circular Spectrumの有効バンドを確認し、問題解消後に診断ユニットとログ処理を削除した。Vectorscopeの編集時／再生時表示とCircular Spectrumの描画はユーザー実機確認済み。
+
 ## 2026-07-16 Spectrogram / Vectorscope removal
 
 - Monitorへ追加したSpectrogramとVectorscopeは、通常利用での有用性が低いため不採用とした。

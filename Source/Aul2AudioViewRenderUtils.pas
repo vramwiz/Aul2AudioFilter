@@ -22,10 +22,14 @@ procedure FillRect(Buffer: PPIXEL_RGBA; Width, Height, X1, Y1, X2, Y2: Integer;
 // Settings の配色と要素位置から描画に使う RGB 値を返す。
 procedure GetViewColor(const Settings: TAul2AudioViewSettings; Index, Count: Integer;
   out R, G, B: Byte);
-// View Gain を描画値だけに適用し、結果を -1～1 に制限する。
-function ApplyViewGain(Value: Single; const Settings: TAul2AudioViewSettings): Single;
-// 指定した表示位置に対応する周波数バンドを補間し、高域強調と View Gain を適用して返す。
+// Y Scale を描画値だけに適用し、結果を -1～1 に制限する。
+function ApplyYScale(Value: Single; const Settings: TAul2AudioViewSettings): Single;
+// 指定した表示位置に対応する周波数バンドを補間し、高域強調と Y Scale を適用して返す。
 function GetSpectrumDisplayValue(const Bands: TAudioMonitorSpectrumData; Valid: Boolean;
+  SourceMinHz, SourceMaxHz: Single; const Settings: TAul2AudioViewSettings;
+  Index, Count: Integer): Single;
+// 円形座標のX/Y Scaleと二重適用しない、Y Scale適用前の周波数表示値を返す。
+function GetSpectrumDisplayValueUnscaled(const Bands: TAudioMonitorSpectrumData; Valid: Boolean;
   SourceMinHz, SourceMaxHz: Single; const Settings: TAul2AudioViewSettings;
   Index, Count: Integer): Single;
 
@@ -173,10 +177,10 @@ begin
   B := Color.B;
 end;
 
-function ApplyViewGain(Value: Single; const Settings: TAul2AudioViewSettings): Single;
+function ApplyYScale(Value: Single; const Settings: TAul2AudioViewSettings): Single;
 begin
   // 音声や共有解析値は変更せず、描画に使う振幅だけを調整する。
-  Result := Value * Max(10, Min(500, Settings.ViewGain)) / 100.0;
+  Result := Value * Max(10, Min(500, Settings.YScale)) / 100.0;
   Result := Max(-1.0, Min(1.0, Result));
 end;
 
@@ -244,7 +248,7 @@ begin
   Result := Max(0.0, Min(1.0, Value * (1.0 + Boost * 2.0 * T)));
 end;
 
-function GetSpectrumDisplayValue(const Bands: TAudioMonitorSpectrumData; Valid: Boolean;
+function GetSpectrumDisplayValueUnscaled(const Bands: TAudioMonitorSpectrumData; Valid: Boolean;
   SourceMinHz, SourceMaxHz: Single; const Settings: TAul2AudioViewSettings;
   Index, Count: Integer): Single;
 var
@@ -261,7 +265,15 @@ begin
   Position := HzToSourceBand(FreqHz, SourceMinHz, SourceMaxHz);
   Result := Max(0.0, Min(1.0, SampleSpectrumBand(Bands, Position)));
   Result := ApplySpectrumHighBoost(Result, Settings, Index, Count);
-  Result := ApplyViewGain(Result, Settings);
+end;
+
+function GetSpectrumDisplayValue(const Bands: TAudioMonitorSpectrumData; Valid: Boolean;
+  SourceMinHz, SourceMaxHz: Single; const Settings: TAul2AudioViewSettings;
+  Index, Count: Integer): Single;
+begin
+  Result := GetSpectrumDisplayValueUnscaled(Bands, Valid, SourceMinHz, SourceMaxHz,
+    Settings, Index, Count);
+  Result := ApplyYScale(Result, Settings);
 end;
 
 end.
