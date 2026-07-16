@@ -15,6 +15,7 @@ const
   VIEW_TYPE_MIRROR_BARS       = 6;
   VIEW_TYPE_VECTORSCOPE       = 7;
   VIEW_TYPE_CIRCULAR_BARS_3D  = 8;
+  VIEW_TYPE_RADIAL_WAVEFORM_3D = 9;
 
   // 描画タイプが対応する場合だけ Blocks を使い、それ以外は Solid と同じ連続描画にする。
   VIEW_STYLE_SOLID  = 0;

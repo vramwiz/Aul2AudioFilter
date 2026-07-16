@@ -74,6 +74,7 @@
 - `Source\Aul2AudioViewRenderWaveLine.pas`: `Wave Line` 表示タイプの描画を担当する。
 - `Source\Aul2AudioViewRenderPixelWave.pas`: `Pixel Wave` 表示タイプの描画を担当する。
 - `Source\Aul2AudioViewRenderPulseWave.pas`: `Pulse Wave` 表示タイプの描画を担当する。
+- `Source\Aul2AudioViewRenderRadialWaveform3D.pas`: `Radial Waveform (3D)` の円周波形メッシュ生成、編集時波形保持、3D直接描画を担当する。
 - `Source\Aul2AudioViewRenderVectorscope.pas`: `Vectorscope` の短辺基準座標、L/R変換、点列描画を担当する。
 - `Source\Aul2AudioViewRenderUtils.pas`: ピクセルクリア、矩形塗り、View 用色取得など、表示タイプ間で共有する小さな描画補助。
 - `Source\Aul2AudioViewSpectrum.pas`: `Local\Aul2AudioMonitorSpectrum` の読み取りとスムージングを担当する。スペクトラム系表示タイプで共有する。
@@ -221,8 +222,9 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - `Aul2AudioView` は `Aul2AudioBaseInput` の上に載る MV 用表示フィルター。編集補助ではなく、音に反応する見た目を生成する用途。
 - 描画は背景透明、文字なし、枠なし、グリッドなしを基本にする。
 - 出力は安定優先で `Video^.SetImageData(Buffer, Width, Height)` を使う。GPU texture 出力はヘルパーだけ保持し、通常は無効。
-- 表示タイプは `Equalizer Bars` / `Mirror Bars` / `Filled Spectrum` / `Circular Spectrum` / `Wave Line` / `Pixel Wave` / `Pulse Wave` / `Vectorscope` / `Circular Bars (3D)` の 9 種類。
+- 表示タイプは `Equalizer Bars` / `Mirror Bars` / `Filled Spectrum` / `Circular Spectrum` / `Wave Line` / `Pixel Wave` / `Pulse Wave` / `Vectorscope` / `Circular Bars (3D)` / `Radial Waveform (3D)` の 10 種類。
 - `Circular Bars (3D)` は既存スペクトラム値から円周状の直方体バーを生成し、SDK の `draw_poly()` でフレームバッファへ直接描画する3D Type。`Solid` / `Blocks`、`Density`、`Spacing`、`Thickness`、`Base Radius`、X/Y/Z Scale、色、周波数範囲を反映する。共有メモリは追加せず、描画失敗時はCPU版 `Circular Spectrum` へ戻す。
+- `Radial Waveform (3D)` は現在の時間波形を円周上の厚み付きリボンへ変換し、SDK の `draw_poly()` で3D描画する。波形の位相移動が円周上の自然な回転として見える。X/Y/Z Scale、`Density`、`Thickness`、`Base Radius`、`Smooth`、色を反映し、薄い元形状を見やすくするためZ ScaleだけType固有の6倍感度を持つ。共有メモリは追加せず、描画失敗時は `Wave Line` へ戻す。
 - スペクトラム系は `Local\Aul2AudioMonitorSpectrum`、時間波形系は `Local\Aul2AudioMonitorState`、`Vectorscope` は `Local\Aul2AudioViewVector` の処理後Output L/R代表点を読む。
 - 共通パラメーターは `Type`, `Style`, `Density`, `Spacing`, `Thickness`, `Base Radius`, `Smooth`, `X Scale`, `Y Scale`, `Z Scale`, 色、周波数範囲設定。
 - バー、面、時間波形は用意された画像の幅と高さを使って描画する。`Circular Spectrum` と `Vectorscope` は短辺から作る中央正方形を基準にし、変形は `X Scale` / `Y Scale` またはAviUtl2側で行う。
@@ -234,6 +236,17 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - `Circular Spectrum` はスペクトラム系の値を中心から外へ伸びる放射状表示に変換する。現時点では `Density` / `Spacing` / `Thickness` / `Base Radius` / `Smooth` / 色 / 周波数範囲設定を流用する。
 - `Mirror Bars` はスペクトラム系の値を中心線から上下対称に伸びるバーへ変換する。`Density` / `Spacing` / `Thickness` / `Smooth` / 色 / 周波数範囲設定を流用する。
 - 完了済みの実装経緯や試行錯誤は `HISTORY.md` の `Aul2AudioView completion note` を参照する。
+
+## Aul2AudioView 追加予定: パーティクル表現
+
+- バーなどが音に反応して大きく動いた際、先端から粒子が飛び出して画面外へ消えていくパーティクル表現を追加候補とする。
+- View Typeごとに元の形状や放出方向が異なるため、粒子の動きは各Typeに合わせて多少変えてよい。共通設定では具体的な動作名を固定しない。
+- 共通設定は `Particle` と `Particle Count` の2項目だけとし、パーティクル固有の設定値を増やしすぎない。
+- `Particle` は `None` / `Type 1` / `Type 2` ... の選択形式とする。初期値は `None` とし、従来表示と負荷へ影響させない。
+- `Type 1` などの意味はView Typeごとに変えてよい。設定名を抽象化し、将来、形状や軌道を追加しやすい状態にする。
+- `Particle Count` は1回に放出する数ではなく、画面内に同時存在できる粒子数の上限として扱う。候補範囲は `16..512`、初期値は少数の `64`、刻みは `16` とする。
+- `Particle = None` の間も `Particle Count` の値は保持し、`Type 1` などを選択すると次の描画フレームから即時反映する。別Typeへ切り替えた場合は既存粒子を消し、新しい方式で生成し直す。
+- 粒子の位置、速度、寿命などの状態はViewプラグイン内で管理し、現時点では共有メモリを増やさない方針とする。最大数を固定し、配列を再利用して負荷を抑える。
 
 ## Aul2AudioView / Monitor 再生同期の現状
 

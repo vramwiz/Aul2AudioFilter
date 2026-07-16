@@ -136,6 +136,7 @@
         <DCCReference Include="Source\Aul2AudioViewRenderWaveLine.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRenderPixelWave.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRenderPulseWave.pas"/>
+        <DCCReference Include="Source\Aul2AudioViewRenderRadialWaveform3D.pas"/>
         <DCCReference Include="Source\Aul2AudioViewVector.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRenderVectorscope.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRender.pas"/>

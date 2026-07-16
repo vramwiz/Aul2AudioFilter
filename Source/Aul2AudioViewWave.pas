@@ -14,6 +14,9 @@ procedure FinalizeViewWave;
 // 指定フレームとレイヤーに最も近い波形を取得し、平滑化した中心値と min/max 包絡線を返す。
 procedure UpdateViewWave(Smooth: Integer; out Wave, WaveMin, WaveMax: TAudioMonitorWaveData;
   out Valid: Boolean; CurrentFrame, SourceLayer: Integer);
+// 編集時に同期履歴がない場合、指定レイヤーの最新波形を返す。
+procedure UpdateViewWaveLatestForEdit(Smooth: Integer; out Wave, WaveMin, WaveMax: TAudioMonitorWaveData;
+  out Valid: Boolean; SourceLayer: Integer);
 
 implementation
 
@@ -206,11 +209,31 @@ begin
   DisplayValue := DisplayValue + ((NewValue - DisplayValue) * Alpha);
 end;
 
+procedure UpdateDisplayWaveFromState(State: PAul2AudioMonitorState; Smooth: Integer);
+var
+  Point: Integer;
+begin
+  if not DisplayWaveValid then
+  begin
+    DisplayWave := State^.OutputWave;
+    DisplayWaveMin := State^.OutputWaveMin;
+    DisplayWaveMax := State^.OutputWaveMax;
+    DisplayWaveValid := True;
+    Exit;
+  end;
+
+  for Point := 0 to AUDIO_MONITOR_WAVE_POINT_LAST do
+  begin
+    SmoothPoint(DisplayWave[Point], State^.OutputWave[Point], Smooth);
+    SmoothPoint(DisplayWaveMin[Point], State^.OutputWaveMin[Point], Smooth);
+    SmoothPoint(DisplayWaveMax[Point], State^.OutputWaveMax[Point], Smooth);
+  end;
+end;
+
 procedure UpdateViewWave(Smooth: Integer; out Wave, WaveMin, WaveMax: TAudioMonitorWaveData;
   out Valid: Boolean; CurrentFrame, SourceLayer: Integer);
 var
   State: PAul2AudioMonitorState;
-  Point: Integer;
   InternalLayer: Integer;
 begin
   FillChar(Wave, SizeOf(Wave), 0);
@@ -231,21 +254,39 @@ begin
   if State = nil then
     Exit;
 
-  if not DisplayWaveValid then
-  begin
-    DisplayWave := State^.OutputWave;
-    DisplayWaveMin := State^.OutputWaveMin;
-    DisplayWaveMax := State^.OutputWaveMax;
-    DisplayWaveValid := True;
-  end
-  else
-    for Point := 0 to AUDIO_MONITOR_WAVE_POINT_LAST do
-    begin
-      SmoothPoint(DisplayWave[Point], State^.OutputWave[Point], Smooth);
-      SmoothPoint(DisplayWaveMin[Point], State^.OutputWaveMin[Point], Smooth);
-      SmoothPoint(DisplayWaveMax[Point], State^.OutputWaveMax[Point], Smooth);
-    end;
+  UpdateDisplayWaveFromState(State, Smooth);
 
+  Wave := DisplayWave;
+  WaveMin := DisplayWaveMin;
+  WaveMax := DisplayWaveMax;
+  Valid := True;
+end;
+
+procedure UpdateViewWaveLatestForEdit(Smooth: Integer; out Wave, WaveMin, WaveMax: TAudioMonitorWaveData;
+  out Valid: Boolean; SourceLayer: Integer);
+var
+  State: PAul2AudioMonitorState;
+  InternalLayer: Integer;
+begin
+  FillChar(Wave, SizeOf(Wave), 0);
+  FillChar(WaveMin, SizeOf(WaveMin), 0);
+  FillChar(WaveMax, SizeOf(WaveMax), 0);
+  Valid := False;
+
+  if WaveMemory = nil then
+    InitializeViewWave;
+  if WaveMemory = nil then
+    Exit;
+
+  InternalLayer := ResolveSourceLayer(SourceLayer);
+  if InternalLayer = AUDIO_MONITOR_LAYER_AUTO then
+    State := WaveMemory.State
+  else
+    State := WaveMemory.GetStateForLayer(InternalLayer);
+  if not WaveStateUsable(State) then
+    Exit;
+
+  UpdateDisplayWaveFromState(State, Smooth);
   Wave := DisplayWave;
   WaveMin := DisplayWaveMin;
   WaveMax := DisplayWaveMax;
