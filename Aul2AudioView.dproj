@@ -142,6 +142,7 @@
         <DCCReference Include="Source\Aul2AudioViewRenderWaveformTunnel3D.pas"/>
         <DCCReference Include="Source\Aul2AudioViewVector.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRenderVectorscope.pas"/>
+        <DCCReference Include="Source\Aul2AudioViewRenderVectorscopeTrail3D.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRender.pas"/>
         <DCCReference Include="Source\Aul2AudioViewPlugin.pas"/>
         <BuildConfiguration Include="Base">

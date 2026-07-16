@@ -34,6 +34,7 @@ uses
   Aul2AudioViewRenderWaveformTunnel3D in 'Source\Aul2AudioViewRenderWaveformTunnel3D.pas',
   Aul2AudioViewVector in 'Source\Aul2AudioViewVector.pas',
   Aul2AudioViewRenderVectorscope in 'Source\Aul2AudioViewRenderVectorscope.pas',
+  Aul2AudioViewRenderVectorscopeTrail3D in 'Source\Aul2AudioViewRenderVectorscopeTrail3D.pas',
   Aul2AudioViewRender in 'Source\Aul2AudioViewRender.pas',
   Aul2AudioViewPlugin in 'Source\Aul2AudioViewPlugin.pas';
 

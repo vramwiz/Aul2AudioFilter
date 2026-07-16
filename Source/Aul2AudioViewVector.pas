@@ -7,6 +7,13 @@ interface
 uses
   Aul2AudioViewVectorShared;
 
+type
+  TAudioViewVectorFrame = record
+    Left : TAudioViewVectorData;
+    Right: TAudioViewVectorData;
+  end;
+  TAudioViewVectorHistory = array of TAudioViewVectorFrame;
+
 // Vectorscope用共有メモリを開く。
 procedure InitializeViewVector;
 // Vectorscope用共有メモリを解放する。
@@ -14,13 +21,17 @@ procedure FinalizeViewVector;
 // 現在フレームとレイヤーに最も近いOutput L/R代表点を返す。
 procedure UpdateViewVector(out Left, Right: TAudioViewVectorData;
   out Valid: Boolean; CurrentFrame, SourceLayer: Integer);
+// 現在フレーム以前の対象レイヤーのVectorscope点列を新しい順で返す。
+procedure GetViewVectorHistory(CurrentFrame, SourceLayer, MaxCount: Integer;
+  out History: TAudioViewVectorHistory; out Valid: Boolean);
 
 implementation
 
 uses
   System.Math,
   System.SysUtils,
-  Aul2AudioMonitorShared;
+  Aul2AudioMonitorShared,
+  Aul2AudioViewSpectrum;
 
 var
   VectorMemory: TAul2AudioViewVectorSharedMemory;
@@ -149,6 +160,132 @@ begin
 
   Left := State^.OutputLeft;
   Right := State^.OutputRight;
+  Valid := True;
+end;
+
+function FindLatestStateForLayer(InternalLayer: Integer): PAul2AudioViewVectorState;
+var
+  Layer: Integer;
+  State: PAul2AudioViewVectorState;
+begin
+  Result := nil;
+  if VectorMemory = nil then
+    Exit;
+
+  if InternalLayer <> AUDIO_MONITOR_LAYER_AUTO then
+  begin
+    State := VectorMemory.GetStateForLayer(InternalLayer);
+    if StateUsable(State) then
+      Result := State;
+    Exit;
+  end;
+
+  for Layer := 0 to AUDIO_MONITOR_LAYER_SLOT_LAST do
+  begin
+    State := VectorMemory.GetStateForLayer(Layer);
+    if StateUsable(State) and
+       ((Result = nil) or (State^.UpdateTick > Result^.UpdateTick)) then
+      Result := State;
+  end;
+end;
+
+procedure GetViewVectorHistory(CurrentFrame, SourceLayer, MaxCount: Integer;
+  out History: TAudioViewVectorHistory; out Valid: Boolean);
+type
+  THistoryEntry = record
+    Frame: Integer;
+    UpdateTick: UInt64;
+    Data: TAudioViewVectorFrame;
+  end;
+var
+  Entries: array of THistoryEntry;
+  State: PAul2AudioViewVectorState;
+  Selected: PAul2AudioViewVectorState;
+  InternalLayer: Integer;
+  Index: Integer;
+  EntryIndex: Integer;
+  SortIndex: Integer;
+  Count: Integer;
+  Temp: THistoryEntry;
+begin
+  SetLength(History, 0);
+  Valid := False;
+  MaxCount := Max(1, Min(AUDIO_VIEW_VECTOR_HISTORY_COUNT, MaxCount));
+  if (VectorMemory = nil) or (VectorMemory.Root = nil) then
+    Exit;
+
+  InternalLayer := ResolveSourceLayer(SourceLayer);
+  if InternalLayer = AUDIO_MONITOR_LAYER_AUTO then
+  begin
+    Selected := SelectVectorState(CurrentFrame, InternalLayer);
+    if (Selected = nil) and (GetViewEditState = 0) then
+      Selected := FindLatestStateForLayer(InternalLayer);
+    if not StateUsable(Selected) then
+      Exit;
+    InternalLayer := Selected^.SourceLayer;
+  end;
+  if (InternalLayer < 0) or (InternalLayer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+
+  SetLength(Entries, AUDIO_VIEW_VECTOR_HISTORY_COUNT);
+  Count := 0;
+  for Index := 0 to AUDIO_VIEW_VECTOR_HISTORY_LAST do
+  begin
+    State := VectorMemory.GetHistoryState(Index);
+    if not StateUsable(State) or (State^.SourceLayer <> InternalLayer) or
+       not StateMatchesFrame(State, CurrentFrame) then
+      Continue;
+    if (CurrentFrame >= 0) and (StateDisplayFrame(State) > CurrentFrame) then
+      Continue;
+
+    EntryIndex := -1;
+    for SortIndex := 0 to Count - 1 do
+      if Entries[SortIndex].Frame = StateDisplayFrame(State) then
+      begin
+        EntryIndex := SortIndex;
+        Break;
+      end;
+    if (EntryIndex >= 0) and (Entries[EntryIndex].UpdateTick >= State^.UpdateTick) then
+      Continue;
+    if EntryIndex < 0 then
+    begin
+      EntryIndex := Count;
+      Inc(Count);
+    end;
+    Entries[EntryIndex].Frame := StateDisplayFrame(State);
+    Entries[EntryIndex].UpdateTick := State^.UpdateTick;
+    Entries[EntryIndex].Data.Left := State^.OutputLeft;
+    Entries[EntryIndex].Data.Right := State^.OutputRight;
+  end;
+
+  if (Count = 0) and (GetViewEditState = 0) then
+  begin
+    State := FindLatestStateForLayer(InternalLayer);
+    if StateUsable(State) then
+    begin
+      Entries[0].Frame := StateDisplayFrame(State);
+      Entries[0].UpdateTick := State^.UpdateTick;
+      Entries[0].Data.Left := State^.OutputLeft;
+      Entries[0].Data.Right := State^.OutputRight;
+      Count := 1;
+    end;
+  end;
+
+  for Index := 0 to Count - 2 do
+    for SortIndex := Index + 1 to Count - 1 do
+      if Entries[SortIndex].Frame > Entries[Index].Frame then
+      begin
+        Temp := Entries[Index];
+        Entries[Index] := Entries[SortIndex];
+        Entries[SortIndex] := Temp;
+      end;
+
+  Count := Min(Count, MaxCount);
+  if Count <= 0 then
+    Exit;
+  SetLength(History, Count);
+  for Index := 0 to Count - 1 do
+    History[Index] := Entries[Index].Data;
   Valid := True;
 end;
 

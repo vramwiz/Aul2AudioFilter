@@ -79,6 +79,7 @@
 - `Source\Aul2AudioViewRenderSpectrumWaterfall3D.pas`: `Spectrum Waterfall (3D)` の独立スペクトラム帯、流動履歴、編集時形状保持、3D直接描画を担当する。
 - `Source\Aul2AudioViewRenderWaveformTunnel3D.pas`: `Waveform Tunnel (3D)` の波形履歴取得、流動履歴、円形断面トンネルメッシュ生成、編集時形状保持、3D直接描画を担当する。
 - `Source\Aul2AudioViewRenderVectorscope.pas`: `Vectorscope` の短辺基準座標、L/R変換、点列描画を担当する。
+- `Source\Aul2AudioViewRenderVectorscopeTrail3D.pas`: `Vectorscope Trail (3D)` のレイヤー別履歴抽出、履歴平滑化、3D点列リボン・点タイル描画を担当する。
 - `Source\Aul2AudioViewRenderUtils.pas`: ピクセルクリア、矩形塗り、View 用色取得など、表示タイプ間で共有する小さな描画補助。
 - `Source\Aul2AudioViewSpectrum.pas`: `Local\Aul2AudioMonitorSpectrum` の読み取りとスムージングを担当する。スペクトラム系表示タイプで共有する。
 - `Source\Aul2AudioViewWave.pas`: `Local\Aul2AudioMonitorState` の時間波形読み取りを担当する。時間波形系表示タイプで共有する。
@@ -225,12 +226,13 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - `Aul2AudioView` は `Aul2AudioBaseInput` の上に載る MV 用表示フィルター。編集補助ではなく、音に反応する見た目を生成する用途。
 - 描画は背景透明、文字なし、枠なし、グリッドなしを基本にする。
 - 出力は安定優先で `Video^.SetImageData(Buffer, Width, Height)` を使う。GPU texture 出力はヘルパーだけ保持し、通常は無効。
-- 表示タイプは `Equalizer Bars` / `Mirror Bars` / `Filled Spectrum` / `Circular Spectrum` / `Wave Line` / `Pixel Wave` / `Pulse Wave` / `Vectorscope` / `Circular Bars (3D)` / `Radial Waveform (3D)` / `Spectrum Landscape (3D)` / `Waveform Tunnel (3D)` / `Spectrum Waterfall (3D)` の 13 種類。
+- 表示タイプは `Equalizer Bars` / `Mirror Bars` / `Filled Spectrum` / `Circular Spectrum` / `Wave Line` / `Pixel Wave` / `Pulse Wave` / `Vectorscope` / `Circular Bars (3D)` / `Radial Waveform (3D)` / `Spectrum Landscape (3D)` / `Waveform Tunnel (3D)` / `Spectrum Waterfall (3D)` / `Vectorscope Trail (3D)` の 14 種類。
 - `Circular Bars (3D)` は既存スペクトラム値から円周状の直方体バーを生成し、SDK の `draw_poly()` でフレームバッファへ直接描画する3D Type。`Solid` / `Blocks`、`Density`、`Spacing`、`Thickness`、`Base Radius`、X/Y/Z Scale、色、周波数範囲を反映する。共有メモリは追加せず、描画失敗時はCPU版 `Circular Spectrum` へ戻す。
 - `Radial Waveform (3D)` は現在の時間波形を円周上の厚み付きリボンへ変換し、SDK の `draw_poly()` で3D描画する。波形の位相移動が円周上の自然な回転として見える。X/Y/Z Scale、`Density`、`Thickness`、`Base Radius`、`Smooth`、色を反映し、薄い元形状を見やすくするためZ ScaleだけType固有の6倍感度を持つ。共有メモリは追加せず、描画失敗時は `Wave Line` へ戻す。
 - `Spectrum Landscape (3D)` は既存のスペクトラム履歴を周波数=X、振幅=Y、時間履歴=Zの四角形グリッドへ変換し、SDK の `draw_poly()` で3D描画する。最大32列とし、`Solid`は連続地形、`Blocks`は独立した履歴帯として描く。`Density`、`Spacing`、`Thickness`、`Smooth`、X/Y/Z Scale、色、周波数範囲を反映する。`Base Radius`は円形座標を持たないため使用しない。共有メモリは追加せず、描画失敗時は `Filled Spectrum` へ戻す。
 - `Waveform Tunnel (3D)` は既存共有メモリから現在フレーム以前の波形履歴を最大32断面取得し、円形断面としてZ方向へ並べる。再生中はView内の流動履歴で断面を奥へ送り、編集中はカーソル位置に合わせて共有履歴を毎回組み直す。`Solid`は断面間を接続した両端面付きの厚み付きトンネル、`Blocks`は独立リング列として `draw_poly()` で描く。`Density`、`Spacing`、`Thickness`、`Base Radius`、`Smooth`、X/Y/Z Scale、色を反映し、共有メモリは追加しない。`Smooth`は先頭だけでなく履歴方向にも適用する。`Solid`では`Thickness`を壁厚、`Spacing`を断面間隔として分離する。同期履歴がない編集時は指定レイヤーの最新値、それも無効なら最後の有効形状へ戻す。描画失敗時は `Wave Line` へ戻す。スペクトラム専用の周波数範囲、高域強調、周波数軸設定は意図的に使用しない。Release Win64ビルド、再生中の流動、編集カーソル追従、各パラメーター、Solidの壁厚・端面、Blocksのリング列を実機確認済みで、完成扱いとする。
 - `Spectrum Waterfall (3D)` は既存スペクトラム履歴を接続せず、Z方向へ独立した細い帯として最大32列並べる。`Solid`は周波数方向へ連続したリボン、`Blocks`は周波数方向も分割したタイル列として描く。再生中は無音を高さ0の列として流し、編集中はカーソル位置の共有履歴を再取得する。`Density`、`Spacing`、`Thickness`、`Smooth`、X/Y/Z Scale、色、周波数範囲、高域強調を反映する。`Smooth`は新しい先頭列だけでなく履歴方向の隣接帯にも適用する。円形座標を持たないため`Base Radius`は使用しない。共有メモリは追加せず、描画失敗時は`Filled Spectrum`へ戻す。Release Win64ビルド、表示、各パラメーターを実機確認済みで、完成扱いとする。
+- `Vectorscope Trail (3D)` は全レイヤー共通256件のVectorscope履歴から対象レイヤーを抽出し、現在フレーム以前を新しい順に最大32層並べる。各層は処理後Output L/R代表点64組を`X=(L-R)/2`、`Y=(L+R)/2`へ変換する。`Solid`は各時刻の点列を厚み付きリボンで接続し、`Blocks`は独立した点タイルとして描く。履歴層同士は接続しない。再生中はView内の流動履歴へ有効層を追加し、無音時は中心点ではなく空層を追加して既存層を奥へ押し出す。最後の有効層が履歴分流れ切ってから透明になる。`Density`、`Spacing`、`Thickness`、`Smooth`、X/Y/Z Scale、色、`Source Layer`を反映する。通常音量でも指定解像度を使いやすくするためX/Y共通のType専用2.5倍感度を持ち、X方向は2D Vectorscopeと同じ相対10倍のSide感度も維持する。描画範囲は正方形へ制限せず、Xを指定Width、Yを指定Height基準にする。履歴層の奥行きを見やすくするためZ ScaleはType専用8倍感度を持つ。円形・スペクトラム専用設定は使用しない。共有メモリは追加せず、実際の描画失敗時は2D `Vectorscope`へ戻す。意図的な空表示ではフォールバックしない。Release Win64ビルド、表示、流れ切り、長方形座標、専用X/Y/Z感度、各パラメーターを実機確認済みで、完成扱いとする。
 - 新しい3D View Typeを追加する際は、再生中だけでなく編集停止中の表示も必ず考慮する。編集停止中は同期対象の音声履歴が得られず無音値へ落ちて形状が消える場合があるため、既存3D Typeと同様に、指定レイヤーの最新値へのフォールバックと最後の有効値の保持を実装する。Play／Encode中の本当の無音は保持せず、そのまま無音として扱う。
 - スペクトラム系は `Local\Aul2AudioMonitorSpectrum`、時間波形系は `Local\Aul2AudioMonitorState`、`Vectorscope` は `Local\Aul2AudioViewVector` の処理後Output L/R代表点を読む。
 - 共通パラメーターは `Type`, `Style`, `Density`, `Spacing`, `Thickness`, `Base Radius`, `Smooth`, `X Scale`, `Y Scale`, `Z Scale`, 色、周波数範囲設定。
@@ -243,10 +245,6 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - `Circular Spectrum` はスペクトラム系の値を中心から外へ伸びる放射状表示に変換する。現時点では `Density` / `Spacing` / `Thickness` / `Base Radius` / `Smooth` / 色 / 周波数範囲設定を流用する。
 - `Mirror Bars` はスペクトラム系の値を中心線から上下対称に伸びるバーへ変換する。`Density` / `Spacing` / `Thickness` / `Smooth` / 色 / 周波数範囲設定を流用する。
 - 完了済みの実装経緯や試行錯誤は `HISTORY.md` の `Aul2AudioView completion note` を参照する。
-
-## Aul2AudioView 次回3D Type候補
-
-- `Vectorscope Trail (3D)`: ステレオ／位相の点列履歴をZ方向へ展開する。全レイヤー共通履歴から対象レイヤーを抽出して時間順に並べる必要がある。難度は中～やや高。
 
 ## Aul2AudioView 追加予定: パーティクル表現
 
