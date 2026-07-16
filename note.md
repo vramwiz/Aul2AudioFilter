@@ -66,6 +66,7 @@
 - `Source\Aul2AudioControllerCompressorGraph.pas`: Controller最下部に置くCompressor入出力特性表示。設定値だけを使ったThreshold以降の圧縮、Ratio、Makeup、Mix、無加工基準線の描画を担当する。
 - `Source\Aul2AudioControllerDistortionGraph.pas`: Controller最下部に置くDistortion振幅伝達表示。DSPと同じSoft Clip／Hard Clip、Drive、Tone、Level、Mixと無加工基準線の描画を担当する。
 - `Source\Aul2AudioControllerBitCrusherGraph.pas`: Controller最下部に置くBitCrusher量子化表示。DSPと同じBitDepth別の量子化階段、Mix、量子化レベル数、Sample Hold情報の描画を担当する。
+- `Source\Aul2AudioControllerNoiseGateGraph.pas`: Controller最下部に置くNoiseGate入出力特性表示。Threshold未満のFloor減衰、抑制領域、ゲートが開く段差、Attack／Release情報の描画を担当する。
 - `Source\Aul2AudioBasePanel.pas`: Controllerの `波形表示オブジェクトの配置` UI。解像度設定、レイヤーリスト、選択レイヤー生成ボタン、D&Dエイリアス生成を担当する。Monitor用の横配置も復活可能な形で残す。
 - `Source\Aul2AudioPresetPanel.pas`: Controllerの `エフェクトプリセットの管理` UI。選択Objectのプリセット登録、一覧の名前編集、グループ制御（音声）のD&D生成を担当する。Monitor用の横配置も復活可能な形で残す。
 - `Source\Aul2AudioPresetModel.pas`: ユーザープリセットとエイリアス要素のRTTIモデル、二重セクションINIの保存と読み込みを担当する。
@@ -219,7 +220,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 
 ### Controller エフェクト表示
 
-- Controllerのエフェクター操作画面には、現在の設定によるエフェクトの掛かり具合を視覚的に把握する補助表示を置く。現在は `Delay`、`EQ`、`Compressor`、`Distortion`、`BitCrusher` を実装済み。
+- Controllerのエフェクター操作画面には、現在の設定によるエフェクトの掛かり具合を視覚的に把握する補助表示を置く。現在は `Delay`、`EQ`、`Compressor`、`Distortion`、`BitCrusher`、`NoiseGate` を実装済み。
 - 約300pxの小型表示を前提とし、各エフェクターにつき最も効果を把握しやすい表示を1つに絞る。
 - 設定値から形状を生成できる表示を基本とし、必ずしも実際の音声データを取得しなくても有用なものにする。リアルタイム値が必要な表示は別途共有方法と負荷を検討する。
 - グラフはController操作の補助表示と位置付け、エフェクター選択、Use、Mode、パラメーターノブの後、一番下へ置く。表示領域の高さが不足する場合は操作部を優先し、グラフを非表示にする。Preset管理と波形表示オブジェクト配置の画面には表示しない。
@@ -240,6 +241,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - 2026-07-17、続きとして `Compressor` の入出力特性を追加した。横軸は入力-60～0dB、縦軸はMakeupを含む出力-60～+24dBとし、DSPと同じ圧縮ゲイン、Makeup、線形Mixによる定常特性を表示する。AttackとReleaseは時間応答値としてグラフ内へ併記する。Release Win64ビルドとAviUtl2上の実表示を確認済み。Thresholdの折れ点、無加工基準線、設定値ラベルを含め、小型表示として採用可能な状態。
 - 2026-07-17、次に `Distortion` の振幅伝達カーブを追加した。横軸は入力-1～+1、縦軸はLevelに応じて±1／±2／±4へ段階的に拡張し、DSPと同じSoft Clipのtanh、Hard Clipの制限、Tone、Level、Mixを反映する。無加工基準線とDriveによる飽和開始位置も表示する。Release Win64ビルドとAviUtl2上の実表示を確認済み。Soft ClipのS字カーブ、基準線、飽和位置、設定値ラベルを含め完成扱いとする。
 - 2026-07-17、次に `BitCrusher` の量子化階段カーブを追加した。DSPと同じ符号付き量子化とMixを反映する。全域表示で量子化1段あたり約8pxを確保できない場合は、実描画幅とDPIから中央表示範囲を自動拡大し、実際の階段を表示する。全域時は振幅値、拡大時は量子化ステップ数を軸に使い、長い小数を避ける。BitDepth、Sample Hold、Mix、全量子化レベル数、拡大時に表示中のレベル数を表示する。4bit、6bit、7bitの実機表示から画素密度基準へ変更し、高BitDepthの実機表示から拡大軸をステップ単位へ変更した。1ステップの実振幅は科学表記でも直感的でないため表示しない。Release Win64ビルドとAviUtl2上の実表示を確認済み。低～高BitDepthの階段、自動拡大、ステップ単位軸、レベル数表記を含め完成扱いとする。
+- 2026-07-17、次に `NoiseGate` の入出力特性カーブを追加した。横軸は入力-80～0dB、縦軸はFloor減衰を収める出力-160～0dBとし、Threshold未満ではDSPと同じく入力へFloor dBを加えた線、Threshold以上では無加工線を表示する。両者の段差、抑制領域の塗り、Threshold位置、Attack、Releaseを表示する。AttackとReleaseは定常入出力カーブを変えず、ゲートが開閉するときの時間応答値として数値だけを表示する。Release Win64ビルドとAviUtl2上の実表示を確認済みとし、NoiseGateグラフを完成扱いとする。
 - エフェクトOFF時は形状を保持したまま暗くし、設定内容を確認できるようにする。
 - 実音声を必要とする当初案は静的表示へ読み替える。`AutoGain` の補正ゲイン履歴はTargetとMax Gainによる補正可能範囲、`Output` の時間軸上の入出力比較はGainによる入出力伝達線として表示する。`Noise` のランダム形状は設定が同じなら形も変わらない再現可能なサンプルを使う。
 
@@ -277,7 +279,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 | 2線比較表示 | Chorus |
 | ランダム分布表示 | Noise |
 
-- 特に小型表示と相性がよい優先候補は、`EQ`、`Compressor`、`Distortion`、`BitCrusher`、`NoiseGate`、`Limiter`、`Delay`。このうち `EQ`、`Compressor`、`Distortion`、`BitCrusher`、`Delay` は実装済み。設定値を変更すると形が明確に変わるため、実際の音声データを取得しなくても有用な表示になる。
+- 特に小型表示と相性がよい優先候補は、`EQ`、`Compressor`、`Distortion`、`BitCrusher`、`NoiseGate`、`Limiter`、`Delay`。このうち `Limiter` 以外は実装済み。設定値を変更すると形が明確に変わるため、実際の音声データを取得しなくても有用な表示になる。
 
 ## Aul2AudioBaseInput / Base 現状
 

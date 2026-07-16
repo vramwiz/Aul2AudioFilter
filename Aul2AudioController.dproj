@@ -122,6 +122,7 @@
         <DCCReference Include="Source\Aul2AudioControllerCompressorGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerDistortionGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerBitCrusherGraph.pas"/>
+        <DCCReference Include="Source\Aul2AudioControllerNoiseGateGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerView.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerPlugin.pas"/>
         <BuildConfiguration Include="Base">

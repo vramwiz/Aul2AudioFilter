@@ -27,6 +27,7 @@ uses
   Aul2AudioControllerCompressorGraph in 'Source\Aul2AudioControllerCompressorGraph.pas',
   Aul2AudioControllerDistortionGraph in 'Source\Aul2AudioControllerDistortionGraph.pas',
   Aul2AudioControllerBitCrusherGraph in 'Source\Aul2AudioControllerBitCrusherGraph.pas',
+  Aul2AudioControllerNoiseGateGraph in 'Source\Aul2AudioControllerNoiseGateGraph.pas',
   Aul2AudioControllerView in 'Source\Aul2AudioControllerView.pas',
   Aul2AudioControllerPlugin in 'Source\Aul2AudioControllerPlugin.pas';
 

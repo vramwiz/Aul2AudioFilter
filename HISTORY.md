@@ -4,6 +4,12 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-17 Aul2AudioController NoiseGate graph
+
+- Controllerの次の補助表示として、`Aul2AudioControllerNoiseGateGraph.pas`を追加した。横軸を入力-80～0dB、縦軸を出力-160～0dBとし、DSPと同じくThreshold未満では入力へFloor dBを加え、Threshold以上では無加工となる定常入出力特性を描画する。
+- 無加工基準線、Threshold位置、ゲートが開く段差、抑制される音量領域の塗り、Floor、Attack、Releaseを表示する。UseがOFFでも設定形状を暗く残し、ノブ操作、設定読込、Use変更、リサイズへ追従する。
+- `Aul2AudioController.dproj`のRelease Win64ビルドは警告・エラーなしで成功し、`Aul2AudioController.aux2`へ反映した。Threshold、Floor、段差、抑制領域、Attack／Release値をユーザー実機確認済みとした。Attack／Releaseは定常カーブの形状を変えず時間応答だけを制御する仕様で正しいことも確認し、NoiseGateグラフを完成扱いとする。
+
 ## 2026-07-17 Aul2AudioController BitCrusher graph
 
 - Controllerの次の補助表示として、`Aul2AudioControllerBitCrusherGraph.pas`を追加した。入力-1～+1に対し、DSPと同じBitDepth別の符号付き量子化とMixを適用した静的な入出力カーブを描画する。
