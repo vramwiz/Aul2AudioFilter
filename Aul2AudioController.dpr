@@ -23,6 +23,7 @@ uses
   Aul2AudioControllerLampSwitch in 'Source\Aul2AudioControllerLampSwitch.pas',
   Aul2AudioControllerVolumeControl in 'Source\Aul2AudioControllerVolumeControl.pas',
   Aul2AudioControllerDelayGraph in 'Source\Aul2AudioControllerDelayGraph.pas',
+  Aul2AudioControllerEqGraph in 'Source\Aul2AudioControllerEqGraph.pas',
   Aul2AudioControllerView in 'Source\Aul2AudioControllerView.pas',
   Aul2AudioControllerPlugin in 'Source\Aul2AudioControllerPlugin.pas';
 

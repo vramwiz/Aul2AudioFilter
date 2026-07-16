@@ -118,6 +118,7 @@
         <DCCReference Include="Source\Aul2AudioControllerLampSwitch.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerVolumeControl.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerDelayGraph.pas"/>
+        <DCCReference Include="Source\Aul2AudioControllerEqGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerView.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerPlugin.pas"/>
         <BuildConfiguration Include="Base">

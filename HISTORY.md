@@ -4,6 +4,17 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-16 Aul2AudioController effect graph completion note
+
+- Controllerのエフェクター操作を主体としたまま、現在の設定による効果の傾向を確認できる小型の補助表示をノブ最終行の下へ追加した。最大幅300px、高さ150pxで中央配置し、ウィンドウの高さが不足する場合は操作部を優先して表示しない。Preset管理と波形表示オブジェクト配置のページにも表示しない。
+- Controller内では実音声、再生位置、共有メモリ、監視タイマーを使わず、選択Objectから読み込んだ設定値とControllerで変更した値だけから描画する。マルチエフェクター全体の実測表示が必要になった場合はMonitor側の役割とする。
+- 最初のDelay版は0～5000msの座標軸へ細い反射線を描いたが、余白が大きく各線の意味も読み取りにくかったため不採用とした。原音とEchoを太線で直接示し、Delay時間の矢印、Feedbackによる減衰線、最後に表示するEcho時刻を添える反射模式図へ変更した。
+- Delayの主線はDPIに応じた約4px、補助線と減衰線は1pxとした。横幅と減衰レベルからEchoを1～6本に制限し、OFF時も設定文字は暗くしない。Time、Dry、Wet、Feedback、Normal/Ping-Pong、Useの変更へ追従する。ユーザー実機確認により、厳密な音声処理結果ではないが調整具合の目安として十分分かりやすい状態になった。
+- 2番目としてEQの周波数特性表示を追加した。DSP実装がButterworth型2次High/Low Passであることを確認し、20Hz～20kHzの対数周波数軸、通過量0～100%、約3pxの特性カーブ、薄い通過領域、カット位置の1px縦線でLow Cut、High Cut、Band Passを近似表示する。Mixは0%のフラット線から100%のフィルター特性まで補間する。
+- EQのBand PassでHigh CutがLow Cut以下の場合はDSP側と同じくLow Cutより1Hz上へ補正する。カット位置文字はLow側を縦線の左、High側を右へ逃がし、カーブや線と重なる場合も読めるよう黒に近い余白付き背景を敷いた。ユーザー実機確認により、線グラフ、塗り、Mode、Mix、カット位置の変化と文字の視認性が実用的な状態になった。
+- `Aul2AudioControllerDelayGraph.pas`と`Aul2AudioControllerEqGraph.pas`を個別描画ユニットとして追加し、Controllerのテーマ色、設定読込、Mode、Use、各ノブ変更、リサイズへ連携した。ほかのエフェクターは今回実装せず、必要になった時に同じ表示領域と配置・ラベル回避方針を再利用する。
+- `Aul2AudioController.dproj`のRelease Win64ビルドが警告・エラーなしで成功し、`Aul2AudioController.aux2`へ反映した。DelayとEQのAviUtl2上の表示をユーザー実機確認済みとし、この作業を完了扱いとする。
+
 ## 2026-07-16 Aul2Audio View Vectorscope Trail 3D completion note
 
 - 14番目のView Typeとして`Vectorscope Trail (3D)`を追加した。全レイヤー共通256件のVectorscope履歴から対象レイヤーを抽出し、重複フレームは最新更新値を採用して、現在フレーム以前を新しい順に最大32層並べる。共有メモリの構造と容量は変更していない。
