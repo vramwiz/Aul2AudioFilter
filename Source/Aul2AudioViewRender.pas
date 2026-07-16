@@ -8,8 +8,8 @@ uses
   Aul2AudioFilterTypes,
   Aul2AudioViewParams;
 
-// Settings に対応する透明 RGBA 画像を生成し、Video の映像出力として AviUtl2 へ渡す。
-procedure RenderView(Video: PFILTER_PROC_VIDEO; const Settings: TAul2AudioViewSettings);
+// Settings の描画経路を実行し、通常の画像出力を継続する場合 True を返す。
+function RenderView(Video: PFILTER_PROC_VIDEO; const Settings: TAul2AudioViewSettings): Boolean;
 
 implementation
 
@@ -17,6 +17,7 @@ uses
   System.SysUtils,
   AviUtl2GpuTextureOut,
   Aul2AudioViewRenderCircularSpectrum,
+  Aul2AudioViewRenderCircular3D,
   Aul2AudioViewRenderEqualizer,
   Aul2AudioViewRenderFilledSpectrum,
   Aul2AudioViewRenderMirrorBars,
@@ -72,7 +73,7 @@ begin
   end;
 end;
 
-procedure RenderView(Video: PFILTER_PROC_VIDEO; const Settings: TAul2AudioViewSettings);
+function RenderView(Video: PFILTER_PROC_VIDEO; const Settings: TAul2AudioViewSettings): Boolean;
 var
   Width: Integer;
   Height: Integer;
@@ -80,6 +81,7 @@ var
   Buffer: PPIXEL_RGBA;
   BufferSize: NativeUInt;
 begin
+  Result := True;
   if (Video = nil) or (Video^.Object_ = nil) then
     Exit;
 
@@ -89,6 +91,26 @@ begin
     Exit;
 
   CurrentFrame := GetCurrentFrame(Video);
+
+  if Settings.ViewType = VIEW_TYPE_CIRCULAR_BARS_3D then
+  begin
+    // 3D経路が利用できればフレームバッファへ直接描き、通常の画像出力を中断する。
+    if DrawCircularBars3D(Video, Settings, CurrentFrame) then
+    begin
+      Result := False;
+      Exit;
+    end;
+    // 未対応環境や描画失敗時は、同系統の既存CPU表示へ安全に戻す。
+    BufferSize := NativeUInt(Width) * NativeUInt(Height) * SizeOf(TPIXEL_RGBA);
+    GetMem(Buffer, BufferSize);
+    try
+      DrawCircularSpectrum(Buffer, Width, Height, Settings, CurrentFrame);
+      OutputImageData(Video, Buffer, Width, Height);
+    finally
+      FreeMem(Buffer);
+    end;
+    Exit;
+  end;
 
   BufferSize := NativeUInt(Width) * NativeUInt(Height) * SizeOf(TPIXEL_RGBA);
   GetMem(Buffer, BufferSize);

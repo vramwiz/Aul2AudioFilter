@@ -137,6 +137,15 @@ type
 
   PID3D11Texture2D = Pointer;
   TFilterProcVideoGetTex2D = function: PID3D11Texture2D; cdecl;
+  TFilterProcVideoDrawPoly = function(VertexType: Integer; VertexList: Pointer;
+    VertexNum: Integer; Resource: LPCWSTR): Byte; cdecl;
+  TFilterProcVideoSetDefaultAnchor = procedure(Width, Height: Integer); cdecl;
+
+  // draw_poly が受け取るXYZ座標と乗算済みRGBA色。SDKのfloat配置を維持する。
+  TVERTEX_COLOR = packed record
+    X, Y, Z   : Single; // オブジェクト空間の頂点座標。
+    R, G, B, A: Single; // 0.0～1.0の乗算済み頂点色。
+  end;
 
   PFILTER_PROC_VIDEO = ^TFILTER_PROC_VIDEO;
   TFILTER_PROC_VIDEO = record
@@ -146,6 +155,13 @@ type
     SetImageData           : procedure(Buffer: PPIXEL_RGBA; Width, Height: Integer); cdecl; // 画像を出力する。
     GetImageTexture2D      : TFilterProcVideoGetTex2D; // 入力画像のD3D11テクスチャを得る。
     GetFramebufferTexture2D: TFilterProcVideoGetTex2D; // 出力先のD3D11テクスチャを得る。
+    Edit                   : Pointer; // SDKの編集セクション。DrawPolyまでの配置を一致させる。
+    Param                  : Pointer; // 現在の画像出力パラメーター。
+    GetOutputImageParam    : Pointer; // 指定オブジェクトの画像出力パラメーター取得関数。
+    GetImageObject         : Pointer; // 指定レイヤーの画像オブジェクト取得関数。
+    DrawImage              : Pointer; // 画像リソースのフレームバッファ描画関数。
+    DrawPoly               : TFilterProcVideoDrawPoly; // 頂点列をフレームバッファへ描画する。
+    SetDefaultAnchor       : TFilterProcVideoSetDefaultAnchor; // 直接描画時のアンカー枠を設定する。
   end;
 
   // 音声フィルター処理時に AviUtl2 から渡される入出力 API。
@@ -182,6 +198,8 @@ const
   FILTER_FLAG_AUDIO  = 2; // 音声処理を持つ。
   FILTER_FLAG_INPUT  = 4; // 入力プラグインとして登録する。
   FILTER_FLAG_FILTER = 8; // フィルターとして登録する。
+
+  VERTEX_QUAD_COLOR = 5; // TVERTEX_COLORを4頂点単位の四角形として描画する。
 
 implementation
 

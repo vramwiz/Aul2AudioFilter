@@ -4,7 +4,7 @@
         <ProjectVersion>20.4</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
+        <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <ProjectName Condition="'$(ProjectName)'==''">Aul2AudioView</ProjectName>
         <TargetedPlatforms>2</TargetedPlatforms>
@@ -125,11 +125,13 @@
         <DCCReference Include="Source\Lib\Color\Aul2ColorUtils.pas"/>
         <DCCReference Include="Source\Lib\Color\Aul2ColorPalette.pas"/>
         <DCCReference Include="Source\Aul2AudioViewParams.pas"/>
+        <DCCReference Include="Source\Aul2AudioViewDiagnostics.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRenderUtils.pas"/>
         <DCCReference Include="Source\Aul2AudioViewSpectrum.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRenderEqualizer.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRenderFilledSpectrum.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRenderCircularSpectrum.pas"/>
+        <DCCReference Include="Source\Aul2AudioViewRenderCircular3D.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRenderMirrorBars.pas"/>
         <DCCReference Include="Source\Aul2AudioViewWave.pas"/>
         <DCCReference Include="Source\Aul2AudioViewRenderWaveLine.pas"/>

@@ -19,6 +19,7 @@ implementation
 uses
   System.SysUtils,
   Aul2AudioFilterGui,
+  Aul2AudioViewDiagnostics,
   Aul2AudioViewParams,
   Aul2AudioViewRender,
   Aul2AudioViewRenderEqualizer,
@@ -27,7 +28,7 @@ uses
 
 var
   GViewTypeSelect  : TFILTER_ITEM_SELECT;
-  GViewTypeList    : array[0..8] of TFILTER_ITEM_SELECT_ITEM;
+  GViewTypeList    : array[0..9] of TFILTER_ITEM_SELECT_ITEM;
   GViewStyleSelect : TFILTER_ITEM_SELECT;
   GViewStyleList   : array[0..2] of TFILTER_ITEM_SELECT_ITEM;
   GViewDensityTrack: TFILTER_ITEM_TRACK;
@@ -52,6 +53,7 @@ var
   GViewSmoothTrack : TFILTER_ITEM_TRACK;
   GViewXScaleTrack : TFILTER_ITEM_TRACK;
   GViewYScaleTrack : TFILTER_ITEM_TRACK;
+  GViewZScaleTrack : TFILTER_ITEM_TRACK;
   GViewResetButton : TFILTER_ITEM_BUTTON;
 
 function SetViewObjectItem(Edit: PEDIT_SECTION; Obj: OBJECT_HANDLE;
@@ -86,6 +88,7 @@ begin
   SetViewObjectItem(Edit, Obj, 'Smooth', UTF8String('50'));
   SetViewObjectItem(Edit, Obj, 'X Scale', UTF8String('100'));
   SetViewObjectItem(Edit, Obj, 'Y Scale', UTF8String('100'));
+  SetViewObjectItem(Edit, Obj, 'Z Scale', UTF8String('100'));
   SetViewObjectItem(Edit, Obj, 'Spectrum Scale', UTF8String('0'));
   SetViewObjectItem(Edit, Obj, 'Low Hz', UTF8String('40'));
   SetViewObjectItem(Edit, Obj, 'High Hz', UTF8String('12000'));
@@ -94,6 +97,8 @@ end;
 
 procedure InitializeViewPlugin;
 begin
+  ResetView3DLog;
+  WriteView3DLog('plugin initialized');
   // 状態を持つ描画系ユニットは DLL 終了時と対称になる順序で初期化する。
   InitializeEqualizerBars;
   InitializeViewWave;
@@ -115,6 +120,7 @@ begin
     Settings.Smooth := Round(GViewSmoothTrack.Value);
     Settings.XScale := Round(GViewXScaleTrack.Value);
     Settings.YScale := Round(GViewYScaleTrack.Value);
+    Settings.ZScale := Round(GViewZScaleTrack.Value);
     Settings.SourceLayer := GViewSourceLayerSelect.Value;
     Settings.SpectrumScale := GViewSpectrumScaleSelect.Value;
     Settings.SpectrumLowHz := Round(GViewSpectrumLowHzTrack.Value);
@@ -131,7 +137,12 @@ begin
     Settings.Color3R := GViewColor3Item.R;
     Settings.Color3G := GViewColor3Item.G;
     Settings.Color3B := GViewColor3Item.B;
-    RenderView(Video, Settings);
+    if not RenderView(Video, Settings) then
+    begin
+      // draw_poly はフレームバッファへ直接描くため、通常の画像出力を続けない。
+      Result := 0;
+      Exit;
+    end;
   except
     // Delphi 例外を AviUtl2 のコールバック境界より外へ漏らさない。
     Result := 0;
@@ -176,6 +187,7 @@ begin
     AddSelectList(GViewTypeList, 'Circular Spectrum', VIEW_TYPE_CIRCULAR_SPECTRUM);
     AddSelectList(GViewTypeList, 'Mirror Bars', VIEW_TYPE_MIRROR_BARS);
     AddSelectList(GViewTypeList, 'Vectorscope', VIEW_TYPE_VECTORSCOPE);
+    AddSelectList(GViewTypeList, 'Circular Bars (3D)', VIEW_TYPE_CIRCULAR_BARS_3D);
     AddSelect(GViewTypeSelect, 'Type', VIEW_TYPE_EQUALIZER_BARS, @GViewTypeList[0]);
 
     ClearSelectList;
@@ -190,6 +202,7 @@ begin
     AddTrack(GViewSmoothTrack, 'Smooth', 50, 0, 100, 1);
     AddTrack(GViewXScaleTrack, 'X Scale', 100, 10, 500, 1);
     AddTrack(GViewYScaleTrack, 'Y Scale', 100, 10, 500, 1);
+    AddTrack(GViewZScaleTrack, 'Z Scale', 100, 10, 500, 1);
 
     ClearSelectList;
     AddSelectList(GViewSpectrumScaleList, 'Log', VIEW_SPECTRUM_SCALE_LOG);

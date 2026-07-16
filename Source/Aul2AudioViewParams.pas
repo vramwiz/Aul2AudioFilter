@@ -14,6 +14,7 @@ const
   VIEW_TYPE_CIRCULAR_SPECTRUM = 5;
   VIEW_TYPE_MIRROR_BARS       = 6;
   VIEW_TYPE_VECTORSCOPE       = 7;
+  VIEW_TYPE_CIRCULAR_BARS_3D  = 8;
 
   // 描画タイプが対応する場合だけ Blocks を使い、それ以外は Solid と同じ連続描画にする。
   VIEW_STYLE_SOLID  = 0;
@@ -63,6 +64,7 @@ type
     Smooth           : Integer; // 解析値の時間方向の平滑化率。
     XScale           : Integer; // 描画座標のX成分へ適用する倍率。100 が等倍。
     YScale           : Integer; // 描画振幅またはY成分へ適用する倍率。100 が等倍。
+    ZScale           : Integer; // 3D描画座標のZ成分へ適用する倍率。100 が等倍。
     SourceLayer      : Integer; // 解析元レイヤー。0 は Auto、1..64 は表示レイヤー番号。
     SpectrumScale    : Integer; // 周波数軸を選ぶ VIEW_SPECTRUM_SCALE_* の値。
     SpectrumLowHz    : Integer; // スペクトラム表示に含める下限周波数。

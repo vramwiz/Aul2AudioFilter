@@ -4,6 +4,18 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-16 Aul2Audio View initial 3D draw_poly path
+
+- 既存のCPU描画Typeを維持したまま、Type一覧の末尾へ`Circular Bars (3D)`を追加した。
+- SDK v2.10の`FILTER_PROC_VIDEO`を`draw_poly`と`set_default_anchor`まで正しい順序でDelphiへ拡張し、3D Typeだけフレームバッファ直接描画後に通常画像出力を中断するよう分岐した。
+- 既存スペクトラムから最大128枚、512頂点の縦面を円周上へ生成する初期検証表示とした。頂点はView内の一時配列であり、共有メモリの構造と容量は変更していない。
+- `draw_poly`が利用できない場合または描画に失敗した場合は、既存CPU版`Circular Spectrum`へフォールバックする。
+- 初期実機確認でカメラ制御による3D座標変換が有効なことを確認した。未適用だった`X Scale`を横座標へ反映し、3D専用の`Z Scale`を追加して、X/Y/Zを独立して`10..500`で調整できるようにした。
+- 初期の厚みがない縦面を6面の直方体へ変更した。`Spacing`を円周方向の間隔、`Thickness`を半径方向の奥行きへ反映し、`Solid`は連続バー、`Blocks`は最大32段の分割バーとして描画する。面ごとの明度差も付け、光源がない状態でも立体方向を判別できるようにした。
+- `draw_poly`は編集停止中も毎回形状を再構築するため、音声更新停止後に最低高さへ戻る3D Type固有の問題へ対応した。3D描画ユニット内に最後の有効スペクトラムを保持し、Edit時に新規値が無効または全ゼロなら保持値を使用する。Play／Encode中の無音はそのままゼロとして扱い、Source Layer変更時は保持値を破棄する。共有メモリ容量は変更していない。
+- カーソル移動だけの診断ログでは、Viewの同期履歴選択が全て`select=no-state`となり、編集用キャッシュを一度も作れない一方、Monitorは編集時の最新スロットを表示できていた。3D Typeに限り、Edit時に同期履歴がなければ指定レイヤーの最新スペクトラムへフォールバックするよう修正した。Play／Encode時のフレーム距離優先選択は変更していない。
+- `Aul2AudioView.dproj`と`Aul2AudioFilter.dproj`のRelease Win64ビルドが警告・エラーなしで成功し、各`.auf2`への反映まで確認した。AviUtl2上の表示、カメラ制御、頂点方向は実機確認待ち。
+
 ## 2026-07-16 Aul2Audio View Vectorscope and X/Y Scale
 
 - Monitor版Vectorscopeは削除したまま、MV用表示として`Aul2Audio View`へ8番目のType `Vectorscope`を追加した。処理後OutputのL/R代表点64組を点列で結び、同相信号を縦、左右差を横へ表示する。

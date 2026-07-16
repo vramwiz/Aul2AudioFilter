@@ -23,7 +23,7 @@
 - 本プラグインは音楽制作向けではなく、声、セリフ、効果音素材に用途が伝わる加工をすばやくかける道具として設計する。
 - `Aul2Audio View` は `Source Layer` を最上段に置き、`Auto` または表示レイヤー `Layer 1`..`Layer 64` から解析元を選ぶ。
 - 立体構造を持つ新しい View Type のデータ構成と AviUtl2 への受け渡し方法は [`AviUtl2_3Dデータ受け渡し設計.md`](AviUtl2_3Dデータ受け渡し設計.md) を参照する。
-- `Aul2Audio View` の `X Scale` / `Y Scale` は描画座標または表示反応だけを倍率調整する。`100` が基準、範囲は `10..500` で、音声処理や解析値には影響させない。
+- `Aul2Audio View` の `X Scale` / `Y Scale` / `Z Scale` は描画座標または表示反応だけを倍率調整する。`100` が基準、範囲は `10..500` で、音声処理や解析値には影響させない。`Z Scale` は3D Typeだけで使う。
 - 共有メモリ上は内部 0-based レイヤー別スロットで保持し、GUI と Monitor 表示では AviUtl2 の表示レイヤーに合わせて 1-based で扱う。
 - `Source Layer = Auto` は最後に更新されたレイヤーを表示し、レイヤー指定時はその表示レイヤー由来の波形/スペクトラムだけを読む。
 - エフェクトの GUI 並びは、プリセットを除き、実際に音声へ処理される順番へ揃える。利用者が上から順に音が変わると理解できる状態を保つ。
@@ -221,9 +221,10 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - `Aul2AudioView` は `Aul2AudioBaseInput` の上に載る MV 用表示フィルター。編集補助ではなく、音に反応する見た目を生成する用途。
 - 描画は背景透明、文字なし、枠なし、グリッドなしを基本にする。
 - 出力は安定優先で `Video^.SetImageData(Buffer, Width, Height)` を使う。GPU texture 出力はヘルパーだけ保持し、通常は無効。
-- 表示タイプは `Equalizer Bars` / `Mirror Bars` / `Filled Spectrum` / `Circular Spectrum` / `Wave Line` / `Pixel Wave` / `Pulse Wave` / `Vectorscope` の 8 種類。
+- 表示タイプは `Equalizer Bars` / `Mirror Bars` / `Filled Spectrum` / `Circular Spectrum` / `Wave Line` / `Pixel Wave` / `Pulse Wave` / `Vectorscope` / `Circular Bars (3D)` の 9 種類。
+- `Circular Bars (3D)` は既存スペクトラム値から円周状の直方体バーを生成し、SDK の `draw_poly()` でフレームバッファへ直接描画する3D Type。`Solid` / `Blocks`、`Density`、`Spacing`、`Thickness`、`Base Radius`、X/Y/Z Scale、色、周波数範囲を反映する。共有メモリは追加せず、描画失敗時はCPU版 `Circular Spectrum` へ戻す。
 - スペクトラム系は `Local\Aul2AudioMonitorSpectrum`、時間波形系は `Local\Aul2AudioMonitorState`、`Vectorscope` は `Local\Aul2AudioViewVector` の処理後Output L/R代表点を読む。
-- 共通パラメーターは `Type`, `Style`, `Density`, `Spacing`, `Thickness`, `Base Radius`, `Smooth`, `X Scale`, `Y Scale`, 色、周波数範囲設定。
+- 共通パラメーターは `Type`, `Style`, `Density`, `Spacing`, `Thickness`, `Base Radius`, `Smooth`, `X Scale`, `Y Scale`, `Z Scale`, 色、周波数範囲設定。
 - バー、面、時間波形は用意された画像の幅と高さを使って描画する。`Circular Spectrum` と `Vectorscope` は短辺から作る中央正方形を基準にし、変形は `X Scale` / `Y Scale` またはAviUtl2側で行う。
 - `Vectorscope` は `X=(L-R)/2`、`Y=(L+R)/2` を基本とし、通常小さいSide成分を見やすくするためX方向だけ固定10倍の表示感度を持つ。`Circular Spectrum` のX/Y感度は通常倍率。
 - `Color Variation` は `1 Color`, `2 Color`, `3 Color`, `Rainbow`, `Warm`, `Cool`, `Pastel`, `Neon`, `Mono`, `Sepia`, `Gold`, `Silver`, `Fire`, `Ice`, `Water`, `Aurora`, `Starlight`, `Sunset`, `Ocean`, `Forest`, `Cyber`, `Retro Game`。
