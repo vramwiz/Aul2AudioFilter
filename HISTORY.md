@@ -4,6 +4,12 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-17 Aul2AudioController Compressor graph
+
+- Controllerのエフェクト補助表示の続きとして、`Aul2AudioControllerCompressorGraph.pas`を追加した。横軸を入力-60～0dB、縦軸を出力-60～+24dBとし、Threshold以降のRatio圧縮、Makeup、MixをDSPと同じ定常入出力式でカーブへ反映する。
+- 無加工の入出力基準線、Threshold位置、Ratio、Mix、Makeup、Attack、Releaseを小型表示内へ描画する。UseがOFFでも設定形状を暗く残し、ノブ操作中、設定読込、Use変更、リサイズへ既存のDelay／EQと同じ経路で追従する。
+- `Aul2AudioController.dproj`のRelease Win64ビルドは警告・エラーなしで成功し、`Aul2AudioController.aux2`へ反映した。AviUtl2上でThresholdの折れ点、無加工基準線、Ratio、Mix、Makeup、Attack、Releaseの表示をユーザー実機確認済みとし、Compressorグラフを完成扱いとする。
+
 ## 2026-07-16 Aul2AudioController effect graph completion note
 
 - Controllerのエフェクター操作を主体としたまま、現在の設定による効果の傾向を確認できる小型の補助表示をノブ最終行の下へ追加した。最大幅300px、高さ150pxで中央配置し、ウィンドウの高さが不足する場合は操作部を優先して表示しない。Preset管理と波形表示オブジェクト配置のページにも表示しない。

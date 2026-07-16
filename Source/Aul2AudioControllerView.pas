@@ -35,6 +35,7 @@ uses
   Vcl.Forms,
   Vcl.Graphics,
   Vcl.StdCtrls,
+  Aul2AudioControllerCompressorGraph,
   Aul2AudioControllerDelayGraph,
   Aul2AudioControllerEqGraph,
   Aul2AudioControllerEffectDefinition,
@@ -102,6 +103,7 @@ var
   ModeCombo      : TComboBox;
   DelayGraph     : TAul2ControllerDelayGraph;
   EqGraph        : TAul2ControllerEqGraph;
+  CompressorGraph: TAul2ControllerCompressorGraph;
   VolumeControls : array[0..CONTROLLER_MAX_VOLUME_COUNT - 1] of TAul2VolumeControl;
   MouseTimer     : TTimer;
   EventTarget    : TControllerEventTarget;
@@ -226,6 +228,8 @@ begin
     DelayGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(EqGraph) then
     EqGraph.AccentColor := Definition.IndicatorColor;
+  if Assigned(CompressorGraph) then
+    CompressorGraph.AccentColor := Definition.IndicatorColor;
   RootPanel.Invalidate;
 end;
 
@@ -313,10 +317,33 @@ begin
     Assigned(UseLamp) and UseLamp.Checked);
 end;
 
+procedure UpdateCompressorGraph(ChangedIndex: Integer = -1;
+  const ChangedValueText: string = '');
+var
+  Index : Integer;
+  Values: array[0..5] of Double;
+begin
+  if not Assigned(CompressorGraph) or not Assigned(EffectCombo) or
+     (EffectCombo.ItemIndex <> 2) then
+    Exit;
+
+  for Index := Low(Values) to High(Values) do
+    if Assigned(VolumeControls[Index]) then
+      Values[Index] := VolumeControls[Index].Value
+    else
+      Values[Index] := 0;
+  if (ChangedIndex >= Low(Values)) and (ChangedIndex <= High(Values)) then
+    TryStrToFloat(ChangedValueText, Values[ChangedIndex], FormatSettings);
+
+  CompressorGraph.SetCompressor(Values[0], Values[1], Values[2], Values[3],
+    Values[4], Values[5], Assigned(UseLamp) and UseLamp.Checked);
+end;
+
 procedure UpdateEffectGraph(ChangedIndex: Integer = -1; const ChangedValueText: string = '');
 begin
   UpdateDelayGraph(ChangedIndex, ChangedValueText);
   UpdateEqGraph(ChangedIndex, ChangedValueText);
+  UpdateCompressorGraph(ChangedIndex, ChangedValueText);
 end;
 
 procedure LayoutControllerView;
@@ -352,6 +379,7 @@ begin
   EffectCombo.SetBounds(LeftMargin, Scale(6), ContentWidth, Scale(27));
   DelayGraph.Visible := False;
   EqGraph.Visible := False;
+  CompressorGraph.Visible := False;
   SyncMessageLabel.SetBounds(LeftMargin, Scale(42), ContentWidth,
     Max(Scale(72), RootPanel.ClientHeight - Scale(54)));
   if IsBasePanelSelected then
@@ -415,7 +443,7 @@ begin
   GraphWidth := Min(Scale(300), ContentWidth);
   GraphHeight := Scale(150);
   GraphLeft := LeftMargin + (ContentWidth - GraphWidth) div 2;
-  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1]) and
+  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2]) and
      (GraphWidth >= Scale(180)) and
      (GraphTop + GraphHeight + Scale(6) <= RootPanel.ClientHeight) then
   begin
@@ -424,10 +452,15 @@ begin
       DelayGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
       DelayGraph.Visible := True;
     end
-    else
+    else if EffectCombo.ItemIndex = 1 then
     begin
       EqGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
       EqGraph.Visible := True;
+    end
+    else
+    begin
+      CompressorGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
+      CompressorGraph.Visible := True;
     end;
   end;
 end;
@@ -450,6 +483,7 @@ begin
     VolumeControls[ControlIndex].Visible := False;
   DelayGraph.Visible := False;
   EqGraph.Visible := False;
+  CompressorGraph.Visible := False;
   SyncMessageLabel.Visible := True;
   SyncMessageLabel.BringToFront;
 end;
@@ -498,6 +532,7 @@ begin
     VolumeControls[ControlIndex].Invalidate;
   DelayGraph.Invalidate;
   EqGraph.Invalidate;
+  CompressorGraph.Invalidate;
   RootPanel.Update;
 end;
 
@@ -520,6 +555,7 @@ begin
         VolumeControls[ControlIndex].Visible := False;
       DelayGraph.Visible := False;
       EqGraph.Visible := False;
+      CompressorGraph.Visible := False;
       PresetPanel.Visible := False;
       BasePanel.Visible := True;
       BasePanel.BringToFront;
@@ -541,6 +577,7 @@ begin
         VolumeControls[ControlIndex].Visible := False;
       DelayGraph.Visible := False;
       EqGraph.Visible := False;
+      CompressorGraph.Visible := False;
       BasePanel.Visible := False;
       PresetPanel.Visible := True;
       PresetPanel.BringToFront;
@@ -979,6 +1016,12 @@ begin
   EqGraph.Visible := False;
   RegisterMouseEnter(EqGraph);
 
+  CompressorGraph := TAul2ControllerCompressorGraph.Create(ControllerForm);
+  CompressorGraph.Font.Assign(ControllerForm.Font);
+  CompressorGraph.Parent := RootPanel;
+  CompressorGraph.Visible := False;
+  RegisterMouseEnter(CompressorGraph);
+
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
   begin
     VolumeControls[ControlIndex] := TAul2VolumeControl.Create(ControllerForm);
@@ -1090,6 +1133,7 @@ begin
   ModeCombo := nil;
   DelayGraph := nil;
   EqGraph := nil;
+  CompressorGraph := nil;
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
     VolumeControls[ControlIndex] := nil;
   MouseTimer := nil;

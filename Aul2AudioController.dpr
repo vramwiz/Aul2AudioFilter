@@ -24,6 +24,7 @@ uses
   Aul2AudioControllerVolumeControl in 'Source\Aul2AudioControllerVolumeControl.pas',
   Aul2AudioControllerDelayGraph in 'Source\Aul2AudioControllerDelayGraph.pas',
   Aul2AudioControllerEqGraph in 'Source\Aul2AudioControllerEqGraph.pas',
+  Aul2AudioControllerCompressorGraph in 'Source\Aul2AudioControllerCompressorGraph.pas',
   Aul2AudioControllerView in 'Source\Aul2AudioControllerView.pas',
   Aul2AudioControllerPlugin in 'Source\Aul2AudioControllerPlugin.pas';
 
