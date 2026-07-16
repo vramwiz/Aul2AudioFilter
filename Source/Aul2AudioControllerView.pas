@@ -35,8 +35,10 @@ uses
   Vcl.Forms,
   Vcl.Graphics,
   Vcl.StdCtrls,
+  Aul2AudioControllerBitCrusherGraph,
   Aul2AudioControllerCompressorGraph,
   Aul2AudioControllerDelayGraph,
+  Aul2AudioControllerDistortionGraph,
   Aul2AudioControllerEqGraph,
   Aul2AudioControllerEffectDefinition,
   Aul2AudioControllerLampSwitch,
@@ -104,6 +106,8 @@ var
   DelayGraph     : TAul2ControllerDelayGraph;
   EqGraph        : TAul2ControllerEqGraph;
   CompressorGraph: TAul2ControllerCompressorGraph;
+  DistortionGraph: TAul2ControllerDistortionGraph;
+  BitCrusherGraph: TAul2ControllerBitCrusherGraph;
   VolumeControls : array[0..CONTROLLER_MAX_VOLUME_COUNT - 1] of TAul2VolumeControl;
   MouseTimer     : TTimer;
   EventTarget    : TControllerEventTarget;
@@ -230,6 +234,10 @@ begin
     EqGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(CompressorGraph) then
     CompressorGraph.AccentColor := Definition.IndicatorColor;
+  if Assigned(DistortionGraph) then
+    DistortionGraph.AccentColor := Definition.IndicatorColor;
+  if Assigned(BitCrusherGraph) then
+    BitCrusherGraph.AccentColor := Definition.IndicatorColor;
   RootPanel.Invalidate;
 end;
 
@@ -339,11 +347,57 @@ begin
     Values[4], Values[5], Assigned(UseLamp) and UseLamp.Checked);
 end;
 
+procedure UpdateDistortionGraph(ChangedIndex: Integer = -1;
+  const ChangedValueText: string = '');
+var
+  Index : Integer;
+  Values: array[0..3] of Double;
+begin
+  if not Assigned(DistortionGraph) or not Assigned(EffectCombo) or
+     (EffectCombo.ItemIndex <> 4) then
+    Exit;
+
+  for Index := Low(Values) to High(Values) do
+    if Assigned(VolumeControls[Index]) then
+      Values[Index] := VolumeControls[Index].Value
+    else
+      Values[Index] := 0;
+  if (ChangedIndex >= Low(Values)) and (ChangedIndex <= High(Values)) then
+    TryStrToFloat(ChangedValueText, Values[ChangedIndex], FormatSettings);
+
+  DistortionGraph.SetDistortion(ModeCombo.ItemIndex, Values[0], Values[1],
+    Values[2], Values[3], Assigned(UseLamp) and UseLamp.Checked);
+end;
+
+procedure UpdateBitCrusherGraph(ChangedIndex: Integer = -1;
+  const ChangedValueText: string = '');
+var
+  Index : Integer;
+  Values: array[0..2] of Double;
+begin
+  if not Assigned(BitCrusherGraph) or not Assigned(EffectCombo) or
+     (EffectCombo.ItemIndex <> 6) then
+    Exit;
+
+  for Index := Low(Values) to High(Values) do
+    if Assigned(VolumeControls[Index]) then
+      Values[Index] := VolumeControls[Index].Value
+    else
+      Values[Index] := 0;
+  if (ChangedIndex >= Low(Values)) and (ChangedIndex <= High(Values)) then
+    TryStrToFloat(ChangedValueText, Values[ChangedIndex], FormatSettings);
+
+  BitCrusherGraph.SetBitCrusher(Values[0], Values[1], Values[2],
+    Assigned(UseLamp) and UseLamp.Checked);
+end;
+
 procedure UpdateEffectGraph(ChangedIndex: Integer = -1; const ChangedValueText: string = '');
 begin
   UpdateDelayGraph(ChangedIndex, ChangedValueText);
   UpdateEqGraph(ChangedIndex, ChangedValueText);
   UpdateCompressorGraph(ChangedIndex, ChangedValueText);
+  UpdateDistortionGraph(ChangedIndex, ChangedValueText);
+  UpdateBitCrusherGraph(ChangedIndex, ChangedValueText);
 end;
 
 procedure LayoutControllerView;
@@ -380,6 +434,8 @@ begin
   DelayGraph.Visible := False;
   EqGraph.Visible := False;
   CompressorGraph.Visible := False;
+  DistortionGraph.Visible := False;
+  BitCrusherGraph.Visible := False;
   SyncMessageLabel.SetBounds(LeftMargin, Scale(42), ContentWidth,
     Max(Scale(72), RootPanel.ClientHeight - Scale(54)));
   if IsBasePanelSelected then
@@ -443,7 +499,7 @@ begin
   GraphWidth := Min(Scale(300), ContentWidth);
   GraphHeight := Scale(150);
   GraphLeft := LeftMargin + (ContentWidth - GraphWidth) div 2;
-  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2]) and
+  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 4, 6]) and
      (GraphWidth >= Scale(180)) and
      (GraphTop + GraphHeight + Scale(6) <= RootPanel.ClientHeight) then
   begin
@@ -457,10 +513,20 @@ begin
       EqGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
       EqGraph.Visible := True;
     end
-    else
+    else if EffectCombo.ItemIndex = 2 then
     begin
       CompressorGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
       CompressorGraph.Visible := True;
+    end
+    else if EffectCombo.ItemIndex = 4 then
+    begin
+      DistortionGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
+      DistortionGraph.Visible := True;
+    end
+    else
+    begin
+      BitCrusherGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
+      BitCrusherGraph.Visible := True;
     end;
   end;
 end;
@@ -484,6 +550,8 @@ begin
   DelayGraph.Visible := False;
   EqGraph.Visible := False;
   CompressorGraph.Visible := False;
+  DistortionGraph.Visible := False;
+  BitCrusherGraph.Visible := False;
   SyncMessageLabel.Visible := True;
   SyncMessageLabel.BringToFront;
 end;
@@ -533,6 +601,8 @@ begin
   DelayGraph.Invalidate;
   EqGraph.Invalidate;
   CompressorGraph.Invalidate;
+  DistortionGraph.Invalidate;
+  BitCrusherGraph.Invalidate;
   RootPanel.Update;
 end;
 
@@ -556,6 +626,8 @@ begin
       DelayGraph.Visible := False;
       EqGraph.Visible := False;
       CompressorGraph.Visible := False;
+      DistortionGraph.Visible := False;
+      BitCrusherGraph.Visible := False;
       PresetPanel.Visible := False;
       BasePanel.Visible := True;
       BasePanel.BringToFront;
@@ -578,6 +650,8 @@ begin
       DelayGraph.Visible := False;
       EqGraph.Visible := False;
       CompressorGraph.Visible := False;
+      DistortionGraph.Visible := False;
+      BitCrusherGraph.Visible := False;
       BasePanel.Visible := False;
       PresetPanel.Visible := True;
       PresetPanel.BringToFront;
@@ -1022,6 +1096,18 @@ begin
   CompressorGraph.Visible := False;
   RegisterMouseEnter(CompressorGraph);
 
+  DistortionGraph := TAul2ControllerDistortionGraph.Create(ControllerForm);
+  DistortionGraph.Font.Assign(ControllerForm.Font);
+  DistortionGraph.Parent := RootPanel;
+  DistortionGraph.Visible := False;
+  RegisterMouseEnter(DistortionGraph);
+
+  BitCrusherGraph := TAul2ControllerBitCrusherGraph.Create(ControllerForm);
+  BitCrusherGraph.Font.Assign(ControllerForm.Font);
+  BitCrusherGraph.Parent := RootPanel;
+  BitCrusherGraph.Visible := False;
+  RegisterMouseEnter(BitCrusherGraph);
+
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
   begin
     VolumeControls[ControlIndex] := TAul2VolumeControl.Create(ControllerForm);
@@ -1134,6 +1220,8 @@ begin
   DelayGraph := nil;
   EqGraph := nil;
   CompressorGraph := nil;
+  DistortionGraph := nil;
+  BitCrusherGraph := nil;
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
     VolumeControls[ControlIndex] := nil;
   MouseTimer := nil;

@@ -4,6 +4,20 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-17 Aul2AudioController BitCrusher graph
+
+- Controllerの次の補助表示として、`Aul2AudioControllerBitCrusherGraph.pas`を追加した。入力-1～+1に対し、DSPと同じBitDepth別の符号付き量子化とMixを適用した静的な入出力カーブを描画する。
+- 初期実装は2～8bitで全量子化区間を描いたが、ユーザー実機確認で4bitの階段は明瞭、6bitと7bitは段数が描画幅へ詰まってほぼ斜線に見えることを確認した。BitDepth固定の切替をやめ、実描画幅とDPIから1段あたり約8pxを確保できる中央範囲を計算し、必要な場合だけ自動拡大する方式へ変更した。
+- 無加工基準線、BitDepth、Sample Hold、Mix、全量子化レベル数、拡大時に表示中のレベル数を表示し、ノブ操作、設定読込、Use変更、リサイズへ追従する。OFF文字は上部設定表示と重ならないようプロット内へ移した。
+- 高BitDepthの実機表示では自動拡大により階段は見える一方、軸の振幅値が長い小数になったため、拡大時は軸を量子化ステップ単位の整数へ変更した。1ステップの実振幅を科学表記にしても直感的でないため削除し、`21 of 8,191 levels shown`のように全段数のうち表示中の段数を示す。上部の拡大率表記も省略した。
+- `Aul2AudioController.dproj`のRelease Win64ビルドは警告・エラーなしで成功し、`Aul2AudioController.aux2`へ反映した。低～高BitDepthの階段、描画幅に応じた自動拡大、ステップ単位軸、表示中／全体レベル数の表記をユーザー実機確認済みとし、BitCrusherグラフを完成扱いとする。
+
+## 2026-07-17 Aul2AudioController Distortion graph
+
+- Controllerの次の補助表示として、`Aul2AudioControllerDistortionGraph.pas`を追加した。入力-1～+1に対し、DSPと同じSoft ClipのtanhまたはHard Clipの制限、Tone、Level、Mixを順に適用した静的な振幅伝達カーブを描画する。
+- 無加工基準線、Driveによる正負の飽和開始位置、Mode、Drive、Tone、Level、Mixを表示する。Levelで出力が1を超える場合は縦軸を±2または±4へ段階的に拡張し、通常設定ではカーブを大きく保つ。UseがOFFでも設定形状を暗く残し、Mode、ノブ操作、設定読込、Use変更、リサイズへ追従する。
+- `Aul2AudioController.dproj`のRelease Win64ビルドは警告・エラーなしで成功し、`Aul2AudioController.aux2`へ反映した。AviUtl2上でSoft ClipのS字カーブ、無加工基準線、正負の飽和位置、Drive、Tone、Level、Mixの表示をユーザー実機確認済みとし、Distortionグラフを完成扱いとする。
+
 ## 2026-07-17 Aul2AudioController Compressor graph
 
 - Controllerのエフェクト補助表示の続きとして、`Aul2AudioControllerCompressorGraph.pas`を追加した。横軸を入力-60～0dB、縦軸を出力-60～+24dBとし、Threshold以降のRatio圧縮、Makeup、MixをDSPと同じ定常入出力式でカーブへ反映する。
