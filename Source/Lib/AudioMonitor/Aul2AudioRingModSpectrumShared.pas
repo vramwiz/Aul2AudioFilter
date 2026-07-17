@@ -9,9 +9,9 @@ uses
   SharedMemoryBase;
 
 const
-  AUDIO_RING_SPECTRUM_SHARED_NAME = 'Local\Aul2AudioRingModSpectrum';
+  AUDIO_RING_SPECTRUM_SHARED_NAME = 'Local\Aul2AudioRingModSpectrumV2';
   AUDIO_RING_SPECTRUM_SHARED_MAGIC = $52535043; // RSPC
-  AUDIO_RING_SPECTRUM_SHARED_VERSION = 1;
+  AUDIO_RING_SPECTRUM_SHARED_VERSION = 2;
   AUDIO_RING_SPECTRUM_BAND_COUNT = 128;
   AUDIO_RING_SPECTRUM_BAND_LAST = AUDIO_RING_SPECTRUM_BAND_COUNT - 1;
 
@@ -24,6 +24,7 @@ type
     Version: Cardinal;
     Generation: Int64;
     UpdateTick: UInt64;
+    RequestId: TGUID;
     SourceLayer: Integer;
     SourceFrame: Integer;
     SourceFrameS: Integer;

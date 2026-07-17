@@ -45,6 +45,7 @@ uses
   Aul2AudioControllerLimiterGraph,
   Aul2AudioControllerMuffleGraph,
   Aul2AudioControllerNoiseGraph,
+  Aul2AudioControllerVoiceDriveGraph,
   Aul2AudioControllerNoiseGateGraph,
   Aul2AudioControllerOutputGraph,
   Aul2AudioControllerPitchGraph,
@@ -58,7 +59,10 @@ uses
   Aul2AudioMonitorSpectrumShared,
   Aul2AudioPitchSpectrumShared,
   Aul2AudioRingModSpectrumShared,
-  Aul2AudioNoiseWaveShared;
+  Aul2AudioNoiseWaveShared,
+  Aul2AudioVoiceDriveXYShared,
+  Aul2AudioControllerRequest,
+  Aul2AudioDataTriggerDebug;
 
 const
   CONTROLLER_PRESET_ITEM_INDEX = CONTROLLER_EFFECT_COUNT;
@@ -122,6 +126,7 @@ var
   DistortionGraph: TAul2ControllerDistortionGraph;
   BitCrusherGraph: TAul2ControllerBitCrusherGraph;
   NoiseGraph      : TAul2ControllerNoiseGraph;
+  VoiceDriveGraph : TAul2ControllerVoiceDriveGraph;
   NoiseGateGraph  : TAul2ControllerNoiseGateGraph;
   LimiterGraph    : TAul2ControllerLimiterGraph;
   OutputGraph     : TAul2ControllerOutputGraph;
@@ -134,6 +139,11 @@ var
   PitchSpectrumMemory: TAul2AudioPitchSpectrumSharedMemory;
   RingSpectrumMemory: TAul2AudioRingSpectrumSharedMemory;
   NoiseWaveMemory: TAul2AudioNoiseWaveSharedMemory;
+  VoiceDriveXYMemory: TAul2AudioVoiceDriveXYSharedMemory;
+  ControllerRequestMemory: TAul2AudioControllerRequestSharedMemory;
+  ActiveControllerRequestId: TGUID;
+  ActiveControllerGraphKind: Cardinal;
+  ActiveControllerRequestText: string;
   VolumeControls : array[0..CONTROLLER_MAX_VOLUME_COUNT - 1] of TAul2VolumeControl;
   MouseTimer     : TTimer;
   EventTarget    : TControllerEventTarget;
@@ -142,6 +152,70 @@ var
   LastUse        : Boolean;
   LastSelectIndex: Integer;
   ControllerSynchronized: Boolean;
+
+procedure DeactivateControllerRequest;
+begin
+  if Assigned(ControllerRequestMemory) then
+    ControllerRequestMemory.Deactivate;
+  ActiveControllerRequestId := Default(TGUID);
+  ActiveControllerGraphKind := AUDIO_CONTROLLER_REQUEST_GRAPH_NONE;
+  ActiveControllerRequestText := '';
+end;
+
+function IssueControllerRequest: Boolean;
+var
+  Data: TAul2AudioControllerRequestData;
+  CurrentText: string;
+begin
+  Result := False;
+  if not Assigned(ControllerForm) or not Assigned(ControllerRequestMemory) or
+     not Assigned(EffectCombo) then
+    Exit;
+
+  Data := Default(TAul2AudioControllerRequestData);
+  Data.Version := AUDIO_CONTROLLER_REQUEST_VERSION;
+  Data.GraphKind := ControllerGraphKindFromEffectIndex(EffectCombo.ItemIndex);
+  if Data.GraphKind = AUDIO_CONTROLLER_REQUEST_GRAPH_NONE then
+  begin
+    DeactivateControllerRequest;
+    Exit;
+  end;
+
+  // 同じObject・同じグラフの再読込ではDataを書き直さず、現在の要求を継続する。
+  if (ActiveControllerGraphKind = Data.GraphKind) and
+     (ActiveControllerRequestText <> '') and
+     GetSelectedEffectItem(AUDIO_CONTROLLER_REQUEST_ITEM_NAME, CurrentText) and
+     SameText(Trim(CurrentText), ActiveControllerRequestText) then
+    Exit(True);
+
+  if CreateGUID(Data.RequestId) <> S_OK then
+    Exit;
+
+  ControllerRequestMemory.Activate(Data.GraphKind, ControllerForm.Handle,
+    Data.RequestId);
+  Result := SetSelectedEffectItem(AUDIO_CONTROLLER_REQUEST_ITEM_NAME,
+    ControllerRequestDataToHex(Data));
+  if Result then
+  begin
+    ActiveControllerRequestId := Data.RequestId;
+    ActiveControllerGraphKind := Data.GraphKind;
+    ActiveControllerRequestText := ControllerRequestDataToHex(Data);
+{$IFDEF DEBUG}
+    DataTriggerDebugLog('Controller', Format(
+      'request activated: graph=%d request=%s write=True',
+      [Data.GraphKind, GUIDToString(Data.RequestId)]));
+{$ENDIF}
+  end
+  else
+  begin
+    DeactivateControllerRequest;
+{$IFDEF DEBUG}
+    DataTriggerDebugLog('Controller', Format(
+      'request failed: graph=%d request=%s write=False',
+      [Data.GraphKind, GUIDToString(Data.RequestId)]));
+{$ENDIF}
+  end;
+end;
 
 constructor TFormAudioController.Create(AOwner: TComponent);
 begin
@@ -266,6 +340,8 @@ begin
     BitCrusherGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(NoiseGraph) then
     NoiseGraph.AccentColor := Definition.IndicatorColor;
+  if Assigned(VoiceDriveGraph) then
+    VoiceDriveGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(NoiseGateGraph) then
     NoiseGateGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(LimiterGraph) then
@@ -453,6 +529,7 @@ begin
   Result := (State <> nil) and
     (State^.Magic = AUDIO_NOISE_WAVE_SHARED_MAGIC) and
     (State^.Version = AUDIO_NOISE_WAVE_SHARED_VERSION) and
+    ControllerRequestIdsEqual(State^.RequestId, ActiveControllerRequestId) and
     (State^.SourceLayer = Layer) and (State^.SampleCount > 0) and
     (State^.UpdateTick > 0);
 end;
@@ -500,6 +577,62 @@ begin
   NoiseGraph.SetWave(State^.InputWave, State^.OutputWave, State^.SampleCount);
 end;
 
+function VoiceDriveXYStateUsable(State: PAul2AudioVoiceDriveXYState;
+  Layer: Integer): Boolean;
+begin
+  Result := (State <> nil) and
+    (State^.Magic = AUDIO_VOICE_DRIVE_XY_SHARED_MAGIC) and
+    (State^.Version = AUDIO_VOICE_DRIVE_XY_SHARED_VERSION) and
+    ControllerRequestIdsEqual(State^.RequestId, ActiveControllerRequestId) and
+    (State^.SourceLayer = Layer) and (State^.SampleCount > 0) and
+    (State^.UpdateTick > 0);
+end;
+
+procedure UpdateVoiceDriveGraph(ChangedIndex: Integer = -1;
+  const ChangedValueText: string = '');
+var
+  Index: Integer;
+  Layer: Integer;
+  State: PAul2AudioVoiceDriveXYState;
+  Values: array[0..3] of Double;
+begin
+  if not Assigned(VoiceDriveGraph) or not Assigned(EffectCombo) or
+     (EffectCombo.ItemIndex <> 3) then
+    Exit;
+  for Index := Low(Values) to High(Values) do
+    if Assigned(VolumeControls[Index]) then
+      Values[Index] := VolumeControls[Index].Value
+    else
+      Values[Index] := 0;
+  if (ChangedIndex >= Low(Values)) and (ChangedIndex <= High(Values)) then
+    TryStrToFloat(ChangedValueText, Values[ChangedIndex], FormatSettings);
+  VoiceDriveGraph.SetVoiceDrive(Values[0], Values[1], Values[2], Values[3],
+    Assigned(UseLamp) and UseLamp.Checked);
+
+  if not Assigned(UseLamp) or not UseLamp.Checked or
+     not Assigned(VoiceDriveXYMemory) or
+     not CaptureSelectedObjectLayer(Layer) or (Layer < 0) or
+     (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+  begin
+    VoiceDriveGraph.ClearSamples;
+    Exit;
+  end;
+  State := VoiceDriveXYMemory.GetStateForLayer(Layer);
+  if not VoiceDriveXYStateUsable(State, Layer) then
+  begin
+    State := VoiceDriveXYMemory.State;
+    if State <> nil then
+      Layer := State^.SourceLayer;
+  end;
+  if not VoiceDriveXYStateUsable(State, Layer) then
+  begin
+    VoiceDriveGraph.ClearSamples;
+    Exit;
+  end;
+  VoiceDriveGraph.SetSamples(State^.InputSamples, State^.OutputSamples,
+    State^.SampleCount);
+end;
+
 procedure UpdateLimiterGraph(ChangedIndex: Integer = -1;
   const ChangedValueText: string = '');
 var
@@ -528,6 +661,7 @@ begin
   Result := (State <> nil) and
     (State^.Magic = AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) and
     (State^.Version = AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) and
+    ControllerRequestIdsEqual(State^.RequestId, ActiveControllerRequestId) and
     (State^.SourceLayer = Layer) and (State^.BandCount > 0) and
     (State^.UpdateTick > 0);
 end;
@@ -538,6 +672,7 @@ begin
   Result := (State <> nil) and
     (State^.Magic = AUDIO_PITCH_SPECTRUM_SHARED_MAGIC) and
     (State^.Version = AUDIO_PITCH_SPECTRUM_SHARED_VERSION) and
+    ControllerRequestIdsEqual(State^.RequestId, ActiveControllerRequestId) and
     (State^.SourceLayer = Layer) and (State^.BandCount > 0) and
     (State^.UpdateTick > 0);
 end;
@@ -548,6 +683,7 @@ begin
   Result := (State <> nil) and
     (State^.Magic = AUDIO_RING_SPECTRUM_SHARED_MAGIC) and
     (State^.Version = AUDIO_RING_SPECTRUM_SHARED_VERSION) and
+    ControllerRequestIdsEqual(State^.RequestId, ActiveControllerRequestId) and
     (State^.SourceLayer = Layer) and (State^.BandCount > 0) and
     (State^.UpdateTick > 0);
 end;
@@ -795,6 +931,7 @@ begin
   Result := (State <> nil) and
     (State^.Magic = AUDIO_MONITOR_SHARED_MAGIC) and
     (State^.Version = AUDIO_MONITOR_SHARED_VERSION) and
+    ControllerRequestIdsEqual(State^.RequestId, ActiveControllerRequestId) and
     (State^.SourceLayer = Layer) and (State^.SampleNum > 0) and
     (State^.UpdateTick > 0);
 end;
@@ -890,6 +1027,7 @@ begin
   UpdateDistortionGraph(ChangedIndex, ChangedValueText);
   UpdateBitCrusherGraph(ChangedIndex, ChangedValueText);
   UpdateNoiseGraph(ChangedIndex, ChangedValueText);
+  UpdateVoiceDriveGraph(ChangedIndex, ChangedValueText);
   UpdateNoiseGateGraph(ChangedIndex, ChangedValueText);
   UpdateLimiterGraph(ChangedIndex, ChangedValueText);
   UpdatePitchGraph(ChangedIndex, ChangedValueText);
@@ -936,6 +1074,7 @@ begin
   DistortionGraph.Visible := False;
   BitCrusherGraph.Visible := False;
   NoiseGraph.Visible := False;
+  VoiceDriveGraph.Visible := False;
   NoiseGateGraph.Visible := False;
   LimiterGraph.Visible := False;
   OutputGraph.Visible := False;
@@ -1006,7 +1145,7 @@ begin
   GraphWidth := Min(Scale(300), ContentWidth);
   GraphHeight := Scale(150);
   GraphLeft := LeftMargin + (ContentWidth - GraphWidth) div 2;
-  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 4, 5, 6, 9, 10, 11, 12, 14, 18, 19]) and
+  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 14, 18, 19]) and
      (GraphWidth >= Scale(180)) and
      (GraphTop + GraphHeight + Scale(6) <= RootPanel.ClientHeight) then
   begin
@@ -1029,6 +1168,11 @@ begin
     begin
       DistortionGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
       DistortionGraph.Visible := True;
+    end
+    else if EffectCombo.ItemIndex = 3 then
+    begin
+      VoiceDriveGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
+      VoiceDriveGraph.Visible := True;
     end
     else if EffectCombo.ItemIndex = 6 then
     begin
@@ -1100,6 +1244,7 @@ begin
   DistortionGraph.Visible := False;
   BitCrusherGraph.Visible := False;
   NoiseGraph.Visible := False;
+  VoiceDriveGraph.Visible := False;
   NoiseGateGraph.Visible := False;
   LimiterGraph.Visible := False;
   OutputGraph.Visible := False;
@@ -1159,6 +1304,7 @@ begin
   DistortionGraph.Invalidate;
   BitCrusherGraph.Invalidate;
   NoiseGraph.Invalidate;
+  VoiceDriveGraph.Invalidate;
   NoiseGateGraph.Invalidate;
   LimiterGraph.Invalidate;
   OutputGraph.Invalidate;
@@ -1192,6 +1338,7 @@ begin
       DistortionGraph.Visible := False;
       BitCrusherGraph.Visible := False;
       NoiseGraph.Visible := False;
+      VoiceDriveGraph.Visible := False;
       NoiseGateGraph.Visible := False;
       LimiterGraph.Visible := False;
       OutputGraph.Visible := False;
@@ -1224,6 +1371,7 @@ begin
       DistortionGraph.Visible := False;
       BitCrusherGraph.Visible := False;
       NoiseGraph.Visible := False;
+      VoiceDriveGraph.Visible := False;
       NoiseGateGraph.Visible := False;
       LimiterGraph.Visible := False;
       OutputGraph.Visible := False;
@@ -1316,12 +1464,19 @@ begin
   if Refreshing or not Assigned(ControllerForm) then
     Exit;
   if IsBasePanelSelected then
+  begin
+    DeactivateControllerRequest;
     Exit;
+  end;
   if IsPresetPanelSelected then
+  begin
+    DeactivateControllerRequest;
     Exit;
+  end;
   if not GetCurrentEffectDefinition(Definition) or
      (Definition.UseItemName = '') then
   begin
+    DeactivateControllerRequest;
     StatusLabel.Caption := 'This effect is not connected yet';
     StatusLabel.Font.Color := RGB(170, 170, 170);
     Exit;
@@ -1354,6 +1509,7 @@ begin
       end;
       LastUse := State.Use;
       LastSelectIndex := State.SelectIndex;
+      IssueControllerRequest;
       UpdateEffectGraph;
       LayoutControllerView;
       StatusLabel.Caption := Definition.DisplayName + ' loaded';
@@ -1361,6 +1517,7 @@ begin
     end
     else
     begin
+      DeactivateControllerRequest;
       ApplyEmptyEffectState;
       ShowUnsynchronizedState;
       case ReadResult of
@@ -1465,7 +1622,10 @@ begin
   StatusLabel.Font.Color := RGB(112, 180, 232);
   StatusLabel.Invalidate;
   if IsBasePanelSelected or IsPresetPanelSelected then
+  begin
+    DeactivateControllerRequest;
     ConfigureCurrentEffect
+  end
   else
   begin
     ShowUnsynchronizedState;
@@ -1693,6 +1853,12 @@ begin
   NoiseGraph.Visible := False;
   RegisterMouseEnter(NoiseGraph);
 
+  VoiceDriveGraph := TAul2ControllerVoiceDriveGraph.Create(ControllerForm);
+  VoiceDriveGraph.Font.Assign(ControllerForm.Font);
+  VoiceDriveGraph.Parent := RootPanel;
+  VoiceDriveGraph.Visible := False;
+  RegisterMouseEnter(VoiceDriveGraph);
+
   NoiseGateGraph := TAul2ControllerNoiseGateGraph.Create(ControllerForm);
   NoiseGateGraph.Font.Assign(ControllerForm.Font);
   NoiseGateGraph.Parent := RootPanel;
@@ -1740,6 +1906,8 @@ begin
   PitchSpectrumMemory := TAul2AudioPitchSpectrumSharedMemory.Create;
   RingSpectrumMemory := TAul2AudioRingSpectrumSharedMemory.Create;
   NoiseWaveMemory := TAul2AudioNoiseWaveSharedMemory.Create;
+  VoiceDriveXYMemory := TAul2AudioVoiceDriveXYSharedMemory.Create;
+  ControllerRequestMemory := TAul2AudioControllerRequestSharedMemory.Create;
 
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
   begin
@@ -1822,6 +1990,7 @@ procedure DestroyControllerView;
 var
   ControlIndex: Integer;
 begin
+  DeactivateControllerRequest;
   if Assigned(MouseTimer) then
   begin
     MouseTimer.Enabled := False;
@@ -1835,8 +2004,10 @@ begin
   end;
 
   FreeAndNil(MouseTimer);
+  FreeAndNil(ControllerRequestMemory);
   FreeAndNil(RingSpectrumMemory);
   FreeAndNil(NoiseWaveMemory);
+  FreeAndNil(VoiceDriveXYMemory);
   FreeAndNil(PitchSpectrumMemory);
   FreeAndNil(SpectrumMemory);
   FreeAndNil(MonitorMemory);
@@ -1861,6 +2032,7 @@ begin
   DistortionGraph := nil;
   BitCrusherGraph := nil;
   NoiseGraph := nil;
+  VoiceDriveGraph := nil;
   NoiseGateGraph := nil;
   LimiterGraph := nil;
   OutputGraph := nil;
@@ -1876,6 +2048,11 @@ begin
   PitchSpectrumMemory := nil;
   RingSpectrumMemory := nil;
   NoiseWaveMemory := nil;
+  VoiceDriveXYMemory := nil;
+  ControllerRequestMemory := nil;
+  ActiveControllerRequestId := Default(TGUID);
+  ActiveControllerGraphKind := AUDIO_CONTROLLER_REQUEST_GRAPH_NONE;
+  ActiveControllerRequestText := '';
   EventTarget := nil;
   MouseInside := False;
   Refreshing := False;

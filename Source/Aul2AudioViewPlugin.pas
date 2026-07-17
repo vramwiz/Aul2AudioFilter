@@ -23,7 +23,8 @@ uses
   Aul2AudioViewRender,
   Aul2AudioViewRenderEqualizer,
   Aul2AudioViewVector,
-  Aul2AudioViewWave;
+  Aul2AudioViewWave,
+  Aul2AudioControllerRequest;
 
 var
   GViewTypeSelect  : TFILTER_ITEM_SELECT;
@@ -107,6 +108,7 @@ var
   Settings: TAul2AudioViewSettings;
 begin
   try
+    AudioConsumerNotifyView;
     // GUI のグローバル項目をフレーム単位の値へ写し、描画側へ不変の設定として渡す。
     Settings.ViewType := GViewTypeSelect.Value;
     Settings.Style := GViewStyleSelect.Value;

@@ -9,9 +9,9 @@ uses
   SharedMemoryBase;
 
 const
-  AUDIO_MONITOR_SHARED_NAME      = 'Local\Aul2AudioMonitorState'; // 波形状態の名前付きマップ。
+  AUDIO_MONITOR_SHARED_NAME      = 'Local\Aul2AudioMonitorStateV9'; // 波形状態の名前付きマップ。
   AUDIO_MONITOR_SHARED_MAGIC     = $414D4F4E;                      // 構造判定用の識別値 AMON。
-  AUDIO_MONITOR_SHARED_VERSION   = 8;                              // レコード配置を変更したら更新する。
+  AUDIO_MONITOR_SHARED_VERSION   = 9;                              // レコード配置を変更したら更新する。
   AUDIO_MONITOR_LAYER_SLOT_COUNT = 64;                             // 保持する内部レイヤー数。
   AUDIO_MONITOR_LAYER_SLOT_LAST  = AUDIO_MONITOR_LAYER_SLOT_COUNT - 1; // 最後の有効レイヤー。
   AUDIO_MONITOR_LAYER_AUTO       = -1;                             // 全レイヤーから自動選択する指定値。
@@ -30,6 +30,7 @@ type
     Version      : Cardinal;              // AUDIO_MONITOR_SHARED_VERSION。
     Generation   : Int64;                 // 書き込み世代を識別する単調増加値。
     UpdateTick   : UInt64;                // 更新の鮮度を判定する GetTickCount64 値。
+    RequestId    : TGUID;                 // Controller要求との対応を識別するGUID。
     Stage        : Integer;               // 入力取得中など解析処理の進行状態。
     SampleRate   : Integer;               // 元音声のサンプリング周波数。
     SampleNum    : Integer;               // 今回処理した1チャンネル当たりのサンプル数。

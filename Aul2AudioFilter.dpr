@@ -8,6 +8,7 @@ uses
   Winapi.Windows,
   Aul2AudioFilterTypes in 'Source\Lib\Aul2AudioFilterTypes.pas',
   Aul2AudioFilterGui in 'Source\Lib\Aul2AudioFilterGui.pas',
+  Aul2AudioDataTriggerDebug in 'Source\Lib\Aul2AudioDataTriggerDebug.pas',
   Aul2AudioFilterPluginPreset in 'Source\Aul2AudioFilterPluginPreset.pas',
   Aul2AudioFilterPluginDelay in 'Source\Aul2AudioFilterPluginDelay.pas',
   Aul2AudioFilterPluginEq in 'Source\Aul2AudioFilterPluginEq.pas',
@@ -36,6 +37,8 @@ uses
   Aul2AudioPitchSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioPitchSpectrumShared.pas',
   Aul2AudioRingModSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioRingModSpectrumShared.pas',
   Aul2AudioNoiseWaveShared in 'Source\Lib\AudioMonitor\Aul2AudioNoiseWaveShared.pas',
+  Aul2AudioVoiceDriveXYShared in 'Source\Lib\AudioMonitor\Aul2AudioVoiceDriveXYShared.pas',
+  Aul2AudioControllerRequest in 'Source\Lib\AudioMonitor\Aul2AudioControllerRequest.pas',
   Aul2AudioViewVectorShared in 'Source\Lib\AudioMonitor\Aul2AudioViewVectorShared.pas',
   Aul2AudioFilterMonitorBridge in 'Source\Aul2AudioFilterMonitorBridge.pas',
   Aul2AudioFilterPlugin in 'Source\Aul2AudioFilterPlugin.pas';

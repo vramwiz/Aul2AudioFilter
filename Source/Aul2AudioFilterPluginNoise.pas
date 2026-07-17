@@ -19,7 +19,8 @@ uses
   Winapi.Windows,
   System.SysUtils,
   Aul2AudioMonitorShared,
-  Aul2AudioNoiseWaveShared;
+  Aul2AudioNoiseWaveShared,
+  Aul2AudioControllerRequest;
 
 const
   NOISE_MODE_WHITE = 0;
@@ -103,6 +104,7 @@ begin
   State^.Magic := AUDIO_NOISE_WAVE_SHARED_MAGIC;
   State^.Version := AUDIO_NOISE_WAVE_SHARED_VERSION;
   State^.UpdateTick := GetTickCount64;
+  State^.RequestId := ControllerCurrentRequestId;
   State^.SourceLayer := Layer;
   State^.SourceFrame := Audio^.Object_^.Frame;
   State^.SourceFrameS := Audio^.Object_^.FrameS;
@@ -166,7 +168,10 @@ end;
 
 function NextRandom(var Seed: Cardinal): Single;
 begin
-  Seed := (Seed * 1664525) + 1013904223;
+  // LCGは32bitでのラップアラウンドを前提とする。Delphiの
+  // オーバーフローチェック有効時も例外にせず、明示的に下位32bitを使う。
+  Seed := Cardinal((UInt64(Seed) * UInt64(1664525) + UInt64(1013904223)) and
+    UInt64($FFFFFFFF));
   Result := ((Seed shr 8) * (1.0 / 16777215.0)) * 2.0 - 1.0;
 end;
 
@@ -247,6 +252,7 @@ var
   Mode: Integer;
   LevelDb: Single;
   Mix: Single;
+  CaptureRequested: Boolean;
 begin
   Result := GNoiseUseCheck.Value <> 0;
   if not Result then
@@ -258,9 +264,11 @@ begin
   Mode := GNoiseModeSelect.Value;
   LevelDb := GNoiseLevelTrack.Value;
   Mix := GNoiseMixTrack.Value;
+  CaptureRequested := ControllerGraphRequested(AUDIO_CONTROLLER_GRAPH_NOISE);
 
   EnsureNoiseState(Audio, ChannelNum);
-  CaptureNoiseWave(Audio, SampleNum, ChannelNum, InputWave, WaveSampleCount);
+  if CaptureRequested then
+    CaptureNoiseWave(Audio, SampleNum, ChannelNum, InputWave, WaveSampleCount);
   SetLength(Buffer, SampleNum);
 
   for Channel := 0 to ChannelNum - 1 do
@@ -269,9 +277,12 @@ begin
     ApplyNoise(Buffer, Channel, SampleNum, Mode, LevelDb, Mix);
     Audio^.SetSampleData(@Buffer[0], Channel);
   end;
-  CaptureNoiseWave(Audio, SampleNum, ChannelNum, OutputWave, OutputSampleCount);
-  WaveSampleCount := Min(WaveSampleCount, OutputSampleCount);
-  PublishNoiseWave(Audio, WaveSampleCount, InputWave, OutputWave);
+  if CaptureRequested then
+  begin
+    CaptureNoiseWave(Audio, SampleNum, ChannelNum, OutputWave, OutputSampleCount);
+    WaveSampleCount := Min(WaveSampleCount, OutputSampleCount);
+    PublishNoiseWave(Audio, WaveSampleCount, InputWave, OutputWave);
+  end;
 end;
 
 initialization

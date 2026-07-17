@@ -7,7 +7,8 @@
 interface
 
 uses
-  Winapi.Windows;
+  Winapi.Windows,
+  Aul2AudioControllerRequest;
 
 type
   PEDIT_SECTION = ^TEDIT_SECTION;
@@ -145,6 +146,17 @@ type
   TVERTEX_COLOR = packed record
     X, Y, Z   : Single; // オブジェクト空間の頂点座標。
     R, G, B, A: Single; // 0.0～1.0の乗算済み頂点色。
+  end;
+
+  // Controller要求用の非表示汎用データ項目。C++ SDKの
+  // FILTER_ITEM_DATA<TAul2AudioControllerRequestData> と同じ配置。
+  PFILTER_ITEM_DATA_REQUEST = ^TFILTER_ITEM_DATA_REQUEST;
+  TFILTER_ITEM_DATA_REQUEST = record
+    ItemType   : LPCWSTR;
+    Name       : LPCWSTR;
+    Value      : PAul2AudioControllerRequestData;
+    Size       : Integer;
+    DefaultValue: TAul2AudioControllerRequestData;
   end;
 
   PFILTER_PROC_VIDEO = ^TFILTER_PROC_VIDEO;

@@ -29,13 +29,21 @@ uses
   Aul2AudioFilterPluginLimiter,
   Aul2AudioFilterPluginChorus,
   Aul2AudioFilterPluginReverb,
-  Aul2AudioFilterMonitorBridge;
+  Aul2AudioFilterMonitorBridge,
+  Aul2AudioDataTriggerDebug,
+  Aul2AudioControllerRequest;
 
 function GetFilterTable: PFILTER_PLUGIN_TABLE;
 procedure InitializeFilterPlugin;
 procedure FinalizeFilterPlugin;
 
 implementation
+
+var
+  ControllerRequestItem: TFILTER_ITEM_DATA_REQUEST;
+{$IFDEF DEBUG}
+  LastLoggedControllerRequest: TGUID;
+{$ENDIF}
 
 procedure InitializeFilterPlugin;
 begin
@@ -48,8 +56,27 @@ var
   ChannelNum: Integer;
 begin
   Result := 1;
-
+  ControllerRequestBegin(ControllerRequestItem.Value);
   try
+    try
+{$IFDEF DEBUG}
+    if (ControllerCurrentGraphKind <> AUDIO_CONTROLLER_REQUEST_GRAPH_NONE) and
+       not ControllerRequestIdsEqual(LastLoggedControllerRequest,
+         ControllerCurrentRequestId) then
+    begin
+      LastLoggedControllerRequest := ControllerCurrentRequestId;
+      if Assigned(Audio) and Assigned(Audio^.Object_) then
+        DataTriggerDebugLog('Filter', Format(
+          'requested capture: graph=%d request=%s object=%d effect=%d frame=%d',
+          [ControllerCurrentGraphKind, GUIDToString(LastLoggedControllerRequest),
+           Audio^.Object_^.ID,
+           Audio^.Object_^.EffectID, Audio^.Object_^.Frame]))
+      else
+        DataTriggerDebugLog('Filter', Format(
+          'requested capture: graph=%d request=%s audio/object unavailable',
+          [ControllerCurrentGraphKind, GUIDToString(LastLoggedControllerRequest)]));
+    end;
+{$ENDIF}
     AudioMonitorSetStage(10, Audio);
 
     // AviUtl2 から無効な処理対象が渡された場合は成功扱いで何もしない。
@@ -91,9 +118,12 @@ begin
     ProcessLimiter(Audio, SampleNum, ChannelNum);
 
     AudioMonitorCaptureOutput(Audio, SampleNum, ChannelNum);
-  except
-    AudioMonitorSetStage(90, Audio);
-    Result := 0;
+    except
+      AudioMonitorSetStage(90, Audio);
+      Result := 0;
+    end;
+  finally
+    ControllerRequestEnd;
   end;
 end;
 
@@ -131,6 +161,8 @@ begin
     AddLimiterItems;
     AddChorusItems;
     AddReverbItems;
+    AddRequestData(ControllerRequestItem,
+      PWideChar(AUDIO_CONTROLLER_REQUEST_ITEM_NAME));
   end;
 
   Result := @GTable;

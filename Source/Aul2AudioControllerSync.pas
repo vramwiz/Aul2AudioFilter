@@ -30,6 +30,8 @@ function CaptureSelectedEffectState(const Definition: TControllerEffectDefinitio
 function CaptureSelectedObjectLayer(out Layer: Integer): Boolean;
 // フォーカスObjectの音声エフェクトへ、指定したGUI項目だけを書き込む。
 function SetSelectedEffectItem(const ItemName, Value: string): Boolean;
+// 選択中Objectの指定項目をSDKからUTF-8文字列表記のまま取得する。
+function GetSelectedEffectItem(const ItemName: string; out Value: string): Boolean;
 
 implementation
 
@@ -56,6 +58,13 @@ type
     ItemName: string;     // 書き込むAul2AudioFilterのGUI項目名。
     Value   : UTF8String; // SDKへ渡すUTF-8表記の値。
     Success : Boolean;    // SetObjectItemValueが成功した場合True。
+  end;
+
+  PEffectReadItemContext = ^TEffectReadItemContext;
+  TEffectReadItemContext = record
+    ItemName: string;
+    Value   : string;
+    Success : Boolean;
   end;
 
   PObjectLayerContext = ^TObjectLayerContext;
@@ -138,6 +147,47 @@ begin
       PWideChar(FILTER_NAME_FALLBACK),
       PWideChar(Context^.ItemName),
       PAnsiChar(Context^.Value)) = True;
+  if not Context^.Success then
+    Context^.Success := Edit^.SetObjectItemValue(
+      Obj,
+      PWideChar(FILTER_NAME_INTERNAL),
+      PWideChar(Context^.ItemName),
+      PAnsiChar(Context^.Value)) = True;
+end;
+
+procedure GetSelectedEffectItemParam(Param: Pointer; Edit: PEditSection); cdecl;
+var
+  Context: PEffectReadItemContext;
+  Obj    : TObjectHandle;
+  Raw    : LPCSTR;
+begin
+  Context := PEffectReadItemContext(Param);
+  if Context = nil then
+    Exit;
+
+  Context^.Success := False;
+  Context^.Value := '';
+  if (Edit = nil) or not Assigned(Edit^.GetFocusObject) or
+     not Assigned(Edit^.GetObjectItemValue) then
+    Exit;
+
+  Obj := Edit^.GetFocusObject;
+  if Obj = nil then
+    Exit;
+
+  Raw := Edit^.GetObjectItemValue(Obj, PWideChar(FILTER_NAME_PRIMARY),
+    PWideChar(Context^.ItemName));
+  if Raw = nil then
+    Raw := Edit^.GetObjectItemValue(Obj, PWideChar(FILTER_NAME_FALLBACK),
+      PWideChar(Context^.ItemName));
+  if Raw = nil then
+    Raw := Edit^.GetObjectItemValue(Obj, PWideChar(FILTER_NAME_INTERNAL),
+      PWideChar(Context^.ItemName));
+  if Raw = nil then
+    Exit;
+
+  Context^.Value := UTF8ToString(AnsiString(Raw));
+  Context^.Success := True;
 end;
 
 procedure CaptureSelectedObjectLayerParam(Param: Pointer; Edit: PEditSection); cdecl;
@@ -350,6 +400,27 @@ begin
   if not EditHandle^.CallEditSectionParam(@Context, @SetSelectedEffectItemParam) then
     Exit;
 
+  Result := Context.Success;
+end;
+
+function GetSelectedEffectItem(const ItemName: string; out Value: string): Boolean;
+var
+  Context: TEffectReadItemContext;
+begin
+  Value := '';
+  Result := False;
+  if (ItemName = '') or not Assigned(EditHandle) or
+     not Assigned(EditHandle^.CallEditSectionParam) then
+    Exit;
+
+  Context.ItemName := ItemName;
+  Context.Value := '';
+  Context.Success := False;
+  if not EditHandle^.CallEditSectionParam(@Context,
+    @GetSelectedEffectItemParam) then
+    Exit;
+
+  Value := Context.Value;
   Result := Context.Success;
 end;
 

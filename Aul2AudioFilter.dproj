@@ -116,6 +116,7 @@
         </DelphiCompile>
         <DCCReference Include="Source\Lib\Aul2AudioFilterTypes.pas"/>
         <DCCReference Include="Source\Lib\Aul2AudioFilterGui.pas"/>
+        <DCCReference Include="Source\Lib\Aul2AudioDataTriggerDebug.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginPreset.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginDelay.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPluginEq.pas"/>
@@ -144,6 +145,8 @@
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioPitchSpectrumShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioRingModSpectrumShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioNoiseWaveShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioVoiceDriveXYShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioControllerRequest.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioViewVectorShared.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterMonitorBridge.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterPlugin.pas"/>

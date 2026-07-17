@@ -11,6 +11,7 @@ uses
   SharedMemoryBase in 'Source\Lib\SharedMemory\SharedMemoryBase.pas',
   Aul2AudioMonitorShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas',
   Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
+  Aul2AudioControllerRequest in 'Source\Lib\AudioMonitor\Aul2AudioControllerRequest.pas',
   Aul2AudioViewFrameShared in 'Source\Lib\AudioMonitor\Aul2AudioViewFrameShared.pas',
   Aul2AudioViewVectorShared in 'Source\Lib\AudioMonitor\Aul2AudioViewVectorShared.pas',
   AviUtl2GpuTextureOut in 'Source\Lib\AviUtl2GpuTextureOut.pas',

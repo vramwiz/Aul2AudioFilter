@@ -18,6 +18,9 @@ uses
   Aul2AudioPitchSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioPitchSpectrumShared.pas',
   Aul2AudioRingModSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioRingModSpectrumShared.pas',
   Aul2AudioNoiseWaveShared in 'Source\Lib\AudioMonitor\Aul2AudioNoiseWaveShared.pas',
+  Aul2AudioVoiceDriveXYShared in 'Source\Lib\AudioMonitor\Aul2AudioVoiceDriveXYShared.pas',
+  Aul2AudioControllerRequest in 'Source\Lib\AudioMonitor\Aul2AudioControllerRequest.pas',
+  Aul2AudioDataTriggerDebug in 'Source\Lib\Aul2AudioDataTriggerDebug.pas',
   Aul2AudioBaseAlias in 'Source\Aul2AudioBaseAlias.pas',
   Aul2AudioBaseCreate in 'Source\Aul2AudioBaseCreate.pas',
   Aul2AudioBasePanel in 'Source\Aul2AudioBasePanel.pas',
@@ -41,6 +44,7 @@ uses
   Aul2AudioControllerRingModGraph in 'Source\Aul2AudioControllerRingModGraph.pas',
   Aul2AudioControllerWhisperGraph in 'Source\Aul2AudioControllerWhisperGraph.pas',
   Aul2AudioControllerNoiseGraph in 'Source\Aul2AudioControllerNoiseGraph.pas',
+  Aul2AudioControllerVoiceDriveGraph in 'Source\Aul2AudioControllerVoiceDriveGraph.pas',
   Aul2AudioControllerView in 'Source\Aul2AudioControllerView.pas',
   Aul2AudioControllerPlugin in 'Source\Aul2AudioControllerPlugin.pas';
 

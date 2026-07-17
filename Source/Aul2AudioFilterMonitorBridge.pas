@@ -21,7 +21,8 @@ uses
   System.SysUtils,
   Aul2AudioMonitorShared,
   Aul2AudioMonitorSpectrumShared,
-  Aul2AudioViewVectorShared;
+  Aul2AudioViewVectorShared,
+  Aul2AudioControllerRequest;
 
 type
   TAudioMonitorInputSnapshot = record
@@ -188,48 +189,14 @@ begin
 end;
 
 procedure AudioMonitorInitialize;
-var
-  SharedRoot: PAul2AudioMonitorLayeredState;
-  SpectrumRoot: PAul2AudioMonitorLayeredSpectrumState;
-  Layer: Integer;
-  Index: Integer;
 begin
-  try
-    SharedRoot := GetSharedMemory.Root;
-    if SharedRoot = nil then
-      Exit;
+  // Controller要求が来るまで大きな共有メモリを生成しない。
+  FillChar(LastInputSnapshots, SizeOf(LastInputSnapshots), 0);
+end;
 
-    SharedRoot^.Magic := AUDIO_MONITOR_SHARED_MAGIC;
-    SharedRoot^.Version := AUDIO_MONITOR_SHARED_VERSION;
-    SharedRoot^.LastLayer := AUDIO_MONITOR_LAYER_AUTO;
-    FillChar(LastInputSnapshots, SizeOf(LastInputSnapshots), 0);
-    for Layer := 0 to AUDIO_MONITOR_LAYER_SLOT_LAST do
-    begin
-      SharedRoot^.HistoryIndex[Layer] := 0;
-      InitializeMonitorSlot(SharedRoot^.Slots[Layer], Layer);
-      for Index := 0 to AUDIO_MONITOR_HISTORY_LAST do
-        InitializeMonitorSlot(SharedRoot^.History[Layer, Index], Layer);
-    end;
-    Inc(SharedRoot^.Generation);
-
-    SpectrumRoot := GetSpectrumMemory.Root;
-    if SpectrumRoot <> nil then
-    begin
-      SpectrumRoot^.Magic := AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC;
-      SpectrumRoot^.Version := AUDIO_MONITOR_SPECTRUM_SHARED_VERSION;
-      SpectrumRoot^.LastLayer := AUDIO_MONITOR_LAYER_AUTO;
-      for Layer := 0 to AUDIO_MONITOR_LAYER_SLOT_LAST do
-      begin
-        SpectrumRoot^.HistoryIndex[Layer] := 0;
-        InitializeSpectrumSlot(SpectrumRoot^.Slots[Layer], Layer);
-        for Index := 0 to AUDIO_MONITOR_SPECTRUM_HISTORY_LAST do
-          InitializeSpectrumSlot(SpectrumRoot^.History[Layer, Index], Layer);
-      end;
-      Inc(SpectrumRoot^.Generation);
-    end;
-  except
-    // 初期化疎通は補助機能なので、プラグインロードへ例外を漏らさない。
-  end;
+function CommonMonitorRequested: Boolean;
+begin
+  Result := CommonAudioDataRequested;
 end;
 
 procedure AudioMonitorSetStage(Stage: Integer; Audio: PFILTER_PROC_AUDIO);
@@ -237,6 +204,8 @@ var
   State: PAul2AudioMonitorState;
   Layer: Integer;
 begin
+  if not CommonMonitorRequested then
+    Exit;
   try
     Layer := AudioLayer(Audio);
     if Layer = AUDIO_MONITOR_LAYER_AUTO then
@@ -249,6 +218,7 @@ begin
     State^.Magic := AUDIO_MONITOR_SHARED_MAGIC;
     State^.Version := AUDIO_MONITOR_SHARED_VERSION;
     State^.UpdateTick := GetTickCount64;
+    State^.RequestId := ControllerCurrentRequestId;
     State^.Stage := Stage;
 
     if (Audio <> nil) and (Audio^.Scene <> nil) then
@@ -560,6 +530,8 @@ var
   State: PAul2AudioMonitorState;
   Layer: Integer;
 begin
+  if not CommonMonitorRequested then
+    Exit;
   Layer := AUDIO_MONITOR_LAYER_AUTO;
   try
     Layer := AudioLayer(Audio);
@@ -571,6 +543,7 @@ begin
     begin
       State^.Stage := 2;
       State^.UpdateTick := GetTickCount64;
+      State^.RequestId := ControllerCurrentRequestId;
       State^.SourceLayer := Layer;
       Inc(State^.Generation);
       Inc(GetSharedMemory.Root^.Generation);
@@ -609,6 +582,8 @@ var
   Layer: Integer;
   InputSnapshot: TAudioMonitorInputSnapshot;
 begin
+  if not CommonMonitorRequested then
+    Exit;
   try
     Layer := AudioLayer(Audio);
     if Layer = AUDIO_MONITOR_LAYER_AUTO then
@@ -632,6 +607,7 @@ begin
     State^.Magic := AUDIO_MONITOR_SHARED_MAGIC;
     State^.Version := AUDIO_MONITOR_SHARED_VERSION;
     State^.UpdateTick := GetTickCount64;
+    State^.RequestId := ControllerCurrentRequestId;
     State^.Stage := 3;
     State^.SampleRate := Audio^.Scene^.SampleRate;
     State^.SampleNum := SampleNum;
@@ -669,6 +645,7 @@ begin
       SpectrumState^.Magic := AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC;
       SpectrumState^.Version := AUDIO_MONITOR_SPECTRUM_SHARED_VERSION;
       SpectrumState^.UpdateTick := GetTickCount64;
+      SpectrumState^.RequestId := ControllerCurrentRequestId;
       SpectrumState^.SampleRate := Audio^.Scene^.SampleRate;
       SpectrumState^.SampleNum := SampleNum;
       SpectrumState^.ChannelNum := ChannelNum;

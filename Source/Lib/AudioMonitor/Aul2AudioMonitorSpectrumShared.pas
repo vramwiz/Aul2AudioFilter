@@ -9,9 +9,9 @@ uses
   SharedMemoryBase;
 
 const
-  AUDIO_MONITOR_SPECTRUM_SHARED_NAME    = 'Local\Aul2AudioMonitorSpectrum';
+  AUDIO_MONITOR_SPECTRUM_SHARED_NAME    = 'Local\Aul2AudioMonitorSpectrumV7';
   AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC   = $41535043; // ASPC
-  AUDIO_MONITOR_SPECTRUM_SHARED_VERSION = 6;
+  AUDIO_MONITOR_SPECTRUM_SHARED_VERSION = 7;
   AUDIO_MONITOR_SPECTRUM_BAND_COUNT     = 64;
   AUDIO_MONITOR_SPECTRUM_BAND_LAST      = AUDIO_MONITOR_SPECTRUM_BAND_COUNT - 1;
   AUDIO_MONITOR_SPECTRUM_HISTORY_COUNT  = 128;
@@ -27,6 +27,7 @@ type
     Version     : Cardinal;                  // AUDIO_MONITOR_SPECTRUM_SHARED_VERSION。
     Generation  : Int64;                     // 書き込み世代を識別する単調増加値。
     UpdateTick  : UInt64;                    // 更新の鮮度を判定する GetTickCount64 値。
+    RequestId   : TGUID;                     // Controller要求との対応を識別するGUID。
     SampleRate  : Integer;                   // 元音声のサンプリング周波数。
     SampleNum   : Integer;                   // 今回解析した1チャンネル当たりのサンプル数。
     ChannelNum  : Integer;                   // 元音声のチャンネル数。

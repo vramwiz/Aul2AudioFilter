@@ -4,6 +4,24 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-17 Aul2AudioController VoiceDrive XY completion note
+
+- Controllerエフェクト表示の第二弾として、優先順位1の `VoiceDrive` に非線形伝達表示と実音声Input／Output XY点列を追加した。
+- VoiceDrive DSPは単純な瞬時関数ではなく、700Hzの1次ローパス状態を`Body`で35%まで混ぜてからtanhサチュレーションする。そのため単一の静的カーブだけを厳密値として見せず、高域側の`LowSample = 0`相当と低域定常側の`LowSample = Input`相当をBody範囲の帯として描き、中央の設定カーブを太線で重ねる構成にした。無加工の対角基準線も表示する。
+- `Source\Lib\AudioMonitor\Aul2AudioVoiceDriveXYShared.pas`を追加し、VoiceDrive処理直前／直後の対応サンプルをレイヤー別に最大256点、`Local\Aul2AudioVoiceDriveXY`で共有する。L/R平均では非線形の対応関係が崩れるため、最大2チャンネルのサンプルを別々のXY点として交互に保持する。
+- `Source\Aul2AudioControllerVoiceDriveGraph.pas`を追加し、Drive、Body、Level、Mixを反映したBody範囲、中央伝達カーブ、実音声XY点、出力レンジ自動拡張を既存の最大幅300px、高さ150pxへ統合した。Body範囲と`Audio XY`の凡例には黒背景を付け、波形や点列との重なりを避けた。
+- 実機確認中にVoiceDriveではなく前段のNoiseで、LCG更新`Seed * 1664525 + 1013904223`がDelphiのオーバーフローチェックにより整数例外になることが判明した。`UInt64`で演算して下位32bitを明示的に採用し、LCG本来のラップアラウンドを維持したまま例外を防いだ。
+- Filter／ControllerのRelease Win64コンパイルは警告0、エラー0で成功した。ユーザー実機確認により、Drive 18dB、Body 0.65、Level -4dB、Mix 0.85で、強いS字飽和、Body範囲、実音声XY点列、無加工基準線が意図どおり表示され、実行時エラーも発生しないことを確認した。`VoiceDrive`表示を完成扱いとする。
+
+## 2026-07-17 Aul2AudioController Noise waveform completion note
+
+- Controllerエフェクト表示の第二弾として、優先順位1の `Noise` に処理直前／直後波形と差分波形を追加した。
+- `Source\Aul2AudioControllerNoiseGraph.pas` を追加し、既存の最大幅300px、高さ150pxのグラフ領域を上下2段に分けた。上段はNoise直前のInputを緑、処理直後のOutputをアンバーで重ね、共通ピークから自動スケールする。下段は実際に加算された成分 `Output - Input` をテーマ色で描き、差分専用ピークから独立して自動スケールする。Mode、Level、Mixもヘッダーへ表示する。
+- `Source\Lib\AudioMonitor\Aul2AudioNoiseWaveShared.pas` を追加し、レイヤー別のInput／Output各256点を `Local\Aul2AudioNoiseWave` でFilterとController間に共有する。Filter側の取得方法はPitch／RingModと同じ構造へ揃え、Noise処理直前にL/Rを取得し、DSP処理後にもう一度L/Rを取得してから公開する。Controllerは選択Objectのレイヤーを優先し、有効値がなければ最後に更新された音声レイヤーへフォールバックする。
+- 初期版はチャンネル処理ループ内でサンプルを蓄積したが、既存の実音声表示との一貫性を優先し、Pitch／RingModと同じ明確な処理前取得、DSP、処理後取得の順へ変更した。一時的に追加したControllerタイマー再取得も不要と判断して撤去し、既存Controllerと同じスナップショット更新方式を維持した。
+- 初回の有効表示では波形が凡例とスケール値の背後を通り、特に密な差分波形で文字が読みにくかった。Input、Output、Difference、上下スケール値の背後を余白付きの黒で塗り、波形との重なりを避けた。
+- `Aul2AudioFilter.dproj` と `Aul2AudioController.dproj` のRelease Win64ビルドは警告0、エラー0で成功し、`.auf2`／`.aux2`へ反映した。ユーザー実機確認により、White Noise時のInput／Output、密な差分波形、独立オートスケールが正常に表示されることを確認した。黒背景による文字視認性改善も採用し、`Noise`表示を完成扱いとした。
+
 ## 2026-07-17 Aul2AudioController Limiter graph
 
 - Controllerの次の補助表示として、`Aul2AudioControllerLimiterGraph.pas`を追加した。横軸と縦軸を-60～+12dBとし、Ceilingまでは無加工、超過部分はDSPと同じくWetをCeilingへ制限してDryとMixする定常入出力特性を描画する。

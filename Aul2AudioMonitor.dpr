@@ -16,6 +16,7 @@ uses
   ShortcutAction in 'Source\Lib\ShortcutAction\ShortcutAction.pas',
   Aul2AudioMonitorShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas',
   Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
+  Aul2AudioControllerRequest in 'Source\Lib\AudioMonitor\Aul2AudioControllerRequest.pas',
   Aul2AudioViewFrameShared in 'Source\Lib\AudioMonitor\Aul2AudioViewFrameShared.pas',
   Aul2AudioBaseAlias in 'Source\Aul2AudioBaseAlias.pas',
   Aul2AudioBaseCreate in 'Source\Aul2AudioBaseCreate.pas',

@@ -4,7 +4,7 @@
         <ProjectVersion>20.4</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
+        <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <ProjectName Condition="'$(ProjectName)'==''">Aul2AudioController</ProjectName>
         <TargetedPlatforms>2</TargetedPlatforms>
@@ -112,6 +112,9 @@
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioPitchSpectrumShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioRingModSpectrumShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioNoiseWaveShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioVoiceDriveXYShared.pas"/>
+        <DCCReference Include="Source\Lib\Aul2AudioDataTriggerDebug.pas"/>
         <DCCReference Include="Source\Aul2AudioBaseAlias.pas"/>
         <DCCReference Include="Source\Aul2AudioBaseCreate.pas"/>
         <DCCReference Include="Source\Aul2AudioBasePanel.pas"/>
@@ -134,6 +137,8 @@
         <DCCReference Include="Source\Aul2AudioControllerPitchGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerRingModGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerWhisperGraph.pas"/>
+        <DCCReference Include="Source\Aul2AudioControllerNoiseGraph.pas"/>
+        <DCCReference Include="Source\Aul2AudioControllerVoiceDriveGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerView.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerPlugin.pas"/>
         <BuildConfiguration Include="Base">

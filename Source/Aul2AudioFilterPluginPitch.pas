@@ -20,7 +20,8 @@ uses
   Winapi.Windows,
   System.SysUtils,
   Aul2AudioMonitorShared,
-  Aul2AudioPitchSpectrumShared;
+  Aul2AudioPitchSpectrumShared,
+  Aul2AudioControllerRequest;
 
 const
   PITCH_MODE_NATURAL      = 0;
@@ -201,6 +202,7 @@ begin
   State^.Magic := AUDIO_PITCH_SPECTRUM_SHARED_MAGIC;
   State^.Version := AUDIO_PITCH_SPECTRUM_SHARED_VERSION;
   State^.UpdateTick := GetTickCount64;
+  State^.RequestId := ControllerCurrentRequestId;
   State^.SourceLayer := Layer;
   State^.SourceFrame := Audio^.Object_^.Frame;
   State^.SourceFrameS := Audio^.Object_^.FrameS;
@@ -710,6 +712,7 @@ var
   Mode: Integer;
   Mix: Single;
   OutputSpectrum: TAudioPitchSpectrumData;
+  CaptureRequested: Boolean;
 begin
   Result := GPitchUseCheck.Value <> 0;
   if not Result then
@@ -720,7 +723,9 @@ begin
 
   Mode := GPitchModeSelect.Value;
   Mix := GPitchMixTrack.Value;
-  CapturePitchSpectrum(Audio, SampleNum, ChannelNum, InputSpectrum);
+  CaptureRequested := ControllerGraphRequested(AUDIO_CONTROLLER_GRAPH_PITCH);
+  if CaptureRequested then
+    CapturePitchSpectrum(Audio, SampleNum, ChannelNum, InputSpectrum);
 
   case Mode of
     PITCH_MODE_NATURAL:
@@ -750,8 +755,11 @@ begin
   else
     ClearPitchState;
   end;
-  CapturePitchSpectrum(Audio, SampleNum, ChannelNum, OutputSpectrum);
-  PublishPitchSpectrum(Audio, InputSpectrum, OutputSpectrum);
+  if CaptureRequested then
+  begin
+    CapturePitchSpectrum(Audio, SampleNum, ChannelNum, OutputSpectrum);
+    PublishPitchSpectrum(Audio, InputSpectrum, OutputSpectrum);
+  end;
 end;
 
 initialization

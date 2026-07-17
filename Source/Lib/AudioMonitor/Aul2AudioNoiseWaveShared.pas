@@ -9,9 +9,9 @@ uses
   SharedMemoryBase;
 
 const
-  AUDIO_NOISE_WAVE_SHARED_NAME = 'Local\Aul2AudioNoiseWave';
+  AUDIO_NOISE_WAVE_SHARED_NAME = 'Local\Aul2AudioNoiseWaveV2';
   AUDIO_NOISE_WAVE_SHARED_MAGIC = $4E575643; // NWVC
-  AUDIO_NOISE_WAVE_SHARED_VERSION = 1;
+  AUDIO_NOISE_WAVE_SHARED_VERSION = 2;
   AUDIO_NOISE_WAVE_SAMPLE_COUNT = 256;
   AUDIO_NOISE_WAVE_SAMPLE_LAST = AUDIO_NOISE_WAVE_SAMPLE_COUNT - 1;
 
@@ -24,6 +24,7 @@ type
     Version: Cardinal;
     Generation: Int64;
     UpdateTick: UInt64;
+    RequestId: TGUID;
     SourceLayer: Integer;
     SourceFrame: Integer;
     SourceFrameS: Integer;

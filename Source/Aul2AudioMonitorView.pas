@@ -35,6 +35,7 @@ uses
   Aul2AudioMonitorPaint,
   Aul2AudioMonitorShared,
   Aul2AudioMonitorSpectrumShared,
+  Aul2AudioControllerRequest,
   Aul2AudioViewFrameShared,
   Aul2AudioBasePanel,
   Aul2AudioPresetPanel,
@@ -791,6 +792,7 @@ begin
   Application.Title := MONITOR_WINDOW_NAME;
 
   MonitorForm := TFormAudioMonitor.Create(nil);
+  AudioConsumerSetMonitorWindow(MonitorForm.Handle);
   MonitorForm.ParentWindow := ClientWindow;
   MonitorForm.ParentFont := False;
   MonitorForm.Font.Name := 'Yu Gothic UI';
@@ -1013,6 +1015,7 @@ end;
 
 procedure DestroyMonitorView;
 begin
+  AudioConsumerSetMonitorWindow(0);
   if Assigned(ReadTimer) then
   begin
     ReadTimer.Enabled := False;

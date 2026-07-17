@@ -257,6 +257,8 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - 2026-07-17、次に `Pitch` へ処理直前／直後の128帯域高解像度スペクトルを追加した。20Hz～20kHzの対数周波数軸へInputをMonitorと同じ緑、Outputを同じアンバーで重ね、Mode、Pitch量、Mixなど主要設定も表示する。Pitch ON時は専用共有メモリの128帯域解析を使い、OFF時または専用解析前はMonitorの64帯域スペクトルを128帯域へ線形補間して初期表示する。再生中の連続更新は行わず、選択・設定再取得時のスナップショットだけを更新する。Release Win64ビルドとAviUtl2上で、+7.9 semitone時にOutputがInputより高周波側へ移動すること、Monitorより細かな形状、初期表示を確認済みで完成扱いとする。
 - 2026-07-17、次に `RingMod` へ処理直前／直後の128帯域スペクトルと予測側波帯ガイドを追加した。Frequency、Depth、Mixを表示し、Inputを緑、Outputをアンバー、Inputスペクトルを変調周波数ぶん左右へ移したガイドを薄い2色で重ねる。ON時はRingMod専用共有メモリ、OFF時または専用解析前はMonitorの64帯域値を128帯域へ補間して使う。初回配備ではグラフ表示許可リストへのエフェクト番号10追加が漏れていたため全体が非表示になり、修正後の実機表示でFrequency 367Hzに対応する側波帯とOutputの変化を確認した。`±`の文字化けはASCIIの`+/-F`へ変更した。Release Win64ビルドは警告0、エラー0で、完成扱いとする。
 - 2026-07-17、次に `Whisper/Breath` へReferenceスペクトルとBreath予測特性を追加した。緑のReferenceはMonitor共有スペクトルのInputを参考表示し、青のBreathはDSPと同じくToneから約900～5100Hzの境界を求めた高域通過傾向へLevelとMixを表示強度として反映する。ON／OFFで形状とデータ元を切り替えず、青の明度だけを変える。当初はWhisper直前／直後の専用128帯域解析と差分塗りを実装したが、OFF時には局所前後を取得できずMonitor全体の前後へ意味が切り替わるため、Input／Output表示が混乱を招いた。最終版ではOutput線と前後表記を廃止し、Reference＋設定予測Breathへ統一したため、Whisper専用共有メモリとFilter側DFTも撤去した。Release Win64ビルドとAviUtl2上のReference、Breath、Level／Tone／Mix追従、ON時の明表示を確認済みで完成扱いとする。
+- 2026-07-17、第二弾の `Noise` へ処理直前／直後の短い波形と差分波形を追加した。Filter側はPitch／RingModと同じく、Noise処理直前にL/R音声を取得し、DSP処理後に再取得して256点へ縮約する。レイヤー別最新値を専用共有メモリ `Local\Aul2AudioNoiseWave` でControllerへ渡す。上段はInput／Outputを共通オートスケールで重ね、下段は`Output - Input`を独立オートスケールで描く。波形と重なる凡例・スケール値には黒背景を付けた。Filter／ControllerのRelease Win64ビルドは警告0、エラー0で、AviUtl2上のWhite Noise、前後波形、差分波形、文字の視認性を確認済みとし完成扱いとする。
+- 2026-07-17、次に `VoiceDrive` へ設定伝達カーブ、Bodyの700Hzローパス状態による伝達範囲、実音声Input／Output XY点列を追加した。Filter側は処理直前／直後の対応サンプルをL/R別に最大256点取得し、専用共有メモリ `Local\Aul2AudioVoiceDriveXY` でControllerへ渡す。Controllerは無加工基準線、Body範囲、中央設定カーブ、実音声XY点を同じ入出力座標へ重ねる。Drive 18dB、Body 0.65、Level -4dB、Mix 0.85で強いS字飽和、Body範囲、実音声点列をAviUtl2上で確認済み。Filter／ControllerのRelease Win64コンパイルは警告0、エラー0で、完成扱いとする。
 - エフェクトOFF時は形状を保持したまま暗くし、設定内容を確認できるようにする。
 
 ### Controller エフェクト表示 追加課題（第二弾）
@@ -270,6 +272,8 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 | 完了 | Compressor | 入出力特性カーブ |
 | 完了 | Distortion | 歪み伝達カーブ |
 | 完了 | BitCrusher | 量子化階段カーブ |
+| 完了 | Noise | Noise直前／直後波形＋差分波形 |
+| 完了 | VoiceDrive | 非線形伝達カーブ＋Body範囲＋実音声XY点列 |
 | 完了 | NoiseGate | ゲート入出力特性 |
 | 完了 | Muffle | 周波数特性＋Input／Outputスペクトル |
 | 完了 | Pitch | 高解像度Input／Outputスペクトル |
@@ -282,14 +286,12 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 
 | 優先 | エフェクター | 実装する主表示 | 優先理由 |
 | ---: | --- | --- | --- |
-| 1 | Noise | Noise直前・直後の差分波形 | 差分波形取得と自動スケール表示の共通部品になる。 |
-| 2 | VoiceDrive | 非線形伝達カーブ＋XY点列 | Distortionの描画方式を参考にでき、差分や倍音表示へ発展できる。 |
-| 3 | Tremble | Input／Output RMS時間履歴 | 時間履歴グラフの最初の実装として比較的単純。 |
-| 4 | AutoGain | Target、Input／Output RMS、補正ゲイン履歴 | Trembleで作った時間履歴部品を再利用でき、実音声表示の価値が高い。 |
-| 5 | Wobble | 遅延時間の変動履歴 | 時間履歴部品を再利用できるが、前後音声からの遅延推定が必要。 |
-| 6 | Reverb | Wet残響量と減衰履歴 | 入力停止後の残響エネルギーを時間履歴として表示する。 |
-| 7 | Ghost | 残響の膨らみと減衰履歴 | Reverbの残響履歴部品を再利用できる。 |
-| 8 | Chorus | L/R遅延変動、ステレオ相関または簡易Vectorscope | L/R別データと位相・相関表示が必要で、最も専用実装が多い。 |
+| 1 | Tremble | Input／Output RMS時間履歴 | 時間履歴グラフの最初の実装として比較的単純。 |
+| 2 | AutoGain | Target、Input／Output RMS、補正ゲイン履歴 | Trembleで作った時間履歴部品を再利用でき、実音声表示の価値が高い。 |
+| 3 | Wobble | 遅延時間の変動履歴 | 時間履歴部品を再利用できるが、前後音声からの遅延推定が必要。 |
+| 4 | Reverb | Wet残響量と減衰履歴 | 入力停止後の残響エネルギーを時間履歴として表示する。 |
+| 5 | Ghost | 残響の膨らみと減衰履歴 | Reverbの残響履歴部品を再利用できる。 |
+| 6 | Chorus | L/R遅延変動、ステレオ相関または簡易Vectorscope | L/R別データと位相・相関表示が必要で、最も専用実装が多い。 |
 
 #### 完了済みグラフへの実音声背景・動的表示
 

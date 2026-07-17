@@ -6,7 +6,8 @@ interface
 
 uses
   System.SysUtils,
-  Aul2AudioFilterTypes;
+  Aul2AudioFilterTypes,
+  Aul2AudioControllerRequest;
 
 // フィルター基本情報と映像・音声コールバックを GTable へ設定する。
 procedure SetupPluginTable(Flag: Integer; Name, Label_, Information: PWideChar;
@@ -29,6 +30,8 @@ procedure AddSelect(var Item: TFILTER_ITEM_SELECT; Name: PWideChar; Value: Integ
 // AviUtl2 の編集コールバックを呼び出すボタン項目を登録する。
 procedure AddButton(var Item: TFILTER_ITEM_BUTTON; Name: PWideChar;
   Callback: TFilterItemButtonCallback);
+// GUIには表示されない1 byteの汎用データ項目を登録する。
+procedure AddRequestData(var Item: TFILTER_ITEM_DATA_REQUEST; Name: PWideChar);
 // 次に作る選択肢配列へ影響しないよう、選択リスト作成位置を初期化する。
 procedure ClearSelectList;
 // 選択肢配列の次の空き位置へ表示名と値を追加し、後続要素を nil 終端する。
@@ -161,6 +164,17 @@ begin
   Item.ItemType := PWideChar('button');
   Item.Name := Name;
   Item.Callback := Callback;
+end;
+
+procedure AddRequestData(var Item: TFILTER_ITEM_DATA_REQUEST; Name: PWideChar);
+begin
+  AddItem(@Item);
+
+  Item.ItemType := PWideChar('data');
+  Item.Name := Name;
+  Item.Size := SizeOf(Item.DefaultValue);
+  Item.DefaultValue := Default(TAul2AudioControllerRequestData);
+  Item.Value := @Item.DefaultValue;
 end;
 
 end.

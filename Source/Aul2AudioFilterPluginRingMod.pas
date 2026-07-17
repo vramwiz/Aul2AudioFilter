@@ -19,7 +19,8 @@ uses
   Winapi.Windows,
   System.SysUtils,
   Aul2AudioMonitorShared,
-  Aul2AudioRingModSpectrumShared;
+  Aul2AudioRingModSpectrumShared,
+  Aul2AudioControllerRequest;
 
 var
   GRingModGroup    : TFILTER_ITEM_GROUP;
@@ -132,6 +133,7 @@ begin
   State^.Magic := AUDIO_RING_SPECTRUM_SHARED_MAGIC;
   State^.Version := AUDIO_RING_SPECTRUM_SHARED_VERSION;
   State^.UpdateTick := GetTickCount64;
+  State^.RequestId := ControllerCurrentRequestId;
   State^.SourceLayer := Layer;
   State^.SourceFrame := Audio^.Object_^.Frame;
   State^.SourceFrameS := Audio^.Object_^.FrameS;
@@ -200,12 +202,15 @@ var
   Buffer: TArray<Single>;
   InputSpectrum: TAudioRingSpectrumData;
   OutputSpectrum: TAudioRingSpectrumData;
+  CaptureRequested: Boolean;
 begin
   Result := GRingModUseCheck.Value <> 0;
   if not Result then
     Exit;
 
-  CaptureRingSpectrum(Audio, SampleNum, ChannelNum, InputSpectrum);
+  CaptureRequested := ControllerGraphRequested(AUDIO_CONTROLLER_GRAPH_RING_MOD);
+  if CaptureRequested then
+    CaptureRingSpectrum(Audio, SampleNum, ChannelNum, InputSpectrum);
   SetLength(Buffer, SampleNum);
 
   for Channel := 0 to ChannelNum - 1 do
@@ -215,8 +220,11 @@ begin
       GRingModFreqTrack.Value, GRingModDepthTrack.Value, GRingModMixTrack.Value);
     Audio^.SetSampleData(@Buffer[0], Channel);
   end;
-  CaptureRingSpectrum(Audio, SampleNum, ChannelNum, OutputSpectrum);
-  PublishRingSpectrum(Audio, InputSpectrum, OutputSpectrum);
+  if CaptureRequested then
+  begin
+    CaptureRingSpectrum(Audio, SampleNum, ChannelNum, OutputSpectrum);
+    PublishRingSpectrum(Audio, InputSpectrum, OutputSpectrum);
+  end;
 end;
 
 initialization
