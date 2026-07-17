@@ -4,6 +4,15 @@
 
 `note.md` は作業再開時に必要な現行方針と手順だけを残す。
 
+## 2026-07-17 Aul2Audio View Comms Scope completion note
+
+- 中央パンの声では左右差がほぼなく、通常の`Vectorscope`が横へ広がらないため、音声・通信演出向けの`Comms Scope`を追加した。Type選択リストでは`Vectorscope`の直後へ配置した。
+- 処理後L/Rの平均をモノラル音声とし、現在点と8代表点前の時間差から`X=(Current-Delayed)/2`、`Y=(Current+Delayed)/2`のXY位相軌跡を作る。通常の`Vectorscope`は音楽やステレオ幅の確認用として変更せず残した。
+- `Density`は描画点数、`Thickness`は線幅と点サイズ、`Smooth`は時間方向のローパス量として反映した。`X Scale` / `Y Scale`は同じType専用2倍感度を持ち、縦横の比率は各設定値で調整できる。色と`Source Layer`も既存View Typeと同様に反映する。
+- 長方形素材でも短辺を基準とする中央正方形を描画範囲とし、素材の縦横比で軌跡自体が変形しないようにした。ガイド用の十字線は`Vectorscope`と`Comms Scope`のどちらにも描かず、必要な場合はユーザーが別素材として用意する仕様とした。
+- 初期実装では編集中に同期対象フレームの共有履歴が得られず、`Vectorscope`と`Comms Scope`が表示されなかった。編集状態では指定レイヤーの最新有効値へフォールバックし、ほかのView Typeと同様に編集中も表示するよう修正した。再生中の同期選択は変更していない。
+- `Aul2AudioView.dproj`のRelease Win64ビルドは警告・エラーなしで成功した。Typeの位置、再生中と編集中の表示、中央パン音声への反応、短辺基準の正方形、各パラメーター、十字線なしの表示をユーザー実機確認済みとし、`Comms Scope`を完成扱いとする。
+
 ## 2026-07-17 Aul2AudioController VoiceDrive XY completion note
 
 - Controllerエフェクト表示の第二弾として、優先順位1の `VoiceDrive` に非線形伝達表示と実音声Input／Output XY点列を追加した。
