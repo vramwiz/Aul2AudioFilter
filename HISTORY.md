@@ -948,3 +948,24 @@
 - Output／Muffleと同じ選択Objectレイヤー取得と有効音声レイヤーへのフォールバックを使う。Controllerは再生中に連続更新せず、エフェクター選択や選択Object再取得など既存の更新時だけスペクトルをスナップショットする。
 - `Aul2AudioFilter.dpr` / `.dproj` と `Aul2AudioController.dpr` / `.dproj` にPitch専用共有ユニットを追加し、Controller側へPitchグラフを統合した。Filter／ControllerのRelease Win64ビルドは警告0、エラー0で成功し、`.auf2` / `.aux2` へ反映した。
 - ユーザー実機確認により、初期スペクトル表示、Monitorとの配色、高解像度の前後形状、Pitch Only +7.9 semitone時にOutputがInputより高周波側へ移動する表示が正常であることを確認し、`Pitch` 表示を完成扱いとした。
+
+## 2026-07-17 Aul2AudioController RingMod spectrum completion note
+
+- Controllerエフェクト表示の第二弾として、優先順位1へ繰り上がった `RingMod` に処理前後スペクトルと側波帯表示を追加した。
+- `Source\Aul2AudioControllerRingModGraph.pas` を追加し、最大幅300px、高さ150pxのグラフ領域へ20Hz～20kHzの対数周波数軸、Input／Outputの128帯域スペクトル、Frequency、Depth、Mixを表示する。InputはMonitorと同じ緑、Outputは同じアンバーを使う。
+- RingModの振幅変調ではInputの各成分から変調周波数ぶん離れた上下側波帯が生じるため、Inputスペクトルを`-Frequency`／`+Frequency`方向へ移した予測ガイドを薄い2色で背景へ重ねた。実際のOutputと比較することでFrequency変更の効果を確認できる。
+- `Source\Lib\AudioMonitor\Aul2AudioRingModSpectrumShared.pas` を追加し、RingMod処理直前／直後を最大2048サンプル、Hann窓、128帯域の対数配置DFTで解析する。レイヤー別最新値を `Local\Aul2AudioRingModSpectrum` でFilterとController間に共有し、RingModがONの場合だけ解析する。
+- OFF時または専用解析前はMonitorの64帯域Input／Outputスペクトルを128帯域へ線形補間して初期表示し、ON後は専用128帯域値へ切り替える。再生中の連続更新は行わず、既存Controller更新時のスナップショットだけを描画する。
+- 初回配備では描画分岐を実装していたものの、グラフ表示許可リストへRingModのエフェクト番号10を加え忘れたためグラフ全体が表示されなかった。許可リストを修正して表示させた。また、凡例の`±`が文字化けしたため`Sidebands +/-F`のASCII表記へ変更した。
+- Filter／ControllerのRelease Win64ビルドは警告0、エラー0で成功し、`.auf2`／`.aux2`へ反映した。ユーザー実機確認により、Frequency 367Hz時のInput、Output、予測側波帯ガイドと設定表示が正常に描画されることを確認し、`RingMod`表示を完成扱いとした。
+
+## 2026-07-17 Aul2AudioController Whisper/Breath graph completion note
+
+- Controllerエフェクト表示の第二弾として、優先順位1へ繰り上がった `Whisper/Breath` の息成分表示を追加した。
+- 初期版ではWhisper処理直前／直後を最大2048サンプル、Hann窓、128帯域DFTで解析する専用共有メモリを追加し、Input／Output線と処理後に増えた帯域の`Added breath`塗りを表示した。
+- Whisperは周波数を移動せず元音へ小さな息ノイズを加えるため、弱いLevelでは前後線がほぼ重なる。太いOutputがInputを隠したため描画順を変えたが、OFF時にはWhisper局所の前後データが存在せず、Monitor全体のInput／Outputへフォールバックすると他エフェクトを含む別の意味になる問題が残った。
+- OFF時の前後を同一に見せる案も検討したが、Monitor全体のInputを複製するとWhisperより前のエフェクトまで元へ戻ったように見えるため不採用とした。`Chain In／Chain Out`表記もON時の局所前後と意味が切り替わるため最終案には採用しなかった。
+- 最終版はInput／Output比較を廃止し、MonitorのInputスペクトルを緑の`Reference`として1本だけ表示する。これはWhisper局所入力の厳密値ではなく、調整用の参考表示である。
+- 青の`Breath`は実測差分ではなく、DSPの`Breath = Noise - LowNoise`に対応する1次高域通過傾向を予測表示する。ToneからDSPと同じ約900～5100Hzの境界を求め、LevelとMixを小型グラフで読める表示強度へ反映する。ON／OFFで形状やデータ元は変えず、青の明度だけを切り替えるため、ノブ変更時も一貫した意味を保つ。
+- 最終仕様では専用の前後解析が不要になったため、Whisper用共有メモリ、Filter側DFT、Controller側専用状態読込を撤去し、既存の `Local\Aul2AudioMonitorSpectrum` だけを再利用する軽量構成へ戻した。
+- Filter／ControllerのRelease Win64ビルドは警告0、エラー0で成功し、`.auf2`／`.aux2`へ反映した。ユーザー実機確認により、ReferenceとBreathの区別、Level／Tone／Mixへの追従、ON時の明るい青表示が見やすいことを確認し、`Whisper/Breath`表示を完成扱いとした。

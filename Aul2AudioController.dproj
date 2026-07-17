@@ -111,6 +111,7 @@
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioPitchSpectrumShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioRingModSpectrumShared.pas"/>
         <DCCReference Include="Source\Aul2AudioBaseAlias.pas"/>
         <DCCReference Include="Source\Aul2AudioBaseCreate.pas"/>
         <DCCReference Include="Source\Aul2AudioBasePanel.pas"/>
@@ -131,6 +132,8 @@
         <DCCReference Include="Source\Aul2AudioControllerOutputGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerMuffleGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerPitchGraph.pas"/>
+        <DCCReference Include="Source\Aul2AudioControllerRingModGraph.pas"/>
+        <DCCReference Include="Source\Aul2AudioControllerWhisperGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerView.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerPlugin.pas"/>
         <BuildConfiguration Include="Base">
