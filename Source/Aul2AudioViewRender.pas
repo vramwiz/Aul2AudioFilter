@@ -74,6 +74,7 @@ begin
     VIEW_TYPE_CIRCULAR_SPECTRUM: DrawCircularSpectrum(Buffer, Width, Height, Settings, CurrentFrame);
     VIEW_TYPE_MIRROR_BARS: DrawMirrorBars(Buffer, Width, Height, Settings, CurrentFrame);
     VIEW_TYPE_VECTORSCOPE: DrawVectorscope(Buffer, Width, Height, Settings, CurrentFrame);
+    VIEW_TYPE_COMMS_SCOPE: DrawCommsScope(Buffer, Width, Height, Settings, CurrentFrame);
   else
     DrawEqualizerBars(Buffer, Width, Height, Settings, CurrentFrame);
   end;

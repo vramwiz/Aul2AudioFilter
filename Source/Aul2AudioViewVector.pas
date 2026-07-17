@@ -143,9 +143,13 @@ begin
     Result := nil;
 end;
 
+function FindLatestStateForLayer(
+  InternalLayer: Integer): PAul2AudioViewVectorState; forward;
+
 procedure UpdateViewVector(out Left, Right: TAudioViewVectorData;
   out Valid: Boolean; CurrentFrame, SourceLayer: Integer);
 var
+  InternalLayer: Integer;
   State: PAul2AudioViewVectorState;
 begin
   FillChar(Left, SizeOf(Left), 0);
@@ -154,7 +158,11 @@ begin
   if VectorMemory = nil then
     Exit;
 
-  State := SelectVectorState(CurrentFrame, ResolveSourceLayer(SourceLayer));
+  InternalLayer := ResolveSourceLayer(SourceLayer);
+  State := SelectVectorState(CurrentFrame, InternalLayer);
+  // 編集停止中は再生フレームと一致する履歴が生成されないため、同じレイヤーの最新値へ戻す。
+  if (State = nil) and (GetViewEditState = 0) then
+    State := FindLatestStateForLayer(InternalLayer);
   if State = nil then
     Exit;
 

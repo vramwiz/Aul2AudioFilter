@@ -11,6 +11,9 @@ uses
 // 現在フレームのOutput L/R代表点を透明RGBAバッファへ点描画する。
 procedure DrawVectorscope(Buffer: PPIXEL_RGBA; Width, Height: Integer;
   const Settings: TAul2AudioViewSettings; CurrentFrame: Integer);
+// 中央パンの声でも動くよう、Mid音声の時間差をXY位相軌跡として描画する。
+procedure DrawCommsScope(Buffer: PPIXEL_RGBA; Width, Height: Integer;
+  const Settings: TAul2AudioViewSettings; CurrentFrame: Integer);
 
 implementation
 
@@ -81,7 +84,8 @@ procedure DrawVectorscope(Buffer: PPIXEL_RGBA; Width, Height: Integer;
 var
   CenterX: Integer;
   CenterY: Integer;
-  ScopeHalfSize: Integer;
+  ScopeHalfWidth: Integer;
+  ScopeHalfHeight: Integer;
   PointCount: Integer;
   Point: Integer;
   SourcePoint: Integer;
@@ -92,7 +96,6 @@ var
   X: Integer;
   Y: Integer;
   PointSize: Integer;
-  AxisSize: Integer;
   PrevX: Integer;
   PrevY: Integer;
   R, G, B: Byte;
@@ -104,16 +107,10 @@ begin
   CenterX := Width div 2;
   CenterY := Height div 2;
   PointSize := Max(1, Min(32, Settings.Thickness));
-  // 短辺から線幅分を除いた中央正方形を、X/Y共通の描画座標範囲にする。
-  ScopeHalfSize := Max(1, (Min(Width, Height) - PointSize) div 2);
-  AxisSize := Max(2, PointSize div 2);
+  // XとYを独立した描画範囲にし、横長ViewでもX Scaleが画像幅全体へ反映されるようにする。
+  ScopeHalfWidth := Max(1, (Width - PointSize) div 2);
+  ScopeHalfHeight := Max(1, (Height - PointSize) div 2);
   PointCount := Max(4, Min(AUDIO_VIEW_VECTOR_POINT_COUNT, Settings.Density));
-
-  GetViewColor(Settings, 0, PointCount, R, G, B);
-  FillRect(Buffer, Width, Height, CenterX - AxisSize div 2, CenterY - ScopeHalfSize,
-    CenterX + AxisSize div 2, CenterY + ScopeHalfSize, R div 2, G div 2, B div 2, 255);
-  FillRect(Buffer, Width, Height, CenterX - ScopeHalfSize, CenterY - AxisSize div 2,
-    CenterX + ScopeHalfSize, CenterY + AxisSize div 2, R div 2, G div 2, B div 2, 255);
 
   UpdateViewVector(CurrentLeft, CurrentRight, CurrentValid,
     CurrentFrame, Settings.SourceLayer);
@@ -130,6 +127,88 @@ begin
     SourcePoint := Point * AUDIO_VIEW_VECTOR_POINT_LAST div Max(1, PointCount - 1);
     ScopeX := (CurrentLeft[SourcePoint] - CurrentRight[SourcePoint]) * 0.5 * XScale;
     ScopeY := (CurrentLeft[SourcePoint] + CurrentRight[SourcePoint]) * 0.5 * YScale;
+    ScopeX := EnsureRange(ScopeX, -1.0, 1.0);
+    ScopeY := EnsureRange(ScopeY, -1.0, 1.0);
+    X := CenterX + Round(ScopeX * ScopeHalfWidth);
+    Y := CenterY - Round(ScopeY * ScopeHalfHeight);
+    GetViewColor(Settings, Point, PointCount, R, G, B);
+    if Point > 0 then
+      DrawLine(Buffer, Width, Height, PrevX, PrevY, X, Y,
+        PointSize, R, G, B, 255);
+    DrawPoint(Buffer, Width, Height, X, Y, PointSize, R, G, B, 255);
+    PrevX := X;
+    PrevY := Y;
+  end;
+end;
+
+procedure DrawCommsScope(Buffer: PPIXEL_RGBA; Width, Height: Integer;
+  const Settings: TAul2AudioViewSettings; CurrentFrame: Integer);
+const
+  PHASE_OFFSET = 8;
+  COMMS_SCOPE_SENSITIVITY = 2.0;
+var
+  Alpha: Double;
+  CenterX: Integer;
+  CenterY: Integer;
+  CurrentMono: Double;
+  DelayedMono: Double;
+  DelayedPoint: Integer;
+  Mono: TAudioViewVectorData;
+  Point: Integer;
+  PointCount: Integer;
+  PointSize: Integer;
+  PrevX: Integer;
+  PrevY: Integer;
+  R, G, B: Byte;
+  ScopeHalfSize: Integer;
+  ScopeX: Double;
+  ScopeY: Double;
+  SmoothRatio: Double;
+  SourcePoint: Integer;
+  X: Integer;
+  XScale: Double;
+  Y: Integer;
+  YScale: Double;
+begin
+  if (Buffer = nil) or (Width <= 0) or (Height <= 0) then
+    Exit;
+
+  ClearPixels(Buffer, Width, Height);
+  CenterX := Width div 2;
+  CenterY := Height div 2;
+  PointSize := Max(1, Min(32, Settings.Thickness));
+  // Comms Scopeは長方形画像でも短辺基準の中央正方形を描画範囲とする。
+  ScopeHalfSize := Max(1, (Min(Width, Height) - PointSize) div 2);
+  PointCount := Max(4, Min(AUDIO_VIEW_VECTOR_POINT_COUNT - PHASE_OFFSET,
+    Settings.Density));
+
+  UpdateViewVector(CurrentLeft, CurrentRight, CurrentValid,
+    CurrentFrame, Settings.SourceLayer);
+  if not CurrentValid then
+    Exit;
+
+  for Point := 0 to AUDIO_VIEW_VECTOR_POINT_LAST do
+    Mono[Point] := (CurrentLeft[Point] + CurrentRight[Point]) * 0.5;
+
+  // Smoothを時間方向のローパス量として使い、声の輪郭を残しながら細かな揺れを抑える。
+  SmoothRatio := EnsureRange(Settings.Smooth, 0, 100) / 100.0;
+  Alpha := 1.0 - SmoothRatio * 0.75;
+  for Point := 1 to AUDIO_VIEW_VECTOR_POINT_LAST do
+    Mono[Point] := Mono[Point - 1] + (Mono[Point] - Mono[Point - 1]) * Alpha;
+
+  XScale := Max(10, Min(500, Settings.XScale)) / 100.0 * COMMS_SCOPE_SENSITIVITY;
+  YScale := Max(10, Min(500, Settings.YScale)) / 100.0 * COMMS_SCOPE_SENSITIVITY;
+  PrevX := CenterX;
+  PrevY := CenterY;
+  for Point := 0 to PointCount - 1 do
+  begin
+    SourcePoint := PHASE_OFFSET +
+      Point * (AUDIO_VIEW_VECTOR_POINT_LAST - PHASE_OFFSET) div Max(1, PointCount - 1);
+    DelayedPoint := SourcePoint - PHASE_OFFSET;
+    CurrentMono := Mono[SourcePoint];
+    DelayedMono := Mono[DelayedPoint];
+    ScopeX := (CurrentMono - DelayedMono) * 0.5 * XScale;
+    ScopeY := (CurrentMono + DelayedMono) * 0.5 * YScale;
     ScopeX := EnsureRange(ScopeX, -1.0, 1.0);
     ScopeY := EnsureRange(ScopeY, -1.0, 1.0);
     X := CenterX + Round(ScopeX * ScopeHalfSize);
