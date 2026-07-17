@@ -12,6 +12,9 @@ uses
   DragAgent in 'Source\Lib\DragAgent\DragAgent.pas',
   ListBoxEdit in 'Source\Lib\ListBoxEdit\ListBoxEdit.pas',
   ShortcutAction in 'Source\Lib\ShortcutAction\ShortcutAction.pas',
+  SharedMemoryBase in 'Source\Lib\SharedMemory\SharedMemoryBase.pas',
+  Aul2AudioMonitorShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas',
+  Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
   Aul2AudioBaseAlias in 'Source\Aul2AudioBaseAlias.pas',
   Aul2AudioBaseCreate in 'Source\Aul2AudioBaseCreate.pas',
   Aul2AudioBasePanel in 'Source\Aul2AudioBasePanel.pas',
@@ -29,6 +32,8 @@ uses
   Aul2AudioControllerBitCrusherGraph in 'Source\Aul2AudioControllerBitCrusherGraph.pas',
   Aul2AudioControllerNoiseGateGraph in 'Source\Aul2AudioControllerNoiseGateGraph.pas',
   Aul2AudioControllerLimiterGraph in 'Source\Aul2AudioControllerLimiterGraph.pas',
+  Aul2AudioControllerOutputGraph in 'Source\Aul2AudioControllerOutputGraph.pas',
+  Aul2AudioControllerMuffleGraph in 'Source\Aul2AudioControllerMuffleGraph.pas',
   Aul2AudioControllerView in 'Source\Aul2AudioControllerView.pas',
   Aul2AudioControllerPlugin in 'Source\Aul2AudioControllerPlugin.pas';
 

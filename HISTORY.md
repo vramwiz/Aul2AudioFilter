@@ -9,7 +9,7 @@
 - Controllerの次の補助表示として、`Aul2AudioControllerLimiterGraph.pas`を追加した。横軸と縦軸を-60～+12dBとし、Ceilingまでは無加工、超過部分はDSPと同じくWetをCeilingへ制限してDryとMixする定常入出力特性を描画する。
 - 無加工基準線、Ceiling位置、超過時に抑制される領域の塗り、Mix、Releaseを表示する。Releaseはピーク後のゲイン回復時間なのでカーブ形状を変えない。UseがOFFでも設定形状を暗く残し、ノブ操作、設定読込、Use変更、リサイズへ追従する。
 - 初回のAviUtl2実機表示ではカーブと文字は良好だったが、抑制領域の塗りが背景へ沈んでほとんど見えなかったため、塗りをアクセント色の20%から38%へ明るくした。
-- `Aul2AudioController.dproj`のRelease Win64ビルドは警告・エラーなしで成功し、`Aul2AudioController.aux2`へ反映した。AviUtl2上の実表示確認は未実施。
+- `Aul2AudioController.dproj`のRelease Win64ビルドは警告・エラーなしで成功し、`Aul2AudioController.aux2`へ反映した。Ceiling、Mix、Release、ピーク制限カーブ、明るさ調整後の抑制領域をユーザー実機確認済みとし、Limiterグラフを完成扱いとする。
 
 ## 2026-07-17 Aul2AudioController NoiseGate graph
 
@@ -915,3 +915,26 @@
 - パラメーター名は `Aul2Audio View` 内に表示されるため、`View:` prefix を外し、`Type`, `Style`, `Density`, `Spacing`, `Thickness`, `Color`, `Color Variation`, `Color Blend`, `Smooth` とした。
 - `Source\Lib\Color\Aul2ColorUtils.pas` と `Source\Lib\Color\Aul2ColorPalette.pas` を追加し、RGB/HSV 変換、RGB / HSV短方向 / HSV長方向補間、パレット色取得を共通化した。
 - `dcc64` で `Aul2AudioView.dpr` の直接コンパイルが通ることを確認した。
+
+## Aul2AudioController Output meter completion note
+
+- 2026-07-17、Controllerエフェクト表示の第二弾として、優先順位1の `Output` へ実音声を使うInput／Output L/R Peakメーターと短いRMS履歴を追加した。
+- `Source\Aul2AudioControllerOutputGraph.pas` を追加し、最大幅300px、高さ150pxの既存グラフ領域へ、4本の縦Peakメーターと直近48件のL/R RMS履歴を配置した。共有構造は増やさず、Monitorが使用している `Local\Aul2AudioMonitorState` の `InputPeakL/R`、`OutputPeakL/R`、`InputRmsL/R`、`OutputRmsL/R` とレイヤー別履歴リングを再利用する。
+- ControllerはMonitorのような再生中の連続監視を行わない。エフェクター選択、選択Objectの再取得、Useやパラメーター変更など、既存のController更新経路で共有値をスナップショットし、常時更新用タイマーは追加しなかった。
+- `Aul2AudioControllerSync.pas` に選択Objectの内部レイヤー取得を追加し、通常はそのレイヤーの共有状態と履歴を読むようにした。
+- 初回実機表示では、選択中の `Root` グループ制御と実際に処理されたMonitorの音声レイヤーが異なり、表示枠は出るが `no audio data` になった。選択レイヤーに有効データがない場合は、Monitorと同じく共有ルートの最後に更新された有効音声レイヤーへフォールバックするよう修正した。
+- Input色はMonitorと同じ `RGB(92,190,122)`、Output色は `RGB(224,176,72)` に固定した。当初Outputをエフェクトテーマ色で描いたため白くなったが、PeakメーターとRMS履歴の両方をMonitorと同じ緑／アンバーへ統一した。
+- 起動直後はRMS履歴が1件だけの場合があり、2点以上を要求していた初期実装では履歴枠だけが空になった。履歴0件時は最新RMSを1件目として補い、1件時は現在値の水平線、2件以上では通常の時系列線を描くよう変更した。
+- `Aul2AudioController.dpr` / `.dproj` に共有メモリユニットとOutputグラフユニットを追加した。Release Win64ビルドは警告0、エラー0で成功した。
+- ユーザー実機確認により、Input／Output L/Rメーター、RMS履歴、グループ制御選択時のデータ取得、Monitorとの色統一、初期表示時の履歴描画が正常に動作することを確認し、`Output` 表示を完成扱いとした。
+
+## Aul2AudioController Muffle spectrum completion note
+
+- 2026-07-17、Controllerエフェクト表示の第二弾として、優先順位1へ繰り上がった `Muffle` に周波数特性と実音声スペクトルの重ね合わせ表示を追加した。
+- `Source\Aul2AudioControllerMuffleGraph.pas` を追加し、既存の最大幅300px、高さ150pxのグラフ領域へ、20Hz～20kHzの対数周波数軸、Input／Outputスペクトル、設定特性カーブ、Cutoff位置を描画する構成にした。
+- 設定特性はMuffle DSPと同じ2段の1次ローパスを複素伝達関数として計算し、原音成分、`Amount`、`Mix`を合成した最終振幅を周波数ごとに求める。`Cutoff`、`Amount`、`Mix`の変更時は共有音声を再取得せず、設定カーブだけを即時更新する。
+- 実音声スペクトルはMonitorと同じ `Local\Aul2AudioMonitorSpectrum` の `InputBands` / `OutputBands`、BandCount、MinHz、MaxHzを利用し、共有構造は変更しなかった。Inputは `RGB(92,190,122)`、Outputは `RGB(224,176,72)` の細線、設定特性は太い前景線として描いた。
+- Output表示で整備した選択Objectレイヤー取得を再利用した。通常は選択レイヤーのスペクトル状態を読み、グループ制御（音声）のように有効データがない場合は共有ルートの最後に更新された有効音声レイヤーへフォールバックする。
+- Controllerは再生中にスペクトルを連続更新せず、エフェクター選択や選択Object再取得など既存Controllerの更新時に共有値をスナップショットする方針を維持した。
+- `Aul2AudioController.dpr` / `.dproj` に `Aul2AudioMonitorSpectrumShared` とMuffleグラフユニットを追加した。Release Win64ビルドは警告0、エラー0で成功し、`Aul2AudioController.aux2` へ反映した。
+- ユーザー実機確認により、MuffleのCutoff／Amount／Mix設定、Input／Outputスペクトル、Cutoff位置、配色、同一周波数軸上の重ね合わせが正常に表示されることを確認し、`Muffle` 表示を完成扱いとした。

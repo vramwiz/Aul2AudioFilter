@@ -26,6 +26,8 @@ type
 // フォーカスObjectからエイリアスを1回取得し、指定エフェクターの設定と診断結果を返す。
 function CaptureSelectedEffectState(const Definition: TControllerEffectDefinition;
   out State: TControllerEffectState): TControllerEffectReadResult;
+// フォーカスObjectの内部0-basedレイヤーを返す。
+function CaptureSelectedObjectLayer(out Layer: Integer): Boolean;
 // フォーカスObjectの音声エフェクトへ、指定したGUI項目だけを書き込む。
 function SetSelectedEffectItem(const ItemName, Value: string): Boolean;
 
@@ -54,6 +56,12 @@ type
     ItemName: string;     // 書き込むAul2AudioFilterのGUI項目名。
     Value   : UTF8String; // SDKへ渡すUTF-8表記の値。
     Success : Boolean;    // SetObjectItemValueが成功した場合True。
+  end;
+
+  PObjectLayerContext = ^TObjectLayerContext;
+  TObjectLayerContext = record
+    Layer  : Integer;
+    Success: Boolean;
   end;
 
 procedure ClearEffectState(out State: TControllerEffectState);
@@ -130,6 +138,31 @@ begin
       PWideChar(FILTER_NAME_FALLBACK),
       PWideChar(Context^.ItemName),
       PAnsiChar(Context^.Value)) = True;
+end;
+
+procedure CaptureSelectedObjectLayerParam(Param: Pointer; Edit: PEditSection); cdecl;
+var
+  Context   : PObjectLayerContext;
+  LayerFrame: TObjectLayerFrame;
+  Obj       : TObjectHandle;
+begin
+  Context := PObjectLayerContext(Param);
+  if Context = nil then
+    Exit;
+
+  Context^.Layer := -1;
+  Context^.Success := False;
+  if (Edit = nil) or not Assigned(Edit^.GetFocusObject) or
+     not Assigned(Edit^.GetObjectLayerFrame) then
+    Exit;
+
+  Obj := Edit^.GetFocusObject;
+  if Obj = nil then
+    Exit;
+
+  LayerFrame := Edit^.GetObjectLayerFrame(Obj);
+  Context^.Layer := LayerFrame.Layer;
+  Context^.Success := LayerFrame.Layer >= 0;
 end;
 
 function IsTargetFilterName(const Value: string): Boolean;
@@ -282,6 +315,25 @@ begin
     Result := cerrEffectIncomplete
   else
     Result := cerrFilterNotFound;
+end;
+
+function CaptureSelectedObjectLayer(out Layer: Integer): Boolean;
+var
+  Context: TObjectLayerContext;
+begin
+  Layer := -1;
+  Result := False;
+  if not Assigned(EditHandle) or not Assigned(EditHandle^.CallEditSectionParam) then
+    Exit;
+
+  Context.Layer := -1;
+  Context.Success := False;
+  if not EditHandle^.CallEditSectionParam(@Context,
+    @CaptureSelectedObjectLayerParam) then
+    Exit;
+
+  Layer := Context.Layer;
+  Result := Context.Success;
 end;
 
 function SetSelectedEffectItem(const ItemName, Value: string): Boolean;

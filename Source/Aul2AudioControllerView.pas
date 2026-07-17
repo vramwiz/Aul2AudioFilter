@@ -43,11 +43,15 @@ uses
   Aul2AudioControllerEffectDefinition,
   Aul2AudioControllerLampSwitch,
   Aul2AudioControllerLimiterGraph,
+  Aul2AudioControllerMuffleGraph,
   Aul2AudioControllerNoiseGateGraph,
+  Aul2AudioControllerOutputGraph,
   Aul2AudioControllerSync,
   Aul2AudioControllerVolumeControl,
   Aul2AudioBasePanel,
-  Aul2AudioPresetPanel;
+  Aul2AudioPresetPanel,
+  Aul2AudioMonitorShared,
+  Aul2AudioMonitorSpectrumShared;
 
 const
   CONTROLLER_PRESET_ITEM_INDEX = CONTROLLER_EFFECT_COUNT;
@@ -112,6 +116,10 @@ var
   BitCrusherGraph: TAul2ControllerBitCrusherGraph;
   NoiseGateGraph  : TAul2ControllerNoiseGateGraph;
   LimiterGraph    : TAul2ControllerLimiterGraph;
+  OutputGraph     : TAul2ControllerOutputGraph;
+  MuffleGraph     : TAul2ControllerMuffleGraph;
+  MonitorMemory   : TAul2AudioMonitorSharedMemory;
+  SpectrumMemory  : TAul2AudioMonitorSpectrumSharedMemory;
   VolumeControls : array[0..CONTROLLER_MAX_VOLUME_COUNT - 1] of TAul2VolumeControl;
   MouseTimer     : TTimer;
   EventTarget    : TControllerEventTarget;
@@ -246,6 +254,8 @@ begin
     NoiseGateGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(LimiterGraph) then
     LimiterGraph.AccentColor := Definition.IndicatorColor;
+  if Assigned(MuffleGraph) then
+    MuffleGraph.AccentColor := Definition.IndicatorColor;
   RootPanel.Invalidate;
 end;
 
@@ -443,6 +453,155 @@ begin
     Assigned(UseLamp) and UseLamp.Checked);
 end;
 
+function MuffleSpectrumStateUsable(State: PAul2AudioMonitorSpectrumState;
+  Layer: Integer): Boolean;
+begin
+  Result := (State <> nil) and
+    (State^.Magic = AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC) and
+    (State^.Version = AUDIO_MONITOR_SPECTRUM_SHARED_VERSION) and
+    (State^.SourceLayer = Layer) and (State^.BandCount > 0) and
+    (State^.UpdateTick > 0);
+end;
+
+procedure UpdateMuffleGraph(ChangedIndex: Integer = -1;
+  const ChangedValueText: string = '');
+var
+  Index : Integer;
+  Layer : Integer;
+  State : PAul2AudioMonitorSpectrumState;
+  Values: array[0..2] of Double;
+begin
+  if not Assigned(MuffleGraph) or not Assigned(EffectCombo) or
+     (EffectCombo.ItemIndex <> 11) then
+    Exit;
+
+  for Index := Low(Values) to High(Values) do
+    if Assigned(VolumeControls[Index]) then
+      Values[Index] := VolumeControls[Index].Value
+    else
+      Values[Index] := 0;
+  if (ChangedIndex >= Low(Values)) and (ChangedIndex <= High(Values)) then
+    TryStrToFloat(ChangedValueText, Values[ChangedIndex], FormatSettings);
+
+  MuffleGraph.SetMuffle(Values[0], Values[1], Values[2],
+    Assigned(UseLamp) and UseLamp.Checked);
+  if not Assigned(SpectrumMemory) or not CaptureSelectedObjectLayer(Layer) or
+     (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+  begin
+    MuffleGraph.ClearSpectrum;
+    Exit;
+  end;
+
+  State := SpectrumMemory.GetStateForLayer(Layer);
+  if not MuffleSpectrumStateUsable(State, Layer) then
+  begin
+    State := SpectrumMemory.State;
+    if State <> nil then
+      Layer := State^.SourceLayer;
+    if not MuffleSpectrumStateUsable(State, Layer) then
+    begin
+      MuffleGraph.ClearSpectrum;
+      Exit;
+    end;
+  end;
+
+  MuffleGraph.SetSpectrum(State^.InputBands, State^.OutputBands,
+    State^.BandCount, State^.MinHz, State^.MaxHz);
+end;
+
+function OutputMonitorStateUsable(State: PAul2AudioMonitorState;
+  Layer: Integer): Boolean;
+begin
+  Result := (State <> nil) and
+    (State^.Magic = AUDIO_MONITOR_SHARED_MAGIC) and
+    (State^.Version = AUDIO_MONITOR_SHARED_VERSION) and
+    (State^.SourceLayer = Layer) and (State^.SampleNum > 0) and
+    (State^.UpdateTick > 0);
+end;
+
+procedure UpdateOutputGraph;
+var
+  HistoryIndex: Integer;
+  HistorySlot : Integer;
+  InputRmsL   : TControllerOutputHistory;
+  InputRmsR   : TControllerOutputHistory;
+  Layer       : Integer;
+  OutputRmsL  : TControllerOutputHistory;
+  OutputRmsR  : TControllerOutputHistory;
+  Root        : PAul2AudioMonitorLayeredState;
+  State       : PAul2AudioMonitorState;
+  ValidCount  : Integer;
+begin
+  if not Assigned(OutputGraph) or not Assigned(EffectCombo) or
+     (EffectCombo.ItemIndex <> 18) then
+    Exit;
+
+  OutputGraph.SetActive(Assigned(UseLamp) and UseLamp.Checked);
+  if not Assigned(MonitorMemory) or not CaptureSelectedObjectLayer(Layer) or
+     (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+  begin
+    OutputGraph.ClearData;
+    Exit;
+  end;
+
+  Root := MonitorMemory.Root;
+  if (Root = nil) or (Root^.Magic <> AUDIO_MONITOR_SHARED_MAGIC) or
+     (Root^.Version <> AUDIO_MONITOR_SHARED_VERSION) then
+  begin
+    OutputGraph.ClearData;
+    Exit;
+  end;
+
+  State := MonitorMemory.GetStateForLayer(Layer);
+  if not OutputMonitorStateUsable(State, Layer) then
+  begin
+    // グループ制御（音声）を選択している場合、選択Objectのレイヤーと
+    // 実際に処理された音声レイヤーは一致しない。Monitorと同じく、
+    // 最後に更新された有効レイヤーへフォールバックする。
+    State := MonitorMemory.State;
+    if State <> nil then
+      Layer := State^.SourceLayer;
+    if not OutputMonitorStateUsable(State, Layer) then
+    begin
+      OutputGraph.ClearData;
+      Exit;
+    end;
+  end;
+
+  FillChar(InputRmsL, SizeOf(InputRmsL), 0);
+  FillChar(InputRmsR, SizeOf(InputRmsR), 0);
+  FillChar(OutputRmsL, SizeOf(OutputRmsL), 0);
+  FillChar(OutputRmsR, SizeOf(OutputRmsR), 0);
+  ValidCount := 0;
+  for HistoryIndex := 0 to CONTROLLER_OUTPUT_HISTORY_COUNT - 1 do
+  begin
+    HistorySlot := (Root^.HistoryIndex[Layer] -
+      CONTROLLER_OUTPUT_HISTORY_COUNT + HistoryIndex +
+      AUDIO_MONITOR_HISTORY_COUNT) mod AUDIO_MONITOR_HISTORY_COUNT;
+    State := MonitorMemory.GetHistoryStateForLayer(Layer, HistorySlot);
+    if not OutputMonitorStateUsable(State, Layer) then
+      Continue;
+    InputRmsL[ValidCount] := State^.InputRmsL;
+    InputRmsR[ValidCount] := State^.InputRmsR;
+    OutputRmsL[ValidCount] := State^.OutputRmsL;
+    OutputRmsR[ValidCount] := State^.OutputRmsR;
+    Inc(ValidCount);
+  end;
+
+  State := MonitorMemory.GetStateForLayer(Layer);
+  if ValidCount = 0 then
+  begin
+    InputRmsL[0] := State^.InputRmsL;
+    InputRmsR[0] := State^.InputRmsR;
+    OutputRmsL[0] := State^.OutputRmsL;
+    OutputRmsR[0] := State^.OutputRmsR;
+    ValidCount := 1;
+  end;
+  OutputGraph.SetMonitorData(State^.InputPeakL, State^.InputPeakR,
+    State^.OutputPeakL, State^.OutputPeakR, InputRmsL, InputRmsR,
+    OutputRmsL, OutputRmsR, ValidCount);
+end;
+
 procedure UpdateEffectGraph(ChangedIndex: Integer = -1; const ChangedValueText: string = '');
 begin
   UpdateDelayGraph(ChangedIndex, ChangedValueText);
@@ -452,6 +611,8 @@ begin
   UpdateBitCrusherGraph(ChangedIndex, ChangedValueText);
   UpdateNoiseGateGraph(ChangedIndex, ChangedValueText);
   UpdateLimiterGraph(ChangedIndex, ChangedValueText);
+  UpdateMuffleGraph(ChangedIndex, ChangedValueText);
+  UpdateOutputGraph;
 end;
 
 procedure LayoutControllerView;
@@ -492,6 +653,8 @@ begin
   BitCrusherGraph.Visible := False;
   NoiseGateGraph.Visible := False;
   LimiterGraph.Visible := False;
+  OutputGraph.Visible := False;
+  MuffleGraph.Visible := False;
   SyncMessageLabel.SetBounds(LeftMargin, Scale(42), ContentWidth,
     Max(Scale(72), RootPanel.ClientHeight - Scale(54)));
   if IsBasePanelSelected then
@@ -555,7 +718,7 @@ begin
   GraphWidth := Min(Scale(300), ContentWidth);
   GraphHeight := Scale(150);
   GraphLeft := LeftMargin + (ContentWidth - GraphWidth) div 2;
-  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 4, 6, 14, 19]) and
+  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 4, 6, 11, 14, 18, 19]) and
      (GraphWidth >= Scale(180)) and
      (GraphTop + GraphHeight + Scale(6) <= RootPanel.ClientHeight) then
   begin
@@ -589,6 +752,16 @@ begin
       NoiseGateGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
       NoiseGateGraph.Visible := True;
     end
+    else if EffectCombo.ItemIndex = 11 then
+    begin
+      MuffleGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
+      MuffleGraph.Visible := True;
+    end
+    else if EffectCombo.ItemIndex = 18 then
+    begin
+      OutputGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
+      OutputGraph.Visible := True;
+    end
     else
     begin
       LimiterGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
@@ -620,6 +793,8 @@ begin
   BitCrusherGraph.Visible := False;
   NoiseGateGraph.Visible := False;
   LimiterGraph.Visible := False;
+  OutputGraph.Visible := False;
+  MuffleGraph.Visible := False;
   SyncMessageLabel.Visible := True;
   SyncMessageLabel.BringToFront;
 end;
@@ -673,6 +848,8 @@ begin
   BitCrusherGraph.Invalidate;
   NoiseGateGraph.Invalidate;
   LimiterGraph.Invalidate;
+  OutputGraph.Invalidate;
+  MuffleGraph.Invalidate;
   RootPanel.Update;
 end;
 
@@ -700,6 +877,8 @@ begin
       BitCrusherGraph.Visible := False;
       NoiseGateGraph.Visible := False;
       LimiterGraph.Visible := False;
+      OutputGraph.Visible := False;
+      MuffleGraph.Visible := False;
       PresetPanel.Visible := False;
       BasePanel.Visible := True;
       BasePanel.BringToFront;
@@ -726,6 +905,8 @@ begin
       BitCrusherGraph.Visible := False;
       NoiseGateGraph.Visible := False;
       LimiterGraph.Visible := False;
+      OutputGraph.Visible := False;
+      MuffleGraph.Visible := False;
       BasePanel.Visible := False;
       PresetPanel.Visible := True;
       PresetPanel.BringToFront;
@@ -1194,6 +1375,21 @@ begin
   LimiterGraph.Visible := False;
   RegisterMouseEnter(LimiterGraph);
 
+  OutputGraph := TAul2ControllerOutputGraph.Create(ControllerForm);
+  OutputGraph.Font.Assign(ControllerForm.Font);
+  OutputGraph.Parent := RootPanel;
+  OutputGraph.Visible := False;
+  RegisterMouseEnter(OutputGraph);
+
+  MuffleGraph := TAul2ControllerMuffleGraph.Create(ControllerForm);
+  MuffleGraph.Font.Assign(ControllerForm.Font);
+  MuffleGraph.Parent := RootPanel;
+  MuffleGraph.Visible := False;
+  RegisterMouseEnter(MuffleGraph);
+
+  MonitorMemory := TAul2AudioMonitorSharedMemory.Create;
+  SpectrumMemory := TAul2AudioMonitorSpectrumSharedMemory.Create;
+
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
   begin
     VolumeControls[ControlIndex] := TAul2VolumeControl.Create(ControllerForm);
@@ -1288,6 +1484,8 @@ begin
   end;
 
   FreeAndNil(MouseTimer);
+  FreeAndNil(SpectrumMemory);
+  FreeAndNil(MonitorMemory);
   FreeAndNil(ControllerForm);
   ClientWindow := 0;
   RootPanel := nil;
@@ -1310,9 +1508,13 @@ begin
   BitCrusherGraph := nil;
   NoiseGateGraph := nil;
   LimiterGraph := nil;
+  OutputGraph := nil;
+  MuffleGraph := nil;
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
     VolumeControls[ControlIndex] := nil;
   MouseTimer := nil;
+  MonitorMemory := nil;
+  SpectrumMemory := nil;
   EventTarget := nil;
   MouseInside := False;
   Refreshing := False;
