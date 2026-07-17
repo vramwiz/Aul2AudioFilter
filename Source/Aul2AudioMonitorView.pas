@@ -124,7 +124,9 @@ end;
 
 procedure UpdateMonitorDataRequest;
 var
+{$IFDEF DEBUG}
   ClientVisible: Boolean;
+{$ENDIF}
   FormHandle: HWND;
   FormVisible: Boolean;
   FormWindowVisible: Boolean;
@@ -132,7 +134,9 @@ var
 begin
   // RegisterWindowClient用のClientWindowは再生開始時にAviUtl2側で
   // 表示状態が切り替わることがある。実際の描画Formが見えているかだけで判定する。
+{$IFDEF DEBUG}
   ClientVisible := (ClientWindow <> 0) and IsWindowVisible(ClientWindow);
+{$ENDIF}
   if Assigned(MonitorForm) then
     FormHandle := MonitorForm.Handle
   else

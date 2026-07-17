@@ -38,13 +38,11 @@ begin
 end;
 
 procedure PublishTrembleRms(Audio: PFILTER_PROC_AUDIO; InputRms,
-  OutputRms: Single);
+  OutputRms, LfoPhase: Single);
 var
   Layer: Integer;
   Memory: TAul2AudioTrembleRmsSharedMemory;
-  RequestId: TGUID;
   State: PAul2AudioTrembleRmsState;
-  WriteIndex: Integer;
 begin
   if (Audio = nil) or (Audio^.Scene = nil) or (Audio^.Object_ = nil) then
     Exit;
@@ -55,34 +53,16 @@ begin
   State := Memory.GetStateForLayer(Layer);
   if State = nil then
     Exit;
-  RequestId := ControllerCurrentRequestId;
-  if not ControllerRequestIdsEqual(State^.RequestId, RequestId) or
-     (State^.LastSampleIndex > Audio^.Object_^.SampleIndex) or
-     ((State^.SampleRate > 0) and (State^.LastSampleIndex > 0) and
-      (Audio^.Object_^.SampleIndex - State^.LastSampleIndex >
-       Int64(State^.SampleRate) * 2)) then
-  begin
-    State^.HistoryCount := 0;
-    State^.WriteIndex := 0;
-    FillChar(State^.SampleIndices, SizeOf(State^.SampleIndices), 0);
-    FillChar(State^.InputRms, SizeOf(State^.InputRms), 0);
-    FillChar(State^.OutputRms, SizeOf(State^.OutputRms), 0);
-  end;
   State^.Magic := AUDIO_TREMBLE_RMS_SHARED_MAGIC;
   State^.Version := AUDIO_TREMBLE_RMS_SHARED_VERSION;
-  State^.RequestId := RequestId;
+  State^.RequestId := ControllerCurrentRequestId;
   State^.SourceLayer := Layer;
   State^.SourceFrame := Audio^.Object_^.Frame;
   State^.SampleRate := Audio^.Scene^.SampleRate;
-  WriteIndex := EnsureRange(State^.WriteIndex, 0,
-    AUDIO_TREMBLE_RMS_HISTORY_LAST);
-  State^.SampleIndices[WriteIndex] := Audio^.Object_^.SampleIndex;
-  State^.InputRms[WriteIndex] := InputRms;
-  State^.OutputRms[WriteIndex] := OutputRms;
-  State^.LastSampleIndex := Audio^.Object_^.SampleIndex;
-  State^.WriteIndex := (WriteIndex + 1) mod AUDIO_TREMBLE_RMS_HISTORY_COUNT;
-  State^.HistoryCount := Min(State^.HistoryCount + 1,
-    AUDIO_TREMBLE_RMS_HISTORY_COUNT);
+  State^.SampleIndex := Audio^.Object_^.SampleIndex;
+  State^.InputRms := InputRms;
+  State^.OutputRms := OutputRms;
+  State^.LfoPhase := LfoPhase;
   State^.UpdateTick := GetTickCount64;
   Inc(State^.Generation);
   Memory.Root^.LastLayer := Layer;
@@ -153,6 +133,7 @@ var
   OutputSum: Double;
   Sample: Integer;
   Denominator: Double;
+  PhaseCycles: Double;
 begin
   Result := GTrembleUseCheck.Value <> 0;
   if not Result then
@@ -182,8 +163,11 @@ begin
   if CaptureRequested and (SampleNum > 0) and (ChannelNum > 0) then
   begin
     Denominator := Double(SampleNum) * ChannelNum;
+    PhaseCycles := RateHz * (BaseIndex + SampleNum div 2) /
+      Audio^.Scene^.SampleRate;
+    PhaseCycles := PhaseCycles - Floor(PhaseCycles);
     PublishTrembleRms(Audio, Sqrt(InputSum / Denominator),
-      Sqrt(OutputSum / Denominator));
+      Sqrt(OutputSum / Denominator), PhaseCycles);
   end;
 end;
 

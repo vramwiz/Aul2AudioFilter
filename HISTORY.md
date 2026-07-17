@@ -1000,14 +1000,13 @@
 - 初回実機確認では旧名Monitor共有マップと新構造のサイズが衝突し、`TSharedMemoryBase.Create` で実行時エラーになった。マップ名へ構造versionを付ける修正後は正常起動し、Controller／Filter間でGraphKind 4とGUIDが一致する要求処理を確認した。
 - Filter、Controller、Monitor、Aul2Audio ViewのDebug／Release Win64ビルドは警告0、エラー0で成功し、対応する `.auf2`／`.aux2` へ反映した。
 
-## 2026-07-17 Aul2AudioController Tremble RMS history implementation note
+## 2026-07-17 Aul2AudioController Tremble graph completion note
 
-- 未実装グラフの優先順位1だった `Tremble` に、処理直前／直後のRMS時間履歴を追加した。
-- `Source\Lib\AudioMonitor\Aul2AudioTrembleRmsShared.pas` を追加し、レイヤーごとに192件のSampleIndex、Input RMS、Output RMSをリング保持する `Local\Aul2AudioTrembleRmsV1` をFilterとControllerで共有する。新しいController要求GUIDへ切り替わった場合や再生位置が戻った場合は履歴を初期化する。
-- Filter側の `ProcessTremble` は `ControllerGraphRequested(AUDIO_CONTROLLER_GRAPH_TREMBLE)` が真の場合だけ、既存DSPループ内で前後の二乗和を集計してRMSを求める。要求がない通常処理では追加ループ、共有メモリ生成、共有書込みを行わない。
-- `Source\Aul2AudioControllerTrembleGraph.pas` を追加し、-60～0dBの共通軸へInputを緑、OutputをTrembleテーマ色で表示する。SampleIndexを横軸位置へ使い、現在表示している時間幅も併記する。
-- Trembleグラフ表示中だけControllerの既存100msタイマーから共有リングを読み直す。Controllerフォームが非表示の場合はポーリングしない。さらにFilter側要求検証へ `IsWindowVisible` を加え、フォームが存在していても非表示ならController専用解析を許可しないようにした。
-- Filter／ControllerのRelease Win64ビルドは警告0、エラー0で成功し、`Aul2AudioFilter.auf2`／`Aul2AudioController.aux2` へ反映した。AviUtl2上の時間履歴表示と非表示時負荷は実機確認待ち。
+- 未実装グラフの優先順位1だった `Tremble` に、処理直前／直後のRMS表示を追加した。初期実装ではレイヤーごとに192件を保持する `Local\Aul2AudioTrembleRmsV1` と100ms更新による時間履歴を試した。
+- Controllerはエフェクター編集時の現在評価を表示する仕組みで、連続した履歴を安定して取得できないため、時間履歴方式は不採用とした。共有メモリを `Local\Aul2AudioTrembleRmsV3`、version 3へ更新し、レイヤー別の最新Input RMS、Output RMS、LFO位相だけを保持するスナップショット方式へ変更した。
+- `Source\Aul2AudioControllerTrembleGraph.pas` は、上段へ縦幅を抑えたInput／Output RMSメーターと数値、Delta、設定上の変調範囲を表示し、空いた下段へDepth／Mixから求めた1周期分の音量変調カーブを描く。現在評価した音声ブロックのLFO位相は、暗い縁取り付きの大きな明るい黄色点で示す。
+- Filter側の `ProcessTremble` は `ControllerGraphRequested(AUDIO_CONTROLLER_GRAPH_TREMBLE)` が真の場合だけ、既存DSPループ内で前後の二乗和とLFO位相を取得する。要求がない通常処理では追加解析、共有メモリ生成、共有書込みを行わず、Controllerフォームが非表示なら要求自体を無効とする。
+- 履歴用の連続ポーリングは廃止し、Controllerは選択・設定再取得時に最新スナップショットを表示する。Filter／ControllerのRelease Win64ビルドは警告0、エラー0で成功し、`Aul2AudioFilter.auf2`／`Aul2AudioController.aux2` へ反映した。AviUtl2上のRMS表示、変調カーブ、現在位相点、再生継続を実機確認済みで、Trembleグラフを完成扱いとする。
 
 ## 2026-07-17 再生中のController要求Data書込み防止
 

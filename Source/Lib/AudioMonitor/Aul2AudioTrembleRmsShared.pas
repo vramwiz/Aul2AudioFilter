@@ -1,6 +1,6 @@
 unit Aul2AudioTrembleRmsShared;
 
-// Tremble処理直前・直後のRMS時間履歴をFilterとControllerで共有する。
+// Tremble処理直前・直後の最新RMSをFilterとControllerで共有する。
 
 interface
 
@@ -9,16 +9,11 @@ uses
   SharedMemoryBase;
 
 const
-  AUDIO_TREMBLE_RMS_SHARED_NAME = 'Local\Aul2AudioTrembleRmsV1';
+  AUDIO_TREMBLE_RMS_SHARED_NAME = 'Local\Aul2AudioTrembleRmsV3';
   AUDIO_TREMBLE_RMS_SHARED_MAGIC = $54524D53; // TRMS
-  AUDIO_TREMBLE_RMS_SHARED_VERSION = 1;
-  AUDIO_TREMBLE_RMS_HISTORY_COUNT = 192;
-  AUDIO_TREMBLE_RMS_HISTORY_LAST = AUDIO_TREMBLE_RMS_HISTORY_COUNT - 1;
+  AUDIO_TREMBLE_RMS_SHARED_VERSION = 3;
 
 type
-  TAudioTrembleRmsData = array[0..AUDIO_TREMBLE_RMS_HISTORY_LAST] of Single;
-  TAudioTrembleSampleIndexData = array[0..AUDIO_TREMBLE_RMS_HISTORY_LAST] of Int64;
-
   PAul2AudioTrembleRmsState = ^TAul2AudioTrembleRmsState;
   TAul2AudioTrembleRmsState = record
     Magic: Cardinal;
@@ -29,12 +24,10 @@ type
     SourceLayer: Integer;
     SourceFrame: Integer;
     SampleRate: Integer;
-    HistoryCount: Integer;
-    WriteIndex: Integer;
-    LastSampleIndex: Int64;
-    SampleIndices: TAudioTrembleSampleIndexData;
-    InputRms: TAudioTrembleRmsData;
-    OutputRms: TAudioTrembleRmsData;
+    SampleIndex: Int64;
+    InputRms: Single;
+    OutputRms: Single;
+    LfoPhase: Single;
   end;
 
   PAul2AudioTrembleRmsRoot = ^TAul2AudioTrembleRmsRoot;

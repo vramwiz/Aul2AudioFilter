@@ -668,30 +668,37 @@ begin
     (State^.Magic = AUDIO_TREMBLE_RMS_SHARED_MAGIC) and
     (State^.Version = AUDIO_TREMBLE_RMS_SHARED_VERSION) and
     ControllerRequestIdsEqual(State^.RequestId, ActiveControllerRequestId) and
-    (State^.SourceLayer = Layer) and (State^.HistoryCount > 0) and
+    (State^.SourceLayer = Layer) and
     (State^.UpdateTick > 0);
 end;
 
-procedure UpdateTrembleGraph;
+procedure UpdateTrembleGraph(ChangedIndex: Integer = -1;
+  const ChangedValueText: string = '');
 var
-  Count: Integer;
   Index: Integer;
   Layer: Integer;
-  ReadIndex: Integer;
   State: PAul2AudioTrembleRmsState;
-  InputRms: TAudioTrembleRmsData;
-  OutputRms: TAudioTrembleRmsData;
-  SampleIndices: TAudioTrembleSampleIndexData;
+  Values: array[0..2] of Double;
 begin
   if not Assigned(TrembleGraph) or not Assigned(EffectCombo) or
      (EffectCombo.ItemIndex <> 7) then
     Exit;
+  for Index := Low(Values) to High(Values) do
+    if Assigned(VolumeControls[Index]) then
+      Values[Index] := VolumeControls[Index].Value
+    else
+      Values[Index] := 0;
+  if (ChangedIndex >= Low(Values)) and (ChangedIndex <= High(Values)) then
+    TryStrToFloat(ChangedValueText, Values[ChangedIndex], FormatSettings);
+  TrembleGraph.SetTremble(Values[0], Values[1], Values[2],
+    Assigned(UseLamp) and UseLamp.Checked);
+
   if not Assigned(UseLamp) or not UseLamp.Checked or
      not Assigned(TrembleRmsMemory) or
      (ActiveControllerSourceLayer < 0) or
      (ActiveControllerSourceLayer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
   begin
-    TrembleGraph.ClearHistory;
+    TrembleGraph.ClearLevels;
     Exit;
   end;
   Layer := ActiveControllerSourceLayer;
@@ -704,27 +711,10 @@ begin
   end;
   if not TrembleRmsStateUsable(State, Layer) then
   begin
-    TrembleGraph.ClearHistory;
+    TrembleGraph.ClearLevels;
     Exit;
   end;
-
-  Count := EnsureRange(State^.HistoryCount, 0,
-    AUDIO_TREMBLE_RMS_HISTORY_COUNT);
-  FillChar(SampleIndices, SizeOf(SampleIndices), 0);
-  FillChar(InputRms, SizeOf(InputRms), 0);
-  FillChar(OutputRms, SizeOf(OutputRms), 0);
-  ReadIndex := (EnsureRange(State^.WriteIndex, 0,
-    AUDIO_TREMBLE_RMS_HISTORY_LAST) - Count +
-    AUDIO_TREMBLE_RMS_HISTORY_COUNT) mod AUDIO_TREMBLE_RMS_HISTORY_COUNT;
-  for Index := 0 to Count - 1 do
-  begin
-    SampleIndices[Index] := State^.SampleIndices[ReadIndex];
-    InputRms[Index] := State^.InputRms[ReadIndex];
-    OutputRms[Index] := State^.OutputRms[ReadIndex];
-    ReadIndex := (ReadIndex + 1) mod AUDIO_TREMBLE_RMS_HISTORY_COUNT;
-  end;
-  TrembleGraph.SetHistory(SampleIndices, InputRms, OutputRms, Count,
-    State^.SampleRate, UseLamp.Checked);
+  TrembleGraph.SetLevels(State^.InputRms, State^.OutputRms, State^.LfoPhase);
 end;
 
 procedure UpdateLimiterGraph(ChangedIndex: Integer = -1;
@@ -1122,7 +1112,7 @@ begin
   UpdateBitCrusherGraph(ChangedIndex, ChangedValueText);
   UpdateNoiseGraph(ChangedIndex, ChangedValueText);
   UpdateVoiceDriveGraph(ChangedIndex, ChangedValueText);
-  UpdateTrembleGraph;
+  UpdateTrembleGraph(ChangedIndex, ChangedValueText);
   UpdateNoiseGateGraph(ChangedIndex, ChangedValueText);
   UpdateLimiterGraph(ChangedIndex, ChangedValueText);
   UpdatePitchGraph(ChangedIndex, ChangedValueText);
@@ -1804,9 +1794,6 @@ begin
     PendingControllerRequest := False;
     RefreshEffectState;
   end;
-  if Assigned(ControllerForm) and IsWindowVisible(ControllerForm.Handle) and
-     Assigned(TrembleGraph) and TrembleGraph.Visible then
-    UpdateTrembleGraph;
 end;
 
 procedure CreateLabel(var LabelControl: TLabel; const Caption: string);
