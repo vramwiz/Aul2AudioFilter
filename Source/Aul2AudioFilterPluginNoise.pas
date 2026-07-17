@@ -15,6 +15,12 @@ procedure SetNoiseGuiParams(UseNoise: Boolean; Crackle: Boolean; LevelDb, Mix: D
 
 implementation
 
+uses
+  Winapi.Windows,
+  System.SysUtils,
+  Aul2AudioMonitorShared,
+  Aul2AudioNoiseWaveShared;
+
 const
   NOISE_MODE_WHITE = 0;
   NOISE_MODE_CRACKLE = 1;
@@ -34,6 +40,81 @@ var
   GNoiseChannels  : array of TNoiseChannelState; // チャンネル別のノイズ生成状態
   GNoiseObjectID  : Int64;                       // 状態を構築した対象オブジェクト
   GNoiseEffectID  : Int64;                       // 状態を構築した対象エフェクト
+  GNoiseWaveMemory: TAul2AudioNoiseWaveSharedMemory;
+
+function GetNoiseWaveMemory: TAul2AudioNoiseWaveSharedMemory;
+begin
+  if GNoiseWaveMemory = nil then
+    GNoiseWaveMemory := TAul2AudioNoiseWaveSharedMemory.Create;
+  Result := GNoiseWaveMemory;
+end;
+
+procedure CaptureNoiseWave(Audio: PFILTER_PROC_AUDIO; SampleNum,
+  ChannelNum: Integer; var Wave: TAudioNoiseWaveData; out WaveSampleCount: Integer);
+var
+  LeftBuffer: TArray<Single>;
+  Mixed: Single;
+  RightBuffer: TArray<Single>;
+  Sample: Integer;
+  SourceIndex: Integer;
+begin
+  FillChar(Wave, SizeOf(Wave), 0);
+  WaveSampleCount := 0;
+  if (Audio = nil) or (SampleNum <= 0) or (ChannelNum <= 0) then
+    Exit;
+  WaveSampleCount := Min(AUDIO_NOISE_WAVE_SAMPLE_COUNT, SampleNum);
+  SetLength(LeftBuffer, SampleNum);
+  Audio^.GetSampleData(@LeftBuffer[0], 0);
+  if ChannelNum > 1 then
+  begin
+    SetLength(RightBuffer, SampleNum);
+    Audio^.GetSampleData(@RightBuffer[0], 1);
+  end;
+  for Sample := 0 to WaveSampleCount - 1 do
+  begin
+    if WaveSampleCount > 1 then
+      SourceIndex := Round(Sample * (SampleNum - 1) /
+        (WaveSampleCount - 1))
+    else
+      SourceIndex := 0;
+    Mixed := LeftBuffer[SourceIndex];
+    if Length(RightBuffer) > SourceIndex then
+      Mixed := (Mixed + RightBuffer[SourceIndex]) * 0.5;
+    Wave[Sample] := Mixed;
+  end;
+end;
+
+procedure PublishNoiseWave(Audio: PFILTER_PROC_AUDIO; SampleCount: Integer;
+  const InputWave, OutputWave: TAudioNoiseWaveData);
+var
+  Layer: Integer;
+  Memory: TAul2AudioNoiseWaveSharedMemory;
+  State: PAul2AudioNoiseWaveState;
+begin
+  if (Audio = nil) or (Audio^.Scene = nil) or (Audio^.Object_ = nil) then
+    Exit;
+  Layer := Audio^.Object_^.Layer;
+  if (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+  Memory := GetNoiseWaveMemory;
+  State := Memory.GetStateForLayer(Layer);
+  if State = nil then
+    Exit;
+  State^.Magic := AUDIO_NOISE_WAVE_SHARED_MAGIC;
+  State^.Version := AUDIO_NOISE_WAVE_SHARED_VERSION;
+  State^.UpdateTick := GetTickCount64;
+  State^.SourceLayer := Layer;
+  State^.SourceFrame := Audio^.Object_^.Frame;
+  State^.SourceFrameS := Audio^.Object_^.FrameS;
+  State^.SourceFrameE := Audio^.Object_^.FrameE;
+  State^.SampleRate := Audio^.Scene^.SampleRate;
+  State^.SampleCount := SampleCount;
+  State^.InputWave := InputWave;
+  State^.OutputWave := OutputWave;
+  Inc(State^.Generation);
+  Memory.Root^.LastLayer := Layer;
+  Inc(Memory.Root^.Generation);
+end;
 
 procedure ClearNoiseState;
 begin
@@ -159,6 +240,10 @@ function ProcessNoise(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer)
 var
   Channel: Integer;
   Buffer: TArray<Single>;
+  InputWave: TAudioNoiseWaveData;
+  OutputWave: TAudioNoiseWaveData;
+  WaveSampleCount: Integer;
+  OutputSampleCount: Integer;
   Mode: Integer;
   LevelDb: Single;
   Mix: Single;
@@ -175,6 +260,7 @@ begin
   Mix := GNoiseMixTrack.Value;
 
   EnsureNoiseState(Audio, ChannelNum);
+  CaptureNoiseWave(Audio, SampleNum, ChannelNum, InputWave, WaveSampleCount);
   SetLength(Buffer, SampleNum);
 
   for Channel := 0 to ChannelNum - 1 do
@@ -183,6 +269,15 @@ begin
     ApplyNoise(Buffer, Channel, SampleNum, Mode, LevelDb, Mix);
     Audio^.SetSampleData(@Buffer[0], Channel);
   end;
+  CaptureNoiseWave(Audio, SampleNum, ChannelNum, OutputWave, OutputSampleCount);
+  WaveSampleCount := Min(WaveSampleCount, OutputSampleCount);
+  PublishNoiseWave(Audio, WaveSampleCount, InputWave, OutputWave);
 end;
+
+initialization
+  GNoiseWaveMemory := nil;
+
+finalization
+  FreeAndNil(GNoiseWaveMemory);
 
 end.

@@ -44,6 +44,7 @@ uses
   Aul2AudioControllerLampSwitch,
   Aul2AudioControllerLimiterGraph,
   Aul2AudioControllerMuffleGraph,
+  Aul2AudioControllerNoiseGraph,
   Aul2AudioControllerNoiseGateGraph,
   Aul2AudioControllerOutputGraph,
   Aul2AudioControllerPitchGraph,
@@ -56,7 +57,8 @@ uses
   Aul2AudioMonitorShared,
   Aul2AudioMonitorSpectrumShared,
   Aul2AudioPitchSpectrumShared,
-  Aul2AudioRingModSpectrumShared;
+  Aul2AudioRingModSpectrumShared,
+  Aul2AudioNoiseWaveShared;
 
 const
   CONTROLLER_PRESET_ITEM_INDEX = CONTROLLER_EFFECT_COUNT;
@@ -119,6 +121,7 @@ var
   CompressorGraph: TAul2ControllerCompressorGraph;
   DistortionGraph: TAul2ControllerDistortionGraph;
   BitCrusherGraph: TAul2ControllerBitCrusherGraph;
+  NoiseGraph      : TAul2ControllerNoiseGraph;
   NoiseGateGraph  : TAul2ControllerNoiseGateGraph;
   LimiterGraph    : TAul2ControllerLimiterGraph;
   OutputGraph     : TAul2ControllerOutputGraph;
@@ -130,6 +133,7 @@ var
   SpectrumMemory  : TAul2AudioMonitorSpectrumSharedMemory;
   PitchSpectrumMemory: TAul2AudioPitchSpectrumSharedMemory;
   RingSpectrumMemory: TAul2AudioRingSpectrumSharedMemory;
+  NoiseWaveMemory: TAul2AudioNoiseWaveSharedMemory;
   VolumeControls : array[0..CONTROLLER_MAX_VOLUME_COUNT - 1] of TAul2VolumeControl;
   MouseTimer     : TTimer;
   EventTarget    : TControllerEventTarget;
@@ -260,6 +264,8 @@ begin
     DistortionGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(BitCrusherGraph) then
     BitCrusherGraph.AccentColor := Definition.IndicatorColor;
+  if Assigned(NoiseGraph) then
+    NoiseGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(NoiseGateGraph) then
     NoiseGateGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(LimiterGraph) then
@@ -439,6 +445,59 @@ begin
 
   NoiseGateGraph.SetNoiseGate(Values[0], Values[1], Values[2], Values[3],
     Assigned(UseLamp) and UseLamp.Checked);
+end;
+
+function NoiseWaveStateUsable(State: PAul2AudioNoiseWaveState;
+  Layer: Integer): Boolean;
+begin
+  Result := (State <> nil) and
+    (State^.Magic = AUDIO_NOISE_WAVE_SHARED_MAGIC) and
+    (State^.Version = AUDIO_NOISE_WAVE_SHARED_VERSION) and
+    (State^.SourceLayer = Layer) and (State^.SampleCount > 0) and
+    (State^.UpdateTick > 0);
+end;
+
+procedure UpdateNoiseGraph(ChangedIndex: Integer = -1;
+  const ChangedValueText: string = '');
+var
+  Index: Integer;
+  Layer: Integer;
+  State: PAul2AudioNoiseWaveState;
+  Values: array[0..1] of Double;
+begin
+  if not Assigned(NoiseGraph) or not Assigned(EffectCombo) or
+     (EffectCombo.ItemIndex <> 5) then
+    Exit;
+  for Index := Low(Values) to High(Values) do
+    if Assigned(VolumeControls[Index]) then
+      Values[Index] := VolumeControls[Index].Value
+    else
+      Values[Index] := 0;
+  if (ChangedIndex >= Low(Values)) and (ChangedIndex <= High(Values)) then
+    TryStrToFloat(ChangedValueText, Values[ChangedIndex], FormatSettings);
+  NoiseGraph.SetNoise(ModeCombo.ItemIndex, Values[0], Values[1],
+    Assigned(UseLamp) and UseLamp.Checked);
+
+  if not Assigned(UseLamp) or not UseLamp.Checked or
+     not Assigned(NoiseWaveMemory) or not CaptureSelectedObjectLayer(Layer) or
+     (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+  begin
+    NoiseGraph.ClearWave;
+    Exit;
+  end;
+  State := NoiseWaveMemory.GetStateForLayer(Layer);
+  if not NoiseWaveStateUsable(State, Layer) then
+  begin
+    State := NoiseWaveMemory.State;
+    if State <> nil then
+      Layer := State^.SourceLayer;
+  end;
+  if not NoiseWaveStateUsable(State, Layer) then
+  begin
+    NoiseGraph.ClearWave;
+    Exit;
+  end;
+  NoiseGraph.SetWave(State^.InputWave, State^.OutputWave, State^.SampleCount);
 end;
 
 procedure UpdateLimiterGraph(ChangedIndex: Integer = -1;
@@ -830,6 +889,7 @@ begin
   UpdateCompressorGraph(ChangedIndex, ChangedValueText);
   UpdateDistortionGraph(ChangedIndex, ChangedValueText);
   UpdateBitCrusherGraph(ChangedIndex, ChangedValueText);
+  UpdateNoiseGraph(ChangedIndex, ChangedValueText);
   UpdateNoiseGateGraph(ChangedIndex, ChangedValueText);
   UpdateLimiterGraph(ChangedIndex, ChangedValueText);
   UpdatePitchGraph(ChangedIndex, ChangedValueText);
@@ -875,6 +935,7 @@ begin
   CompressorGraph.Visible := False;
   DistortionGraph.Visible := False;
   BitCrusherGraph.Visible := False;
+  NoiseGraph.Visible := False;
   NoiseGateGraph.Visible := False;
   LimiterGraph.Visible := False;
   OutputGraph.Visible := False;
@@ -945,7 +1006,7 @@ begin
   GraphWidth := Min(Scale(300), ContentWidth);
   GraphHeight := Scale(150);
   GraphLeft := LeftMargin + (ContentWidth - GraphWidth) div 2;
-  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 4, 6, 9, 10, 11, 12, 14, 18, 19]) and
+  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 4, 5, 6, 9, 10, 11, 12, 14, 18, 19]) and
      (GraphWidth >= Scale(180)) and
      (GraphTop + GraphHeight + Scale(6) <= RootPanel.ClientHeight) then
   begin
@@ -973,6 +1034,11 @@ begin
     begin
       BitCrusherGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
       BitCrusherGraph.Visible := True;
+    end
+    else if EffectCombo.ItemIndex = 5 then
+    begin
+      NoiseGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
+      NoiseGraph.Visible := True;
     end
     else if EffectCombo.ItemIndex = 14 then
     begin
@@ -1033,6 +1099,7 @@ begin
   CompressorGraph.Visible := False;
   DistortionGraph.Visible := False;
   BitCrusherGraph.Visible := False;
+  NoiseGraph.Visible := False;
   NoiseGateGraph.Visible := False;
   LimiterGraph.Visible := False;
   OutputGraph.Visible := False;
@@ -1091,6 +1158,7 @@ begin
   CompressorGraph.Invalidate;
   DistortionGraph.Invalidate;
   BitCrusherGraph.Invalidate;
+  NoiseGraph.Invalidate;
   NoiseGateGraph.Invalidate;
   LimiterGraph.Invalidate;
   OutputGraph.Invalidate;
@@ -1123,6 +1191,7 @@ begin
       CompressorGraph.Visible := False;
       DistortionGraph.Visible := False;
       BitCrusherGraph.Visible := False;
+      NoiseGraph.Visible := False;
       NoiseGateGraph.Visible := False;
       LimiterGraph.Visible := False;
       OutputGraph.Visible := False;
@@ -1154,6 +1223,7 @@ begin
       CompressorGraph.Visible := False;
       DistortionGraph.Visible := False;
       BitCrusherGraph.Visible := False;
+      NoiseGraph.Visible := False;
       NoiseGateGraph.Visible := False;
       LimiterGraph.Visible := False;
       OutputGraph.Visible := False;
@@ -1617,6 +1687,12 @@ begin
   BitCrusherGraph.Visible := False;
   RegisterMouseEnter(BitCrusherGraph);
 
+  NoiseGraph := TAul2ControllerNoiseGraph.Create(ControllerForm);
+  NoiseGraph.Font.Assign(ControllerForm.Font);
+  NoiseGraph.Parent := RootPanel;
+  NoiseGraph.Visible := False;
+  RegisterMouseEnter(NoiseGraph);
+
   NoiseGateGraph := TAul2ControllerNoiseGateGraph.Create(ControllerForm);
   NoiseGateGraph.Font.Assign(ControllerForm.Font);
   NoiseGateGraph.Parent := RootPanel;
@@ -1663,6 +1739,7 @@ begin
   SpectrumMemory := TAul2AudioMonitorSpectrumSharedMemory.Create;
   PitchSpectrumMemory := TAul2AudioPitchSpectrumSharedMemory.Create;
   RingSpectrumMemory := TAul2AudioRingSpectrumSharedMemory.Create;
+  NoiseWaveMemory := TAul2AudioNoiseWaveSharedMemory.Create;
 
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
   begin
@@ -1759,6 +1836,7 @@ begin
 
   FreeAndNil(MouseTimer);
   FreeAndNil(RingSpectrumMemory);
+  FreeAndNil(NoiseWaveMemory);
   FreeAndNil(PitchSpectrumMemory);
   FreeAndNil(SpectrumMemory);
   FreeAndNil(MonitorMemory);
@@ -1782,6 +1860,7 @@ begin
   CompressorGraph := nil;
   DistortionGraph := nil;
   BitCrusherGraph := nil;
+  NoiseGraph := nil;
   NoiseGateGraph := nil;
   LimiterGraph := nil;
   OutputGraph := nil;
@@ -1796,6 +1875,7 @@ begin
   SpectrumMemory := nil;
   PitchSpectrumMemory := nil;
   RingSpectrumMemory := nil;
+  NoiseWaveMemory := nil;
   EventTarget := nil;
   MouseInside := False;
   Refreshing := False;

@@ -35,6 +35,7 @@ uses
   Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
   Aul2AudioPitchSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioPitchSpectrumShared.pas',
   Aul2AudioRingModSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioRingModSpectrumShared.pas',
+  Aul2AudioNoiseWaveShared in 'Source\Lib\AudioMonitor\Aul2AudioNoiseWaveShared.pas',
   Aul2AudioViewVectorShared in 'Source\Lib\AudioMonitor\Aul2AudioViewVectorShared.pas',
   Aul2AudioFilterMonitorBridge in 'Source\Aul2AudioFilterMonitorBridge.pas',
   Aul2AudioFilterPlugin in 'Source\Aul2AudioFilterPlugin.pas';
