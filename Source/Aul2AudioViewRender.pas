@@ -16,6 +16,7 @@ implementation
 uses
   System.SysUtils,
   AviUtl2GpuTextureOut,
+  Aul2AudioViewFrameShared,
   Aul2AudioViewRenderCircularSpectrum,
   Aul2AudioViewRenderCircular3D,
   Aul2AudioViewRenderEqualizer,
@@ -96,6 +97,8 @@ begin
     Exit;
 
   CurrentFrame := GetCurrentFrame(Video);
+  // Wave／Spectrumを参照しないVectorscopeや3D表示でもMonitor同期を更新する。
+  AudioViewFrameNotify(CurrentFrame);
 
   if Settings.ViewType = VIEW_TYPE_CIRCULAR_BARS_3D then
   begin

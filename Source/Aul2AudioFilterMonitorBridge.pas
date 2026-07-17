@@ -599,6 +599,9 @@ var
   Layer: Integer;
   InputSnapshot: TAudioMonitorInputSnapshot;
 {$IFDEF DEBUG}
+  DebugBand: Integer;
+  DebugInputSpectrumMax: Single;
+  DebugOutputSpectrumMax: Single;
   DebugTick: UInt64;
   DebugSpectrumGeneration: Int64;
 {$ENDIF}
@@ -717,12 +720,25 @@ begin
     begin
       LastCaptureOutputLogTick := DebugTick;
       DebugSpectrumGeneration := -1;
+      DebugInputSpectrumMax := 0;
+      DebugOutputSpectrumMax := 0;
       if SpectrumState <> nil then
+      begin
         DebugSpectrumGeneration := SpectrumState^.Generation;
+        for DebugBand := 0 to AUDIO_MONITOR_SPECTRUM_BAND_LAST do
+        begin
+          DebugInputSpectrumMax := Max(DebugInputSpectrumMax,
+            SpectrumState^.InputBands[DebugBand]);
+          DebugOutputSpectrumMax := Max(DebugOutputSpectrumMax,
+            SpectrumState^.OutputBands[DebugBand]);
+        end;
+      end;
       DataTriggerDebugLog('Filter', Format(
-        'capture output layer=%d frame=%d sampleIndex=%d monitorGen=%d spectrumGen=%d',
+        'capture output layer=%d frame=%d sampleIndex=%d monitorGen=%d rmsIn=%.4f/%.4f rmsOut=%.4f/%.4f spectrumGen=%d maxIn=%.4f maxOut=%.4f',
         [Layer, Audio^.Object_^.Frame, Audio^.Object_^.SampleIndex,
-         State^.Generation, DebugSpectrumGeneration]));
+         State^.Generation, State^.InputRmsL, State^.InputRmsR,
+         State^.OutputRmsL, State^.OutputRmsR, DebugSpectrumGeneration,
+         DebugInputSpectrumMax, DebugOutputSpectrumMax]));
     end;
 {$ENDIF}
   except

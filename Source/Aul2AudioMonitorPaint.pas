@@ -46,6 +46,8 @@ var
   DisplayInputBands   : TAudioMonitorSpectrumData;
   DisplayOutputBands  : TAudioMonitorSpectrumData;
   DisplaySpectrumValid: Boolean;
+  DisplaySpectrumGeneration: Int64;
+  DisplaySpectrumUpdateTick: UInt64;
 
 procedure ClearAudioMonitorDisplay;
 begin
@@ -64,6 +66,8 @@ begin
   FillChar(DisplayInputBands, SizeOf(DisplayInputBands), 0);
   FillChar(DisplayOutputBands, SizeOf(DisplayOutputBands), 0);
   DisplaySpectrumValid := False;
+  DisplaySpectrumGeneration := 0;
+  DisplaySpectrumUpdateTick := 0;
 end;
 
 function TickIsFresh(UpdateTick: UInt64): Boolean;
@@ -197,26 +201,36 @@ begin
   DisplayValue := DisplayValue + ((NewValue - DisplayValue) * Alpha);
 end;
 
-procedure UpdateDisplaySpectrum(SpectrumState: PAul2AudioMonitorSpectrumState; AllowDataUpdate: Boolean);
+procedure UpdateDisplaySpectrum(SpectrumState: PAul2AudioMonitorSpectrumState;
+  AllowDataUpdate, SmoothData: Boolean);
 var
   Band: Integer;
 begin
   if (not AllowDataUpdate) or (not SpectrumStateFresh(SpectrumState)) then
     Exit;
 
-  if not DisplaySpectrumValid then
+  // 同じ編集スナップショットを50msごとに平滑化すると、1回しか生成されて
+  // いない値まで時間とともに変化して見える。共有世代が変わった時だけ反映する。
+  if DisplaySpectrumValid and
+     (DisplaySpectrumGeneration = SpectrumState^.Generation) and
+     (DisplaySpectrumUpdateTick = SpectrumState^.UpdateTick) then
+    Exit;
+
+  if (not DisplaySpectrumValid) or (not SmoothData) then
   begin
     DisplayInputBands := SpectrumState^.InputBands;
     DisplayOutputBands := SpectrumState^.OutputBands;
     DisplaySpectrumValid := True;
-    Exit;
-  end;
+  end
+  else
+    for Band := 0 to AUDIO_MONITOR_SPECTRUM_BAND_LAST do
+    begin
+      SmoothSpectrumBand(DisplayInputBands[Band], SpectrumState^.InputBands[Band]);
+      SmoothSpectrumBand(DisplayOutputBands[Band], SpectrumState^.OutputBands[Band]);
+    end;
 
-  for Band := 0 to AUDIO_MONITOR_SPECTRUM_BAND_LAST do
-  begin
-    SmoothSpectrumBand(DisplayInputBands[Band], SpectrumState^.InputBands[Band]);
-    SmoothSpectrumBand(DisplayOutputBands[Band], SpectrumState^.OutputBands[Band]);
-  end;
+  DisplaySpectrumGeneration := SpectrumState^.Generation;
+  DisplaySpectrumUpdateTick := SpectrumState^.UpdateTick;
 end;
 
 function MonitorSourceText(Layer, Index, FrameS, FrameE: Integer): string;
@@ -606,7 +620,7 @@ begin
       Exit;
     end;
 
-    UpdateDisplaySpectrum(SpectrumState, AllowDataUpdate);
+    UpdateDisplaySpectrum(SpectrumState, AllowDataUpdate, DecayPeaks);
 
     if SpectrumStateValid(SpectrumState) then
       CaptionText := Format('Spectrum  %d Hz  %d bands  %s',

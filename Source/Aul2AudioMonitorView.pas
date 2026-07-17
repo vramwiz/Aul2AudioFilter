@@ -108,6 +108,7 @@ var
   PlaybackSpectrumSnapshot: TAul2AudioMonitorSpectrumState;
   PlaybackMonitorSnapshotValid: Boolean;
   PlaybackSpectrumSnapshotValid: Boolean;
+  PlaybackHistoryStartTick: UInt64;
 {$IFDEF DEBUG}
   MonitorDataRequestKnown: Boolean;
   LastMonitorDataRequested: Boolean;
@@ -148,6 +149,7 @@ begin
     AudioConsumerSetMonitorWindow(MonitorForm.Handle)
   else
     AudioConsumerSetMonitorWindow(0);
+  AudioViewFrameSetMonitorRequest(Requested);
 {$IFDEF DEBUG}
   if not MonitorDataRequestKnown or
      (LastMonitorDataRequested <> Requested) then
@@ -235,12 +237,19 @@ begin
   try
     NewEditState := AviUtl2GetEditState;
     if LastMonitorEditStateValid and
-       (LastMonitorEditState <> NewEditState) and
-       ((NewEditState = aesPlay) or (NewEditState = aesSave)) then
+       (LastMonitorEditState <> NewEditState) then
     begin
-      ClearPlaybackHistory;
-      ClearAudioMonitorDisplay;
-      InvalidateMonitorView;
+      if (NewEditState = aesPlay) or (NewEditState = aesSave) then
+      begin
+        // 編集時に蓄積したリング履歴を再生直後の同期候補へ混ぜない。
+        // 共有メモリを直接消去せず、開始時刻より古い世代を無効扱いにする。
+        PlaybackHistoryStartTick := GetTickCount64;
+        ClearPlaybackHistory;
+        ClearAudioMonitorDisplay;
+        InvalidateMonitorView;
+      end
+      else
+        PlaybackHistoryStartTick := 0;
     end;
 
     MonitorEditState := NewEditState;
@@ -458,7 +467,10 @@ begin
     for Index := 0 to AUDIO_MONITOR_HISTORY_LAST do
     begin
       State := Memory.GetHistoryStateForLayer(Layer, Index);
-      if MonitorStateUsable(State) and MonitorStateMatchesFrame(State^, Frame) and
+      if MonitorStateUsable(State) and
+         ((PlaybackHistoryStartTick = 0) or
+          (State^.UpdateTick >= PlaybackHistoryStartTick)) and
+         MonitorStateMatchesFrame(State^, Frame) and
          PreferMonitorState(State, Result, Frame) then
         Result := State;
     end;
@@ -483,7 +495,10 @@ begin
     for Index := 0 to AUDIO_MONITOR_SPECTRUM_HISTORY_LAST do
     begin
       State := Memory.GetHistoryStateForLayer(Layer, Index);
-      if SpectrumStateUsable(State) and SpectrumStateMatchesFrame(State^, Frame) and
+      if SpectrumStateUsable(State) and
+         ((PlaybackHistoryStartTick = 0) or
+          (State^.UpdateTick >= PlaybackHistoryStartTick)) and
+         SpectrumStateMatchesFrame(State^, Frame) and
          PreferSpectrumState(State, Result, Frame) then
         Result := State;
     end;
@@ -617,6 +632,9 @@ procedure DebugLogMonitorSharedState;
 const
   LOG_INTERVAL_MS = 500;
 var
+  Band: Integer;
+  InputSpectrumMax: Single;
+  OutputSpectrumMax: Single;
   SpectrumState: PAul2AudioMonitorSpectrumState;
   State: PAul2AudioMonitorState;
   Tick: UInt64;
@@ -639,12 +657,24 @@ begin
       [Ord(MonitorEditState), MonitorFrame, State^.Generation,
        State^.UpdateTick, State^.SourceLayer, State^.SourceFrame, State^.Stage]))
   else
+  begin
+    InputSpectrumMax := 0;
+    OutputSpectrumMax := 0;
+    for Band := 0 to AUDIO_MONITOR_SPECTRUM_BAND_LAST do
+    begin
+      InputSpectrumMax := Max(InputSpectrumMax, SpectrumState^.InputBands[Band]);
+      OutputSpectrumMax := Max(OutputSpectrumMax, SpectrumState^.OutputBands[Band]);
+    end;
     DataTriggerDebugLog('Monitor', Format(
-      'read edit=%d frame=%d monitor gen=%d tick=%d layer=%d sourceFrame=%d stage=%d spectrum gen=%d tick=%d layer=%d sourceFrame=%d',
+      'read edit=%d frame=%d monitor gen=%d tick=%d layer=%d sourceFrame=%d stage=%d rmsIn=%.4f/%.4f rmsOut=%.4f/%.4f spectrum gen=%d tick=%d layer=%d sourceFrame=%d maxIn=%.4f maxOut=%.4f',
       [Ord(MonitorEditState), MonitorFrame, State^.Generation,
        State^.UpdateTick, State^.SourceLayer, State^.SourceFrame, State^.Stage,
+       State^.InputRmsL, State^.InputRmsR,
+       State^.OutputRmsL, State^.OutputRmsR,
        SpectrumState^.Generation, SpectrumState^.UpdateTick,
-       SpectrumState^.SourceLayer, SpectrumState^.SourceFrame]));
+       SpectrumState^.SourceLayer, SpectrumState^.SourceFrame,
+       InputSpectrumMax, OutputSpectrumMax]));
+  end;
 end;
 {$ENDIF}
 
@@ -1109,6 +1139,7 @@ end;
 
 procedure DestroyMonitorView;
 begin
+  AudioViewFrameSetMonitorRequest(False);
   AudioConsumerSetMonitorWindow(0);
   if Assigned(ReadTimer) then
   begin

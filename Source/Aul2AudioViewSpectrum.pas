@@ -79,31 +79,6 @@ begin
   end;
 end;
 
-procedure UpdateViewFrame(CurrentFrame: Integer);
-var
-  State: PAul2AudioViewFrameState;
-begin
-  // Monitor が同じ描画時刻を選べるよう、実際に View が処理した編集全体のフレームを通知する。
-  try
-    if ViewFrameMemory = nil then
-      ViewFrameMemory := TAul2AudioViewFrameSharedMemory.Create;
-
-    State := ViewFrameMemory.State;
-    if State = nil then
-      Exit;
-    // EditState=2ではMonitorが表示を停止するため、同期専用通知を省略する。
-    if State^.EditState = 2 then
-      Exit;
-
-    State^.Magic := AUDIO_VIEW_FRAME_SHARED_MAGIC;
-    State^.Version := AUDIO_VIEW_FRAME_SHARED_VERSION;
-    State^.UpdateTick := GetTickCount64;
-    State^.Frame := CurrentFrame;
-  except
-    FreeAndNil(ViewFrameMemory);
-  end;
-end;
-
 procedure SmoothBand(var DisplayValue: Single; NewValue: Single; Smooth: Integer);
 var
   Alpha: Single;
@@ -264,8 +239,6 @@ begin
   if SpectrumMemory = nil then
     Exit;
 
-  UpdateViewFrame(CurrentFrame);
-
   InternalLayer := ResolveSourceLayer(SourceLayer);
   State := SelectSpectrumState(CurrentFrame, InternalLayer);
   if State = nil then
@@ -320,7 +293,6 @@ begin
   if (SpectrumMemory = nil) or (SpectrumMemory.Root = nil) then
     Exit;
 
-  UpdateViewFrame(CurrentFrame);
   InternalLayer := ResolveSourceLayer(SourceLayer);
   if InternalLayer = AUDIO_MONITOR_LAYER_AUTO then
   begin
