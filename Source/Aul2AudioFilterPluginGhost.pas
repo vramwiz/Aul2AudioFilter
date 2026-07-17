@@ -15,6 +15,13 @@ procedure SetGhostGuiParams(UseGhost: Boolean; SizeMs, Feedback, Wet, Mix: Doubl
 
 implementation
 
+uses
+  Winapi.Windows,
+  System.SysUtils,
+  Aul2AudioMonitorShared,
+  Aul2AudioGhostSnapshotShared,
+  Aul2AudioControllerRequest;
+
 type
   TGhostChannelState = record
     Buffer  : TArray<Single>; // ゴースト残響用の履歴バッファ
@@ -34,6 +41,43 @@ var
   GGhostObjectID  : Int64;                       // 状態を構築した対象オブジェクト
   GGhostEffectID  : Int64;                       // 状態を構築した対象エフェクト
   GGhostNextIndex : Int64;                       // 連続処理を判定する次サンプル位置
+  GGhostSnapshotMemory: TAul2AudioGhostSnapshotSharedMemory;
+
+function GetGhostSnapshotMemory: TAul2AudioGhostSnapshotSharedMemory;
+begin
+  if GGhostSnapshotMemory = nil then
+    GGhostSnapshotMemory := TAul2AudioGhostSnapshotSharedMemory.Create;
+  Result := GGhostSnapshotMemory;
+end;
+
+procedure PublishGhostSnapshot(Audio: PFILTER_PROC_AUDIO; AddedRms: Single);
+var
+  Layer: Integer;
+  Memory: TAul2AudioGhostSnapshotSharedMemory;
+  State: PAul2AudioGhostSnapshotState;
+begin
+  if (Audio = nil) or (Audio^.Scene = nil) or (Audio^.Object_ = nil) then
+    Exit;
+  Layer := Audio^.Object_^.Layer;
+  if (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+  Memory := GetGhostSnapshotMemory;
+  State := Memory.GetStateForLayer(Layer);
+  if State = nil then
+    Exit;
+  State^.Magic := AUDIO_GHOST_SNAPSHOT_SHARED_MAGIC;
+  State^.Version := AUDIO_GHOST_SNAPSHOT_SHARED_VERSION;
+  State^.RequestId := ControllerCurrentRequestId;
+  State^.SourceLayer := Layer;
+  State^.SourceFrame := Audio^.Object_^.Frame;
+  State^.SampleRate := Audio^.Scene^.SampleRate;
+  State^.SampleIndex := Audio^.Object_^.SampleIndex;
+  State^.AddedRms := AddedRms;
+  State^.UpdateTick := GetTickCount64;
+  Inc(State^.Generation);
+  Memory.Root^.LastLayer := Layer;
+  Inc(Memory.Root^.Generation);
+end;
 
 procedure ClearGhostState;
 begin
@@ -88,8 +132,10 @@ begin
     Result := MaxValue;
 end;
 
-procedure ApplyGhost(var Buffer: TArray<Single>; Channel, SampleNum: Integer; Feedback, Wet, Mix: Single);
+procedure ApplyGhost(var Buffer: TArray<Single>; Channel, SampleNum: Integer;
+  Feedback, Wet, Mix: Single; CaptureAdded: Boolean; var AddedSum: Double);
 var
+  AddedSample: Single;
   I: Integer;
   DrySample: Single;
   TapSample: Single;
@@ -113,7 +159,10 @@ begin
     State^.Smear := (State^.Smear * 0.985) + (TapSample * 0.015);
     GhostSample := State^.Smear * Wet;
     State^.Buffer[State^.Position] := DrySample + (GhostSample * Feedback);
-    Buffer[I] := (DrySample * (1.0 - Mix)) + ((DrySample + GhostSample) * Mix);
+    AddedSample := GhostSample * Mix;
+    if CaptureAdded then
+      AddedSum := AddedSum + Double(AddedSample) * AddedSample;
+    Buffer[I] := DrySample + AddedSample;
 
     Inc(State^.Position);
     if State^.Position >= GGhostSamples then
@@ -143,9 +192,12 @@ end;
 
 function ProcessGhost(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
 var
+  AddedSum: Double;
   Channel: Integer;
   BufferSamples: Integer;
   Buffer: TArray<Single>;
+  CaptureRequested: Boolean;
+  Denominator: Double;
 begin
   Result := GGhostUseCheck.Value <> 0;
   if not Result then
@@ -159,16 +211,31 @@ begin
     BufferSamples := 4;
 
   EnsureGhostState(Audio, ChannelNum, BufferSamples);
+  CaptureRequested := ControllerGraphRequested(AUDIO_CONTROLLER_GRAPH_GHOST);
+  AddedSum := 0;
   SetLength(Buffer, SampleNum);
 
   for Channel := 0 to ChannelNum - 1 do
   begin
     Audio^.GetSampleData(@Buffer[0], Channel);
-    ApplyGhost(Buffer, Channel, SampleNum, GGhostFeedbackTrack.Value, GGhostWetTrack.Value, GGhostMixTrack.Value);
+    ApplyGhost(Buffer, Channel, SampleNum, GGhostFeedbackTrack.Value,
+      GGhostWetTrack.Value, GGhostMixTrack.Value, CaptureRequested, AddedSum);
     Audio^.SetSampleData(@Buffer[0], Channel);
+  end;
+
+  if CaptureRequested and (SampleNum > 0) and (ChannelNum > 0) then
+  begin
+    Denominator := Double(SampleNum) * ChannelNum;
+    PublishGhostSnapshot(Audio, Sqrt(AddedSum / Denominator));
   end;
 
   GGhostNextIndex := Audio^.Object_^.SampleIndex + SampleNum;
 end;
+
+initialization
+  GGhostSnapshotMemory := nil;
+
+finalization
+  FreeAndNil(GGhostSnapshotMemory);
 
 end.

@@ -23,6 +23,8 @@ uses
   Aul2AudioAutoGainSnapshotShared in 'Source\Lib\AudioMonitor\Aul2AudioAutoGainSnapshotShared.pas',
   Aul2AudioWobbleSnapshotShared in 'Source\Lib\AudioMonitor\Aul2AudioWobbleSnapshotShared.pas',
   Aul2AudioReverbSnapshotShared in 'Source\Lib\AudioMonitor\Aul2AudioReverbSnapshotShared.pas',
+  Aul2AudioGhostSnapshotShared in 'Source\Lib\AudioMonitor\Aul2AudioGhostSnapshotShared.pas',
+  Aul2AudioChorusSnapshotShared in 'Source\Lib\AudioMonitor\Aul2AudioChorusSnapshotShared.pas',
   Aul2AudioControllerRequest in 'Source\Lib\AudioMonitor\Aul2AudioControllerRequest.pas',
   Aul2AudioDataTriggerDebug in 'Source\Lib\Aul2AudioDataTriggerDebug.pas',
   Aul2AudioBaseAlias in 'Source\Aul2AudioBaseAlias.pas',
@@ -53,6 +55,8 @@ uses
   Aul2AudioControllerAutoGainGraph in 'Source\Aul2AudioControllerAutoGainGraph.pas',
   Aul2AudioControllerWobbleGraph in 'Source\Aul2AudioControllerWobbleGraph.pas',
   Aul2AudioControllerReverbGraph in 'Source\Aul2AudioControllerReverbGraph.pas',
+  Aul2AudioControllerGhostGraph in 'Source\Aul2AudioControllerGhostGraph.pas',
+  Aul2AudioControllerChorusGraph in 'Source\Aul2AudioControllerChorusGraph.pas',
   Aul2AudioControllerView in 'Source\Aul2AudioControllerView.pas',
   Aul2AudioControllerPlugin in 'Source\Aul2AudioControllerPlugin.pas';
 

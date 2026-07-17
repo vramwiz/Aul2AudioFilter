@@ -85,6 +85,14 @@
 - `Source\Lib\AudioMonitor\Aul2AudioTrembleRmsShared.pas`: Tremble専用の最新Input／Output RMSとLFO位相を、要求GUID付きのレイヤー別スナップショットとしてFilterとController間で共有する。
 - `Source\Aul2AudioControllerAutoGainGraph.pas`: ControllerのAutoGain表示。Target位置、現在のInput／Output RMS、補正ゲイン、Output差、Speed／Max Gain／Mixをスナップショット描画する。
 - `Source\Lib\AudioMonitor\Aul2AudioAutoGainSnapshotShared.pas`: AutoGain専用の最新Input／Output RMSと内部補正ゲインを、要求GUID付きのレイヤー別スナップショットとしてFilterとController間で共有する。
+- `Source\Aul2AudioControllerWobbleGraph.pas`: ControllerのWobble表示。1周期の遅延変動カーブ、現在の遅延とLFO位相、変化方向、Wet成分の推定音程変化を描画する。
+- `Source\Lib\AudioMonitor\Aul2AudioWobbleSnapshotShared.pas`: Wobble専用の現在遅延とLFO位相を、要求GUID付きのレイヤー別スナップショットとしてFilterとController間で共有する。
+- `Source\Aul2AudioControllerReverbGraph.pas`: ControllerのReverb表示。現在のWet RMS、Tail／HF減衰カーブ、Type別の推定RT60を描画する。
+- `Source\Lib\AudioMonitor\Aul2AudioReverbSnapshotShared.pas`: Reverb専用の最新Wet RMSを、要求GUID付きのレイヤー別スナップショットとしてFilterとController間で共有する。
+- `Source\Aul2AudioControllerGhostGraph.pas`: ControllerのGhost表示。現在のAdded RMS、最初の残響影の到達時間、Feedback／Wetによる減衰ノードを描画する。
+- `Source\Lib\AudioMonitor\Aul2AudioGhostSnapshotShared.pas`: Ghost専用の最新Added RMSを、要求GUID付きのレイヤー別スナップショットとしてFilterとController間で共有する。
+- `Source\Aul2AudioControllerChorusGraph.pas`: ControllerのChorus表示。Normal／Wideに応じたL/R遅延変動、現在位置、処理後L/Rのステレオ相関を描画する。
+- `Source\Lib\AudioMonitor\Aul2AudioChorusSnapshotShared.pas`: Chorus専用の現在L/R遅延、LFO位相、処理後ステレオ相関を、要求GUID付きのレイヤー別スナップショットとしてFilterとController間で共有する。
 - `Source\Aul2AudioBasePanel.pas`: Controllerの `波形表示オブジェクトの配置` UI。解像度設定、レイヤーリスト、選択レイヤー生成ボタン、D&Dエイリアス生成を担当する。Monitor用の横配置も復活可能な形で残す。
 - `Source\Aul2AudioPresetPanel.pas`: Controllerの `エフェクトプリセットの管理` UI。選択Objectのプリセット登録、一覧の名前編集、グループ制御（音声）のD&D生成を担当する。Monitor用の横配置も復活可能な形で残す。
 - `Source\Aul2AudioPresetModel.pas`: ユーザープリセットとエイリアス要素のRTTIモデル、二重セクションINIの保存と読み込みを担当する。
@@ -239,14 +247,14 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 
 ### Controller エフェクト表示
 
-- Controllerのエフェクター操作画面には、現在の設定によるエフェクトの掛かり具合を視覚的に把握する補助表示を置く。現在は `Delay`、`EQ`、`Compressor`、`Distortion`、`BitCrusher`、`NoiseGate`、`Muffle`、`Pitch`、`RingMod`、`Whisper/Breath`、`Output`、`Limiter` を実装済み。
+- Controllerのエフェクター操作画面には、現在の設定によるエフェクトの掛かり具合を視覚的に把握する補助表示を置く。予定対象だった `Delay`、`EQ`、`Compressor`、`Distortion`、`BitCrusher`、`Noise`、`VoiceDrive`、`Tremble`、`AutoGain`、`Wobble`、`Reverb`、`Ghost`、`Chorus`、`NoiseGate`、`Muffle`、`Pitch`、`RingMod`、`Whisper/Breath`、`Output`、`Limiter` は実装済み。
 - 約300pxの小型表示を前提とし、各エフェクターにつき最も効果を把握しやすい表示を1つに絞る。
-- 設定値から形状を生成できる表示を基本とし、必ずしも実際の音声データを取得しなくても有用なものにする。リアルタイム値が必要な表示は別途共有方法と負荷を検討する。
+- 設定値から形状を生成できる表示を基本とし、実音声の現在値が必要な表示だけ `GraphKind + GUID` 要求中に共有値を生成する。Controller非表示時は追加解析を行わない。
 - グラフはController操作の補助表示と位置付け、エフェクター選択、Use、Mode、パラメーターノブの後、一番下へ置く。表示領域の高さが不足する場合は操作部を優先し、グラフを非表示にする。Preset管理と波形表示オブジェクト配置の画面には表示しない。
 - グラフ幅は最大約300pxとして中央へ置き、利用可能幅に合わせて縮小する。背景は外側と区別できる黒に近い色、補助線は暗いグレー、軸と文字は明るいグレー、主要な形状はエフェクター固有色を使う。
 - 数値と単位、必要に応じた縦横の補助線で構成する。座標グラフでは最小値、最大値、単位を優先し、中間値と副補助線は文字や線が密集せず、描画範囲に余裕がある場合だけ追加する。Delayのような模式図では、範囲端より現在値と要素間の関係を直接示す文字を優先する。DPI倍率と実際の描画幅から目盛り数、線数、ラベル数を決める。
 - 第一弾の7種類は、現在の設定値から形を作る静的なパラメータービジュアライザーとして実装した。共有メモリ、音声サンプル、再生位置、履歴、監視タイマーには依存せず、ノブ、選択項目、エフェクターの変更時と、選択Objectから設定を読み直した時だけ更新する。
-- 第二弾では実際の処理前後音声、スペクトル、RMS、ゲイン履歴などをController表示へ追加する。波形データはMonitorと同じ共有メモリとレイヤー別履歴から取得するが、Controllerは再生中に連続更新せず、選択・設定の再取得時にスナップショットを更新する。全エフェクターで再利用できる軽量集計、時間平滑化、共通メーター／履歴／スペクトル部品を順に整備する。
+- 第二弾では実際の処理前後音声、スペクトル、RMS、補正ゲインなどをController表示へ追加した。Controllerは編集用表示のため連続履歴を前提とせず、選択・設定の再取得時に最新スナップショットを表示する。実音声値は表示中の対象エフェクターだけで軽量集計し、既存DSPループ内で取得できる場合は追加走査を行わない。
 - エフェクターごとに描画内容は基本的に分ける。同じ表現を使える場合は、グラフ枠、軸、目盛り、補助線、周波数特性、入出力伝達、時間変化などの基本描画部品を再利用する。
 - `Delay` で配置、背景、文字、補助線、密度調整、設定変更時の再描画を確認し、`EQ` で曲線、塗り、対数周波数軸、カット位置ラベルを確認済み。その後 `Compressor`、`Distortion`、`BitCrusher`、`NoiseGate`、`Limiter` まで追加し、第一弾の7種類は完了した。
 - `Delay` は実測グラフではなく、原音と反射音の関係を直接示す模式図にする。`Time`を原音と最初のEcho間の矢印と数値、`Dry`を原音線の高さ、`Wet`を最初のEcho線の高さ、`Feedback`を後続Echoの減衰へ反映し、上部にもDelay時間とFeedback率を表示する。`Feedback`は回数ではなく反射ごとの減衰率として扱う。
@@ -271,11 +279,15 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - 2026-07-17、次に `VoiceDrive` へ設定伝達カーブ、Bodyの700Hzローパス状態による伝達範囲、実音声Input／Output XY点列を追加した。Filter側は処理直前／直後の対応サンプルをL/R別に最大256点取得し、専用共有メモリ `Local\Aul2AudioVoiceDriveXY` でControllerへ渡す。Controllerは無加工基準線、Body範囲、中央設定カーブ、実音声XY点を同じ入出力座標へ重ねる。Drive 18dB、Body 0.65、Level -4dB、Mix 0.85で強いS字飽和、Body範囲、実音声点列をAviUtl2上で確認済み。Filter／ControllerのRelease Win64コンパイルは警告0、エラー0で、完成扱いとする。
 - 2026-07-17、`Tremble` の補助表示を完成した。編集用途では連続した時間履歴を取得できないため、初期の192件RMS履歴方式を廃止し、共有メモリ `Local\Aul2AudioTrembleRmsV3` にはレイヤー別の最新Input／Output RMSとLFO位相だけを保持する。Controllerは上段へ細いRMSメーター、数値、Delta、設定上の変調範囲を置き、下段へDepth／Mixから求めた1周期変調カーブと現在評価ブロックの位相を大きな黄色点で表示する。FilterはTrembleの `GraphKind + GUID` 要求が有効な処理回だけRMSと位相を生成し、Controller非表示時は追加解析、共有メモリ生成・書込みを行わない。Filter／ControllerのRelease Win64ビルドは警告0、エラー0で成功し、AviUtl2上の表示と再生を実機確認済みで完成扱いとする。
 - 2026-07-17、次に `AutoGain` の補助表示を完成した。ControllerはTarget位置と現在のInput／Output RMSを-60～0dBの共通軸へ表示し、下段へ内部の平滑化済み補正ゲインを0dB中心の-24～+24dBバーで描く。Correction数値は範囲外でも実値を表示し、処理ブロック全体のRMS変化であるOutput deltaを併記する。Speedによる追従途中やMixが100%未満では両者が一致しないことを確認できる。FilterはAutoGainの `GraphKind + GUID` 要求が有効な処理回だけ前後RMSとチャンネル平均の現在ゲインを取得し、`Local\Aul2AudioAutoGainSnapshotV1` へ最新値だけを書き込む。要求がなければ追加走査、共有メモリ生成・書込みを行わない。Filter／ControllerのRelease Win64ビルドは警告0、エラー0で、AviUtl2上のTarget、Input／Output、Correction、Output delta表示を実機確認済みとし完成扱いとする。
+- 2026-07-17、`Wobble` の補助表示を完成した。1周期分の遅延変動カーブへ現在位置をシアンで示し、現在遅延、変化方向、Pitch up／down、Wet成分の推定音程変化を併記する。現在値は `Local\Aul2AudioWobbleSnapshotV1` で共有し、Wobbleの要求中だけ既存DSP処理から取得する。AviUtl2上のカーブ、現在点、方向表示を実機確認済みとする。
+- 2026-07-17、`Reverb` の補助表示を完成した。現在のWet RMSに加え、Feedbackに基づくTailとDampingに基づくHFの正規化減衰カーブ、Type別平均遅延から求めた推定RT60を表示する。Wet RMSはReverbの要求中だけ既存DSPループ内で集計し、`Local\Aul2AudioReverbSnapshotV1` へ共有する。AviUtl2上の各表示と設定追従を実機確認済みとする。
+- 2026-07-17、`Ghost` の補助表示を完成した。実際に加算したGhost成分の現在RMS、Sizeの半分となる最初の残響影到達時間、`Feedback * Wet` による減衰ノードを表示する。Added RMSはGhostの要求中だけ既存DSPループ内で集計し、`Local\Aul2AudioGhostSnapshotV1` へ共有する。AviUtl2上の表示と設定追従を実機確認済みとする。
+- 2026-07-17、`Chorus` の補助表示を完成した。Normalは同位相の遅延変動を1本、WideはLをシアン、Rをマゼンタの逆位相カーブで描き、現在L/R遅延と位置を示す。要求中のステレオ処理時だけ処理後L/R相関を求め、数値、ゲージ、Narrow／Medium／Wide／Phase risk分類を表示する。AviUtl2上の各モード、現在点、相関表示を実機確認済みとする。
 - エフェクトOFF時は形状を保持したまま暗くし、設定内容を確認できるようにする。
 
-### Controller エフェクト表示 追加課題（第二弾）
+### Controller エフェクト表示（完了）
 
-第一弾でグラフ実装済みの7種類は完了扱いとし、第二弾の優先番号から除外する。
+予定していたController補助表示はすべて実装・実機確認済みで、未実装課題はない。
 
 | 状態 | エフェクター | 現在の表示 |
 | --- | --- | --- |
@@ -288,6 +300,10 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 | 完了 | VoiceDrive | 非線形伝達カーブ＋Body範囲＋実音声XY点列 |
 | 完了 | Tremble | Input／Output RMS瞬間メーター＋1周期変調カーブ＋現在位相 |
 | 完了 | AutoGain | Target＋Input／Output RMS瞬間メーター＋現在補正ゲイン |
+| 完了 | Wobble | 1周期遅延変動＋現在位相／方向＋Wet推定音程 |
+| 完了 | Reverb | Wet RMS＋Tail／HF減衰カーブ＋推定RT60 |
+| 完了 | Ghost | Added RMS＋残響影到達／減衰ノード |
+| 完了 | Chorus | L/R遅延変動＋現在位置＋ステレオ相関 |
 | 完了 | NoiseGate | ゲート入出力特性 |
 | 完了 | Muffle | 周波数特性＋Input／Outputスペクトル |
 | 完了 | Pitch | 高解像度Input／Outputスペクトル |
@@ -296,16 +312,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 | 完了 | Output | Input／Output L/Rメーターと短いRMS履歴 |
 | 完了 | Limiter | ピーク制限カーブ |
 
-残る4エフェクターも、Controllerが編集用表示であることに合わせ、履歴を前提にせず現在値と設定カーブを組み合わせた瞬間表示として次の順で検討する。
-
-| 優先 | エフェクター | 実装する主表示 | 優先理由 |
-| ---: | --- | --- | --- |
-| 1 | Wobble | 現在遅延量と1周期分の遅延変動カーブ | 現在位相と設定上の揺れ幅を同じ画面で確認する構成を検討する。 |
-| 2 | Reverb | 現在のWet残響量と設定上の減衰カーブ | 履歴の代わりに現在の残響エネルギーと理論的な減衰傾向を組み合わせる。 |
-| 3 | Ghost | 現在の残響量と膨らみ／減衰カーブ | Reverbと共通化できる瞬間値と設定カーブを検討する。 |
-| 4 | Chorus | L/R遅延変動カーブ、現在のステレオ相関または簡易Vectorscope | L/R別データと位相・相関表示が必要で、最も専用実装が多い。 |
-
-#### 完了済みグラフへの実音声背景・動的表示
+#### 完了済みグラフの実音声背景・動的表示方針
 
 - 背景表示は、既存グラフと横軸の意味が一致する場合に限る。Wave／Spectrumを一律に重ねず、既存の座標系で効果を直接比較できる表示を選ぶ。
 

@@ -17,6 +17,12 @@ procedure SetChorusGuiParams(UseChorus: Boolean; Wide: Boolean; DelayMs, DepthMs
 
 implementation
 
+uses
+  Winapi.Windows,
+  Aul2AudioMonitorShared,
+  Aul2AudioChorusSnapshotShared,
+  Aul2AudioControllerRequest;
+
 const
   CHORUS_STEREO_NORMAL = 0;
   CHORUS_STEREO_WIDE = 1;
@@ -45,6 +51,48 @@ var
   GChorusMixTrack  : TFILTER_ITEM_TRACK;
   GChorusContexts  : TAul2AudioFilterContextList<TChorusContext>;
   GChorusContext   : TChorusContext;
+  GChorusSnapshotMemory: TAul2AudioChorusSnapshotSharedMemory;
+
+function GetChorusSnapshotMemory: TAul2AudioChorusSnapshotSharedMemory;
+begin
+  if GChorusSnapshotMemory = nil then
+    GChorusSnapshotMemory := TAul2AudioChorusSnapshotSharedMemory.Create;
+  Result := GChorusSnapshotMemory;
+end;
+
+procedure PublishChorusSnapshot(Audio: PFILTER_PROC_AUDIO; CurrentDelayL,
+  CurrentDelayR, LfoPhase, Correlation: Single; CorrelationValid: Boolean);
+var
+  Layer: Integer;
+  Memory: TAul2AudioChorusSnapshotSharedMemory;
+  State: PAul2AudioChorusSnapshotState;
+begin
+  if (Audio = nil) or (Audio^.Scene = nil) or (Audio^.Object_ = nil) then
+    Exit;
+  Layer := Audio^.Object_^.Layer;
+  if (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+  Memory := GetChorusSnapshotMemory;
+  State := Memory.GetStateForLayer(Layer);
+  if State = nil then
+    Exit;
+  State^.Magic := AUDIO_CHORUS_SNAPSHOT_SHARED_MAGIC;
+  State^.Version := AUDIO_CHORUS_SNAPSHOT_SHARED_VERSION;
+  State^.RequestId := ControllerCurrentRequestId;
+  State^.SourceLayer := Layer;
+  State^.SourceFrame := Audio^.Object_^.Frame;
+  State^.SampleRate := Audio^.Scene^.SampleRate;
+  State^.SampleIndex := Audio^.Object_^.SampleIndex;
+  State^.CurrentDelayL := CurrentDelayL;
+  State^.CurrentDelayR := CurrentDelayR;
+  State^.LfoPhase := LfoPhase;
+  State^.Correlation := Correlation;
+  State^.CorrelationValid := CorrelationValid;
+  State^.UpdateTick := GetTickCount64;
+  Inc(State^.Generation);
+  Memory.Root^.LastLayer := Layer;
+  Inc(Memory.Root^.Generation);
+end;
 
 procedure ClearChorusState;
 begin
@@ -205,6 +253,7 @@ end;
 
 function ProcessChorus(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
 var
+  CaptureRequested: Boolean;
   Channel: Integer;
   BufferSamples: Integer;
   Buffer: TArray<Single>;
@@ -214,6 +263,16 @@ var
   Mix: Single;
   StereoMode: Integer;
   Context: TChorusContext;
+  Correlation: Double;
+  CorrelationValid: Boolean;
+  CurrentDelayL: Double;
+  CurrentDelayR: Double;
+  LeftOutput: TArray<Single>;
+  PhaseCycles: Double;
+  Sample: Integer;
+  SumL2: Double;
+  SumLR: Double;
+  SumR2: Double;
 begin
   Result := GChorusUseCheck.Value <> 0;
   if not Result then
@@ -224,6 +283,12 @@ begin
   RateHz := GChorusRateTrack.Value;
   Mix := GChorusMixTrack.Value;
   StereoMode := GChorusStereoMode.Value;
+  CaptureRequested := ControllerGraphRequested(AUDIO_CONTROLLER_GRAPH_CHORUS);
+  Correlation := 0;
+  CorrelationValid := False;
+  SumL2 := 0;
+  SumR2 := 0;
+  SumLR := 0;
 
   BufferSamples := Ceil(Audio^.Scene^.SampleRate * (BaseDelayMs + DepthMs) / 1000.0) + 4;
   if BufferSamples < 4 then
@@ -238,12 +303,52 @@ begin
     Audio^.GetSampleData(@Buffer[0], Channel);
     ApplyChorus(Buffer, Channel, SampleNum, Audio^.Scene^.SampleRate,
       Audio^.Object_^.SampleIndex, BaseDelayMs, DepthMs, RateHz, Mix, StereoMode);
+    if CaptureRequested and (ChannelNum >= 2) then
+    begin
+      if Channel = 0 then
+        LeftOutput := Copy(Buffer, 0, SampleNum)
+      else if (Channel = 1) and (Length(LeftOutput) = SampleNum) then
+        for Sample := 0 to SampleNum - 1 do
+        begin
+          SumL2 := SumL2 + Double(LeftOutput[Sample]) * LeftOutput[Sample];
+          SumR2 := SumR2 + Double(Buffer[Sample]) * Buffer[Sample];
+          SumLR := SumLR + Double(LeftOutput[Sample]) * Buffer[Sample];
+        end;
+    end;
     Audio^.SetSampleData(@Buffer[0], Channel);
+  end;
+
+  if CaptureRequested and (SampleNum > 0) and
+     (Audio^.Scene^.SampleRate > 0) then
+  begin
+    if (SumL2 > 0.000000000001) and (SumR2 > 0.000000000001) then
+    begin
+      Correlation := EnsureRange(SumLR / Sqrt(SumL2 * SumR2), -1.0, 1.0);
+      CorrelationValid := True;
+    end;
+    PhaseCycles := RateHz * (Audio^.Object_^.SampleIndex + SampleNum div 2) /
+      Audio^.Scene^.SampleRate;
+    PhaseCycles := PhaseCycles - Floor(PhaseCycles);
+    CurrentDelayL := Max(0.0, BaseDelayMs +
+      Sin(2.0 * Pi * PhaseCycles) * DepthMs);
+    if (StereoMode = CHORUS_STEREO_WIDE) and (ChannelNum >= 2) then
+      CurrentDelayR := Max(0.0, BaseDelayMs -
+        Sin(2.0 * Pi * PhaseCycles) * DepthMs)
+    else
+      CurrentDelayR := CurrentDelayL;
+    PublishChorusSnapshot(Audio, CurrentDelayL, CurrentDelayR, PhaseCycles,
+      Correlation, CorrelationValid);
   end;
 
   Context := CurrentChorusContext;
   if Context <> nil then
     Context.NextIndex := Audio^.Object_^.SampleIndex + SampleNum;
 end;
+
+initialization
+  GChorusSnapshotMemory := nil;
+
+finalization
+  FreeAndNil(GChorusSnapshotMemory);
 
 end.

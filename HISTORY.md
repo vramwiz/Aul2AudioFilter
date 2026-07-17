@@ -1017,6 +1017,14 @@
 - Correctionは処理終了時点の内部ゲイン、Output deltaはブロック全体の前後RMS差なので、Speedによる追従途中やMixが100%未満では一致しない。実機ではTarget -28.5dB、Input -46.3dB、Output -44.3dB、Correction +4.2dB、Output delta +2.0dBの表示となり、Speed 370ms、Mix 0.80の追従途中として整合することを確認した。
 - Filter／ControllerのRelease Win64ビルドは警告0、エラー0で成功し、`Aul2AudioFilter.auf2`／`Aul2AudioController.aux2` へ反映した。ユーザー実機確認によりTarget、Input／Output、Correction、Output deltaの表示を確認し、AutoGainグラフを完成扱いとする。
 
+## 2026-07-17 Aul2AudioController Wobble / Reverb / Ghost / Chorus graph completion note
+
+- `Wobble` に1周期の遅延変動カーブ、現在遅延とLFO位相、変化方向、Wet成分の推定音程変化を追加した。現在点と接線は白いカーブと区別できる明るいシアンとした。`Local\Aul2AudioWobbleSnapshotV1` には要求中の既存DSP処理から得た現在値だけを書き込み、追加の音声走査は行わない。
+- `Reverb` に現在のWet RMS、FeedbackによるTail、DampingによるHFの正規化減衰カーブ、Type別平均遅延から求めた推定RT60を追加した。Wet RMSは要求中だけ既存DSPループ内で集計し、`Local\Aul2AudioReverbSnapshotV1` へ共有する。Type行を含む画面へ収めるため表示高は110pxとした。
+- `Ghost` に実際に加算したGhost成分の現在RMS、Sizeの半分となる最初の残響影到達時間、`Feedback * Wet` による減衰ノードを追加した。Added RMSは要求中だけ既存DSPループ内で集計し、`Local\Aul2AudioGhostSnapshotV1` へ共有する。
+- `Chorus` はNormalを同位相の単一カーブ、WideをシアンのL／マゼンタのRによる逆位相カーブとして表示し、現在L/R遅延と位置を追加した。さらに要求中のステレオ処理時だけ処理後L/R相関を算出し、数値、-1～+1ゲージ、`Narrow`／`Medium`／`Wide`／`Phase risk` 分類を表示する。Normalの現在点は白いカーブと区別できる明るいシアンとした。共有先は `Local\Aul2AudioChorusSnapshotV1` とする。
+- 4表示ともControllerの `GraphKind + GUID` 要求が有効な間だけ解析値を生成し、非表示時は追加解析、共有メモリ生成・書込みを行わない。AviUtl2上で各グラフと設定追従を実機確認済み。累積したFilter／ControllerのRelease／Debug Win64ビルドは警告0、エラー0で、予定していたControllerエフェクト表示をすべて完成扱いとする。
+
 ## 2026-07-17 再生中のController要求Data書込み防止
 
 - Controllerが新しいグラフ要求を発行するとき、選択Objectの非表示 `Controller Request V1` DataへGUIDとGraphKindを書いてFilter再評価を発火させていた。この `SetObjectItemValue` が再生中にも実行され、AviUtl2の再生を停止させる問題が判明した。

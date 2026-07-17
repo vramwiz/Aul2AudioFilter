@@ -36,12 +36,14 @@ uses
   Vcl.Graphics,
   Vcl.StdCtrls,
   Aul2AudioControllerAutoGainGraph,
+  Aul2AudioControllerChorusGraph,
   Aul2AudioControllerBitCrusherGraph,
   Aul2AudioControllerCompressorGraph,
   Aul2AudioControllerDelayGraph,
   Aul2AudioControllerDistortionGraph,
   Aul2AudioControllerEqGraph,
   Aul2AudioControllerEffectDefinition,
+  Aul2AudioControllerGhostGraph,
   Aul2AudioControllerLampSwitch,
   Aul2AudioControllerLimiterGraph,
   Aul2AudioControllerMuffleGraph,
@@ -69,6 +71,8 @@ uses
   Aul2AudioAutoGainSnapshotShared,
   Aul2AudioWobbleSnapshotShared,
   Aul2AudioReverbSnapshotShared,
+  Aul2AudioGhostSnapshotShared,
+  Aul2AudioChorusSnapshotShared,
   Aul2AudioControllerRequest,
   Aul2AudioDataTriggerDebug,
   AviUtl2PluginCore;
@@ -139,6 +143,8 @@ var
   TrembleGraph    : TAul2ControllerTrembleGraph;
   WobbleGraph     : TAul2ControllerWobbleGraph;
   AutoGainGraph   : TAul2ControllerAutoGainGraph;
+  GhostGraph      : TAul2ControllerGhostGraph;
+  ChorusGraph     : TAul2ControllerChorusGraph;
   NoiseGateGraph  : TAul2ControllerNoiseGateGraph;
   LimiterGraph    : TAul2ControllerLimiterGraph;
   OutputGraph     : TAul2ControllerOutputGraph;
@@ -157,6 +163,8 @@ var
   AutoGainSnapshotMemory: TAul2AudioAutoGainSnapshotSharedMemory;
   WobbleSnapshotMemory: TAul2AudioWobbleSnapshotSharedMemory;
   ReverbSnapshotMemory: TAul2AudioReverbSnapshotSharedMemory;
+  GhostSnapshotMemory: TAul2AudioGhostSnapshotSharedMemory;
+  ChorusSnapshotMemory: TAul2AudioChorusSnapshotSharedMemory;
   ControllerRequestMemory: TAul2AudioControllerRequestSharedMemory;
   ActiveControllerRequestId: TGUID;
   ActiveControllerGraphKind: Cardinal;
@@ -386,6 +394,10 @@ begin
     WobbleGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(AutoGainGraph) then
     AutoGainGraph.AccentColor := Definition.IndicatorColor;
+  if Assigned(GhostGraph) then
+    GhostGraph.AccentColor := Definition.IndicatorColor;
+  if Assigned(ChorusGraph) then
+    ChorusGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(NoiseGateGraph) then
     NoiseGateGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(LimiterGraph) then
@@ -901,6 +913,117 @@ begin
   ReverbGraph.SetSnapshot(State^.WetRms);
 end;
 
+function GhostSnapshotStateUsable(State: PAul2AudioGhostSnapshotState;
+  Layer: Integer): Boolean;
+begin
+  Result := (State <> nil) and
+    (State^.Magic = AUDIO_GHOST_SNAPSHOT_SHARED_MAGIC) and
+    (State^.Version = AUDIO_GHOST_SNAPSHOT_SHARED_VERSION) and
+    ControllerRequestIdsEqual(State^.RequestId, ActiveControllerRequestId) and
+    (State^.SourceLayer = Layer) and (State^.UpdateTick > 0);
+end;
+
+procedure UpdateGhostGraph(ChangedIndex: Integer = -1;
+  const ChangedValueText: string = '');
+var
+  Index: Integer;
+  Layer: Integer;
+  State: PAul2AudioGhostSnapshotState;
+  Values: array[0..3] of Double;
+begin
+  if not Assigned(GhostGraph) or not Assigned(EffectCombo) or
+     (EffectCombo.ItemIndex <> 15) then
+    Exit;
+  for Index := Low(Values) to High(Values) do
+    if Assigned(VolumeControls[Index]) then
+      Values[Index] := VolumeControls[Index].Value
+    else
+      Values[Index] := 0;
+  if (ChangedIndex >= Low(Values)) and (ChangedIndex <= High(Values)) then
+    TryStrToFloat(ChangedValueText, Values[ChangedIndex], FormatSettings);
+  GhostGraph.SetGhost(Values[0], Values[1], Values[2], Values[3],
+    Assigned(UseLamp) and UseLamp.Checked);
+
+  if not Assigned(UseLamp) or not UseLamp.Checked or
+     not Assigned(GhostSnapshotMemory) or
+     (ActiveControllerSourceLayer < 0) or
+     (ActiveControllerSourceLayer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+  begin
+    GhostGraph.ClearSnapshot;
+    Exit;
+  end;
+  Layer := ActiveControllerSourceLayer;
+  State := GhostSnapshotMemory.GetStateForLayer(Layer);
+  if not GhostSnapshotStateUsable(State, Layer) then
+  begin
+    State := GhostSnapshotMemory.State;
+    if State <> nil then
+      Layer := State^.SourceLayer;
+  end;
+  if not GhostSnapshotStateUsable(State, Layer) then
+  begin
+    GhostGraph.ClearSnapshot;
+    Exit;
+  end;
+  GhostGraph.SetSnapshot(State^.AddedRms);
+end;
+
+function ChorusSnapshotStateUsable(State: PAul2AudioChorusSnapshotState;
+  Layer: Integer): Boolean;
+begin
+  Result := (State <> nil) and
+    (State^.Magic = AUDIO_CHORUS_SNAPSHOT_SHARED_MAGIC) and
+    (State^.Version = AUDIO_CHORUS_SNAPSHOT_SHARED_VERSION) and
+    ControllerRequestIdsEqual(State^.RequestId, ActiveControllerRequestId) and
+    (State^.SourceLayer = Layer) and (State^.UpdateTick > 0);
+end;
+
+procedure UpdateChorusGraph(ChangedIndex: Integer = -1;
+  const ChangedValueText: string = '');
+var
+  Index: Integer;
+  Layer: Integer;
+  State: PAul2AudioChorusSnapshotState;
+  Values: array[0..3] of Double;
+begin
+  if not Assigned(ChorusGraph) or not Assigned(EffectCombo) or
+     (EffectCombo.ItemIndex <> 16) then
+    Exit;
+  for Index := Low(Values) to High(Values) do
+    if Assigned(VolumeControls[Index]) then
+      Values[Index] := VolumeControls[Index].Value
+    else
+      Values[Index] := 0;
+  if (ChangedIndex >= Low(Values)) and (ChangedIndex <= High(Values)) then
+    TryStrToFloat(ChangedValueText, Values[ChangedIndex], FormatSettings);
+  ChorusGraph.SetChorus(ModeCombo.ItemIndex, Values[0], Values[1], Values[2],
+    Values[3], Assigned(UseLamp) and UseLamp.Checked);
+
+  if not Assigned(UseLamp) or not UseLamp.Checked or
+     not Assigned(ChorusSnapshotMemory) or
+     (ActiveControllerSourceLayer < 0) or
+     (ActiveControllerSourceLayer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+  begin
+    ChorusGraph.ClearSnapshot;
+    Exit;
+  end;
+  Layer := ActiveControllerSourceLayer;
+  State := ChorusSnapshotMemory.GetStateForLayer(Layer);
+  if not ChorusSnapshotStateUsable(State, Layer) then
+  begin
+    State := ChorusSnapshotMemory.State;
+    if State <> nil then
+      Layer := State^.SourceLayer;
+  end;
+  if not ChorusSnapshotStateUsable(State, Layer) then
+  begin
+    ChorusGraph.ClearSnapshot;
+    Exit;
+  end;
+  ChorusGraph.SetSnapshot(State^.CurrentDelayL, State^.CurrentDelayR,
+    State^.LfoPhase, State^.Correlation, State^.CorrelationValid);
+end;
+
 procedure UpdateLimiterGraph(ChangedIndex: Integer = -1;
   const ChangedValueText: string = '');
 var
@@ -1300,6 +1423,8 @@ begin
   UpdateAutoGainGraph(ChangedIndex, ChangedValueText);
   UpdateWobbleGraph(ChangedIndex, ChangedValueText);
   UpdateReverbGraph(ChangedIndex, ChangedValueText);
+  UpdateGhostGraph(ChangedIndex, ChangedValueText);
+  UpdateChorusGraph(ChangedIndex, ChangedValueText);
   UpdateNoiseGateGraph(ChangedIndex, ChangedValueText);
   UpdateLimiterGraph(ChangedIndex, ChangedValueText);
   UpdatePitchGraph(ChangedIndex, ChangedValueText);
@@ -1350,6 +1475,8 @@ begin
   TrembleGraph.Visible := False;
   WobbleGraph.Visible := False;
   AutoGainGraph.Visible := False;
+  GhostGraph.Visible := False;
+  ChorusGraph.Visible := False;
   NoiseGateGraph.Visible := False;
   LimiterGraph.Visible := False;
   OutputGraph.Visible := False;
@@ -1419,12 +1546,12 @@ begin
   GraphTop := TopPosition + RowCount * ControlHeight +
     Max(0, RowCount - 1) * ControlGap + Scale(10);
   GraphWidth := Min(Scale(300), ContentWidth);
-  if EffectCombo.ItemIndex = 17 then
+  if EffectCombo.ItemIndex in [16, 17] then
     GraphHeight := Scale(110)
   else
     GraphHeight := Scale(150);
   GraphLeft := LeftMargin + (ContentWidth - GraphWidth) div 2;
-  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19]) and
+  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]) and
      (GraphWidth >= Scale(180)) and
      (GraphTop + GraphHeight + Scale(6) <= RootPanel.ClientHeight) then
   begin
@@ -1482,6 +1609,16 @@ begin
     begin
       ReverbGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
       ReverbGraph.Visible := True;
+    end
+    else if EffectCombo.ItemIndex = 15 then
+    begin
+      GhostGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
+      GhostGraph.Visible := True;
+    end
+    else if EffectCombo.ItemIndex = 16 then
+    begin
+      ChorusGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
+      ChorusGraph.Visible := True;
     end
     else if EffectCombo.ItemIndex = 14 then
     begin
@@ -1547,6 +1684,8 @@ begin
   TrembleGraph.Visible := False;
   WobbleGraph.Visible := False;
   AutoGainGraph.Visible := False;
+  GhostGraph.Visible := False;
+  ChorusGraph.Visible := False;
   NoiseGateGraph.Visible := False;
   LimiterGraph.Visible := False;
   OutputGraph.Visible := False;
@@ -1611,6 +1750,8 @@ begin
   TrembleGraph.Invalidate;
   WobbleGraph.Invalidate;
   AutoGainGraph.Invalidate;
+  GhostGraph.Invalidate;
+  ChorusGraph.Invalidate;
   NoiseGateGraph.Invalidate;
   LimiterGraph.Invalidate;
   OutputGraph.Invalidate;
@@ -1649,6 +1790,8 @@ begin
       TrembleGraph.Visible := False;
       WobbleGraph.Visible := False;
       AutoGainGraph.Visible := False;
+      GhostGraph.Visible := False;
+      ChorusGraph.Visible := False;
       NoiseGateGraph.Visible := False;
       LimiterGraph.Visible := False;
       OutputGraph.Visible := False;
@@ -1686,6 +1829,8 @@ begin
       TrembleGraph.Visible := False;
       WobbleGraph.Visible := False;
       AutoGainGraph.Visible := False;
+      GhostGraph.Visible := False;
+      ChorusGraph.Visible := False;
       NoiseGateGraph.Visible := False;
       LimiterGraph.Visible := False;
       OutputGraph.Visible := False;
@@ -2224,6 +2369,18 @@ begin
   AutoGainGraph.Visible := False;
   RegisterMouseEnter(AutoGainGraph);
 
+  GhostGraph := TAul2ControllerGhostGraph.Create(ControllerForm);
+  GhostGraph.Font.Assign(ControllerForm.Font);
+  GhostGraph.Parent := RootPanel;
+  GhostGraph.Visible := False;
+  RegisterMouseEnter(GhostGraph);
+
+  ChorusGraph := TAul2ControllerChorusGraph.Create(ControllerForm);
+  ChorusGraph.Font.Assign(ControllerForm.Font);
+  ChorusGraph.Parent := RootPanel;
+  ChorusGraph.Visible := False;
+  RegisterMouseEnter(ChorusGraph);
+
   NoiseGateGraph := TAul2ControllerNoiseGateGraph.Create(ControllerForm);
   NoiseGateGraph.Font.Assign(ControllerForm.Font);
   NoiseGateGraph.Parent := RootPanel;
@@ -2282,6 +2439,8 @@ begin
   AutoGainSnapshotMemory := TAul2AudioAutoGainSnapshotSharedMemory.Create;
   WobbleSnapshotMemory := TAul2AudioWobbleSnapshotSharedMemory.Create;
   ReverbSnapshotMemory := TAul2AudioReverbSnapshotSharedMemory.Create;
+  GhostSnapshotMemory := TAul2AudioGhostSnapshotSharedMemory.Create;
+  ChorusSnapshotMemory := TAul2AudioChorusSnapshotSharedMemory.Create;
   ControllerRequestMemory := TAul2AudioControllerRequestSharedMemory.Create;
 
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
@@ -2389,6 +2548,8 @@ begin
   FreeAndNil(AutoGainSnapshotMemory);
   FreeAndNil(WobbleSnapshotMemory);
   FreeAndNil(ReverbSnapshotMemory);
+  FreeAndNil(GhostSnapshotMemory);
+  FreeAndNil(ChorusSnapshotMemory);
   FreeAndNil(PitchSpectrumMemory);
   FreeAndNil(SpectrumMemory);
   FreeAndNil(MonitorMemory);
@@ -2417,6 +2578,8 @@ begin
   TrembleGraph := nil;
   WobbleGraph := nil;
   AutoGainGraph := nil;
+  GhostGraph := nil;
+  ChorusGraph := nil;
   NoiseGateGraph := nil;
   LimiterGraph := nil;
   OutputGraph := nil;
@@ -2438,6 +2601,8 @@ begin
   AutoGainSnapshotMemory := nil;
   WobbleSnapshotMemory := nil;
   ReverbSnapshotMemory := nil;
+  GhostSnapshotMemory := nil;
+  ChorusSnapshotMemory := nil;
   ControllerRequestMemory := nil;
   ActiveControllerRequestId := Default(TGUID);
   ActiveControllerGraphKind := AUDIO_CONTROLLER_REQUEST_GRAPH_NONE;

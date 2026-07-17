@@ -4,7 +4,7 @@
         <ProjectVersion>20.4</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Config Condition="'$(Config)'==''">Release</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <ProjectName Condition="'$(ProjectName)'==''">Aul2AudioController</ProjectName>
         <TargetedPlatforms>2</TargetedPlatforms>
@@ -118,6 +118,8 @@
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioAutoGainSnapshotShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioWobbleSnapshotShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioReverbSnapshotShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioGhostSnapshotShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioChorusSnapshotShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioControllerRequest.pas"/>
         <DCCReference Include="Source\Lib\Aul2AudioDataTriggerDebug.pas"/>
         <DCCReference Include="Source\Aul2AudioBaseAlias.pas"/>
@@ -148,6 +150,8 @@
         <DCCReference Include="Source\Aul2AudioControllerAutoGainGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerWobbleGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerReverbGraph.pas"/>
+        <DCCReference Include="Source\Aul2AudioControllerGhostGraph.pas"/>
+        <DCCReference Include="Source\Aul2AudioControllerChorusGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerView.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerPlugin.pas"/>
         <BuildConfiguration Include="Base">
