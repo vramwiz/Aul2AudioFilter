@@ -90,6 +90,11 @@ const
   PRESET_EFFECT_NAME    = 'Aul2AudioFilter';             // この一覧が扱うエフェクト識別名。
   PRESET_PREVIEW_PREFIX = 'グループ制御（音声） / ';    // 復号せず確認する概要の先頭文字列。
 
+function ScalePresetMetric(Value, PixelsPerInch: Integer): Integer;
+begin
+  Result := MulDiv(Value, Max(96, PixelsPerInch), 96);
+end;
+
 type
   // CallEditSectionParam内で選択Objectのエイリアスを受け取る一時コンテキスト。
   PPresetCaptureContext = ^TPresetCaptureContext;
@@ -250,7 +255,8 @@ begin
   FPresetList.BorderStyle := bsNone;
   FPresetList.Color := RGB(32, 32, 32);
   FPresetList.Font.Color := RGB(230, 230, 230);
-  FPresetList.ItemHeight := 24;
+  // OwnerDrawの行高はVCLが自動DPI変換しないため、編集用TEditと同じPPIで明示する。
+  FPresetList.ItemHeight := ScalePresetMetric(20, Font.PixelsPerInch);
   FPresetList.OnClick := PresetListClick;
   FPresetList.OnDblClick := PresetListDblClick;
   FPresetList.OnEdited := PresetListEdited;
@@ -310,13 +316,16 @@ end;
 
 procedure TAul2AudioPresetPanel.Resize;
 var
-  ButtonGap : Integer;
-  ButtonTop : Integer;
+  ButtonGap  : Integer;
+  ButtonHeight: Integer;
+  ButtonTop  : Integer;
   ButtonWidth: Integer;
-  ListTop   : Integer;
-  ListHeight: Integer;
-  ButtonLeft: Integer;
-  StatusTop : Integer;
+  ListTop    : Integer;
+  ListHeight : Integer;
+  ButtonLeft : Integer;
+  Margin     : Integer;
+  PixelsPerInch: Integer;
+  StatusTop  : Integer;
 begin
   inherited;
   if (FListBorder = nil) or (FPresetList = nil) or (FSaveButton = nil) or
@@ -324,42 +333,59 @@ begin
      (FDeleteCancelButton = nil) or (FStatusLabel = nil) then
     Exit;
 
-  ListTop := 12;
+  PixelsPerInch := Font.PixelsPerInch;
+  Margin := ScalePresetMetric(12, PixelsPerInch);
+  ListTop := Margin;
+  ButtonHeight := ScalePresetMetric(24, PixelsPerInch);
   if FLayoutMode = aplVertical then
   begin
-    ButtonGap := 8;
-    ButtonWidth := Max(1, (ClientWidth - 24 - ButtonGap) div 2);
+    ButtonGap := ScalePresetMetric(8, PixelsPerInch);
+    ButtonWidth := Max(1, (ClientWidth - (Margin * 2) - ButtonGap) div 2);
     if FDeleteConfirmIndex >= 0 then
-      ListHeight := Max(32, ClientHeight - 112)
+      ListHeight := Max(ScalePresetMetric(32, PixelsPerInch),
+        ClientHeight - ScalePresetMetric(116, PixelsPerInch))
     else if FStatusLabel.Caption <> '' then
-      ListHeight := Max(32, ClientHeight - 84)
+      ListHeight := Max(ScalePresetMetric(32, PixelsPerInch),
+        ClientHeight - ScalePresetMetric(88, PixelsPerInch))
     else
-      ListHeight := Max(32, ClientHeight - 70);
-    ButtonTop := ListTop + ListHeight + 8;
-    StatusTop := ButtonTop + 38;
-    FListBorder.SetBounds(12, ListTop, Max(1, ClientWidth - 24), ListHeight);
-    FSaveButton.SetBounds(12, ButtonTop, ButtonWidth, 30);
-    FDeleteButton.SetBounds(12 + ButtonWidth + ButtonGap, ButtonTop,
-      ButtonWidth, 30);
-    FStatusLabel.SetBounds(12, StatusTop, Max(1, ClientWidth - 24),
-      Max(1, ClientHeight - StatusTop - 8));
-    FDeleteOkButton.SetBounds(12, StatusTop + 20, ButtonWidth,
-      Max(1, ClientHeight - StatusTop - 28));
-    FDeleteCancelButton.SetBounds(12 + ButtonWidth + ButtonGap,
-      StatusTop + 20, ButtonWidth, Max(1, ClientHeight - StatusTop - 28));
+      ListHeight := Max(ScalePresetMetric(32, PixelsPerInch),
+        ClientHeight - ScalePresetMetric(78, PixelsPerInch));
+    ButtonTop := ListTop + ListHeight + ScalePresetMetric(8, PixelsPerInch);
+    StatusTop := ButtonTop + ButtonHeight + ScalePresetMetric(8, PixelsPerInch);
+    FListBorder.SetBounds(Margin, ListTop, Max(1, ClientWidth - (Margin * 2)),
+      ListHeight);
+    FSaveButton.SetBounds(Margin, ButtonTop, ButtonWidth, ButtonHeight);
+    FDeleteButton.SetBounds(Margin + ButtonWidth + ButtonGap, ButtonTop,
+      ButtonWidth, ButtonHeight);
+    FStatusLabel.SetBounds(Margin, StatusTop, Max(1, ClientWidth - (Margin * 2)),
+      Max(1, ClientHeight - StatusTop - ScalePresetMetric(8, PixelsPerInch)));
+    FDeleteOkButton.SetBounds(Margin, StatusTop + ScalePresetMetric(20, PixelsPerInch),
+      ButtonWidth, Max(1, ClientHeight - StatusTop - ScalePresetMetric(28, PixelsPerInch)));
+    FDeleteCancelButton.SetBounds(Margin + ButtonWidth + ButtonGap,
+      StatusTop + ScalePresetMetric(20, PixelsPerInch), ButtonWidth,
+      Max(1, ClientHeight - StatusTop - ScalePresetMetric(28, PixelsPerInch)));
   end
   else
   begin
     // Monitorでは左側を一覧、右側を操作ボタン用の固定幅領域として使う。
-    ListHeight := Max(32, ClientHeight - 24);
-    ButtonLeft := Max(12, ClientWidth - 104);
-    FListBorder.SetBounds(12, ListTop, Max(1, ButtonLeft - 20), ListHeight);
-    FSaveButton.SetBounds(ButtonLeft, ListTop, 92, 30);
-    FDeleteButton.SetBounds(ButtonLeft, ListTop + 38, 92, 30);
-    FStatusLabel.SetBounds(ButtonLeft, ListTop + 76, 92,
-      Max(1, ListHeight - 76));
-    FDeleteOkButton.SetBounds(ButtonLeft, ListTop + 116, 43, 26);
-    FDeleteCancelButton.SetBounds(ButtonLeft + 49, ListTop + 116, 43, 26);
+    ListHeight := Max(ScalePresetMetric(32, PixelsPerInch),
+      ClientHeight - (Margin * 2));
+    ButtonLeft := Max(Margin, ClientWidth - ScalePresetMetric(104, PixelsPerInch));
+    FListBorder.SetBounds(Margin, ListTop,
+      Max(1, ButtonLeft - ScalePresetMetric(20, PixelsPerInch)), ListHeight);
+    FSaveButton.SetBounds(ButtonLeft, ListTop, ScalePresetMetric(92, PixelsPerInch),
+      ButtonHeight);
+    FDeleteButton.SetBounds(ButtonLeft,
+      ListTop + ButtonHeight + ScalePresetMetric(8, PixelsPerInch),
+      ScalePresetMetric(92, PixelsPerInch), ButtonHeight);
+    FStatusLabel.SetBounds(ButtonLeft, ListTop + ScalePresetMetric(84, PixelsPerInch),
+      ScalePresetMetric(92, PixelsPerInch),
+      Max(1, ListHeight - ScalePresetMetric(84, PixelsPerInch)));
+    FDeleteOkButton.SetBounds(ButtonLeft, ListTop + ScalePresetMetric(124, PixelsPerInch),
+      ScalePresetMetric(43, PixelsPerInch), ScalePresetMetric(28, PixelsPerInch));
+    FDeleteCancelButton.SetBounds(ButtonLeft + ScalePresetMetric(49, PixelsPerInch),
+      ListTop + ScalePresetMetric(124, PixelsPerInch),
+      ScalePresetMetric(43, PixelsPerInch), ScalePresetMetric(28, PixelsPerInch));
   end;
 
   FPresetList.SetBounds(1, 1, Max(1, FListBorder.ClientWidth - 2),

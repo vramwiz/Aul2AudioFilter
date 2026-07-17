@@ -33,7 +33,7 @@ type
     FSecondsEdit: TEdit;
     FFpsEdit: TEdit;
     FLayerList: TListBox;
-    FCreateButton: TPanel;
+    FCreateButton: TButton;
     FSettingsPanel: TPanel;
     FLayerPanel: TPanel;
     FInitialized: Boolean;
@@ -255,14 +255,11 @@ begin
   FFpsEdit.Text := '30';
   SetDarkStyle(FFpsEdit);
 
-  FCreateButton := TPanel.Create(Self);
+  FCreateButton := TButton.Create(Self);
   FCreateButton.Parent := Self;
   FCreateButton.Caption := 'Send';
-  FCreateButton.BevelOuter := bvLowered;
   FCreateButton.Cursor := crHandPoint;
-  FCreateButton.Alignment := taCenter;
   FCreateButton.OnClick := CreateButtonClick;
-  SetDarkStyle(FCreateButton);
 
   FStatusLabel := TLabel.Create(Self);
   FStatusLabel.Parent := Self;
@@ -296,6 +293,7 @@ var
   LayerW: Integer;
   LayerH: Integer;
   SendW: Integer;
+  SendHeight: Integer;
   StatusGap: Integer;
   StatusH: Integer;
   StatusW: Integer;
@@ -335,6 +333,7 @@ begin
   SettingsW := ScalePx(320);
   LayerW := ScalePx(120);
   SendW := ScalePx(64);
+  SendHeight := ScalePx(24);
   PanelH := Height - Margin * 2;
   if PanelH < ScalePx(60) then
     PanelH := ScalePx(60);
@@ -353,7 +352,7 @@ begin
         StatusH := ScalePx(4)
       else
         StatusH := ScalePx(18);
-      LayerH := Height - PanelH - ScalePx(32) - StatusH -
+      LayerH := Height - PanelH - SendHeight - StatusH -
         Margin * 4 - StatusGap;
       if LayerH < ScalePx(60) then
         LayerH := ScalePx(60);
@@ -362,7 +361,7 @@ begin
       SetBoundsIfChanged(FLayerPanel, Margin, FSettingsPanel.Top +
         FSettingsPanel.Height + Margin, LayerW, LayerH);
       SetBoundsIfChanged(FCreateButton, Margin, FLayerPanel.Top +
-        FLayerPanel.Height + Margin, SendW, ScalePx(32));
+        FLayerPanel.Height + Margin, SendW, SendHeight);
       SetBoundsIfChanged(FStatusLabel, Margin, FCreateButton.Top +
         FCreateButton.Height + StatusGap, SettingsW, StatusH);
     end
@@ -372,7 +371,7 @@ begin
       SetBoundsIfChanged(FLayerPanel, FSettingsPanel.Left +
         FSettingsPanel.Width + Margin, Margin, LayerW, PanelH);
       SetBoundsIfChanged(FCreateButton, FLayerPanel.Left +
-        FLayerPanel.Width + Margin, Margin, SendW, ScalePx(32));
+        FLayerPanel.Width + Margin, Margin, SendW, SendHeight);
 
       StatusW := Width - FCreateButton.Left - FCreateButton.Width - Margin * 2;
       if StatusW < ScalePx(120) then

@@ -334,12 +334,16 @@ end;
 procedure TListBoxEdit.DrawItem(Index: Integer; Rect: TRect; State: TOwnerDrawState);
 var
   S: string;
+  TextTop: Integer;
 begin
   S := Items[Index];
   DoGetDisplayText(Index, S);
 
   Canvas.FillRect(Rect);
-  Canvas.TextOut(Rect.Left + 4, Rect.Top, S);
+  TextTop := Rect.Top + (Rect.Height - Canvas.TextHeight(S)) div 2;
+  if TextTop < Rect.Top then
+    TextTop := Rect.Top;
+  Canvas.TextOut(Rect.Left + 4, TextTop, S);
 end;
 
 const
