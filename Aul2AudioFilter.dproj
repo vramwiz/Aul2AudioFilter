@@ -147,6 +147,9 @@
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioNoiseWaveShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioVoiceDriveXYShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioTrembleRmsShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioAutoGainSnapshotShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioWobbleSnapshotShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioReverbSnapshotShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioControllerRequest.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioViewVectorShared.pas"/>
         <DCCReference Include="Source\Aul2AudioFilterMonitorBridge.pas"/>

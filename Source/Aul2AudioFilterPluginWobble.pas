@@ -15,6 +15,13 @@ procedure SetWobbleGuiParams(UseWobble: Boolean; DelayMs, DepthMs, RateHz, Mix: 
 
 implementation
 
+uses
+  Winapi.Windows,
+  System.SysUtils,
+  Aul2AudioMonitorShared,
+  Aul2AudioWobbleSnapshotShared,
+  Aul2AudioControllerRequest;
+
 type
   TWobbleChannelState = record
     Buffer  : TArray<Single>; // Wobble 用の履歴バッファ
@@ -33,6 +40,45 @@ var
   GWobbleObjectID  : Int64;                        // 状態を構築した対象オブジェクト
   GWobbleEffectID  : Int64;                        // 状態を構築した対象エフェクト
   GWobbleNextIndex : Int64;                        // 連続処理を判定する次サンプル位置
+  GWobbleSnapshotMemory: TAul2AudioWobbleSnapshotSharedMemory;
+
+function GetWobbleSnapshotMemory: TAul2AudioWobbleSnapshotSharedMemory;
+begin
+  if GWobbleSnapshotMemory = nil then
+    GWobbleSnapshotMemory := TAul2AudioWobbleSnapshotSharedMemory.Create;
+  Result := GWobbleSnapshotMemory;
+end;
+
+procedure PublishWobbleSnapshot(Audio: PFILTER_PROC_AUDIO; CurrentDelayMs,
+  LfoPhase: Single);
+var
+  Layer: Integer;
+  Memory: TAul2AudioWobbleSnapshotSharedMemory;
+  State: PAul2AudioWobbleSnapshotState;
+begin
+  if (Audio = nil) or (Audio^.Scene = nil) or (Audio^.Object_ = nil) then
+    Exit;
+  Layer := Audio^.Object_^.Layer;
+  if (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+  Memory := GetWobbleSnapshotMemory;
+  State := Memory.GetStateForLayer(Layer);
+  if State = nil then
+    Exit;
+  State^.Magic := AUDIO_WOBBLE_SNAPSHOT_SHARED_MAGIC;
+  State^.Version := AUDIO_WOBBLE_SNAPSHOT_SHARED_VERSION;
+  State^.RequestId := ControllerCurrentRequestId;
+  State^.SourceLayer := Layer;
+  State^.SourceFrame := Audio^.Object_^.Frame;
+  State^.SampleRate := Audio^.Scene^.SampleRate;
+  State^.SampleIndex := Audio^.Object_^.SampleIndex;
+  State^.CurrentDelayMs := CurrentDelayMs;
+  State^.LfoPhase := LfoPhase;
+  State^.UpdateTick := GetTickCount64;
+  Inc(State^.Generation);
+  Memory.Root^.LastLayer := Layer;
+  Inc(Memory.Root^.Generation);
+end;
 
 procedure ClearWobbleState;
 begin
@@ -159,6 +205,7 @@ end;
 
 function ProcessWobble(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
 var
+  CaptureRequested: Boolean;
   Channel: Integer;
   BufferSamples: Integer;
   Buffer: TArray<Single>;
@@ -166,6 +213,8 @@ var
   DepthMs: Single;
   RateHz: Single;
   Mix: Single;
+  CurrentDelayMs: Double;
+  PhaseCycles: Double;
 begin
   Result := GWobbleUseCheck.Value <> 0;
   if not Result then
@@ -178,6 +227,7 @@ begin
   DepthMs := GWobbleDepthTrack.Value;
   RateHz := GWobbleRateTrack.Value;
   Mix := GWobbleMixTrack.Value;
+  CaptureRequested := ControllerGraphRequested(AUDIO_CONTROLLER_GRAPH_WOBBLE);
   BufferSamples := Ceil(Audio^.Scene^.SampleRate * (BaseDelayMs + DepthMs) / 1000.0) + 4;
   if BufferSamples < 4 then
     BufferSamples := 4;
@@ -193,7 +243,24 @@ begin
     Audio^.SetSampleData(@Buffer[0], Channel);
   end;
 
+  if CaptureRequested and (SampleNum > 0) and
+     (Audio^.Scene^.SampleRate > 0) then
+  begin
+    PhaseCycles := RateHz * (Audio^.Object_^.SampleIndex + SampleNum div 2) /
+      Audio^.Scene^.SampleRate;
+    PhaseCycles := PhaseCycles - Floor(PhaseCycles);
+    CurrentDelayMs := Max(0.0, BaseDelayMs +
+      Sin(2.0 * Pi * PhaseCycles) * DepthMs);
+    PublishWobbleSnapshot(Audio, CurrentDelayMs, PhaseCycles);
+  end;
+
   GWobbleNextIndex := Audio^.Object_^.SampleIndex + SampleNum;
 end;
+
+initialization
+  GWobbleSnapshotMemory := nil;
+
+finalization
+  FreeAndNil(GWobbleSnapshotMemory);
 
 end.

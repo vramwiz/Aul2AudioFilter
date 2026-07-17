@@ -15,6 +15,13 @@ procedure SetAutoGainGuiParams(UseAutoGain: Boolean; TargetDb, SpeedMs, MaxGainD
 
 implementation
 
+uses
+  Winapi.Windows,
+  System.SysUtils,
+  Aul2AudioMonitorShared,
+  Aul2AudioAutoGainSnapshotShared,
+  Aul2AudioControllerRequest;
+
 type
   TAutoGainChannelState = record
     Envelope: Single; // 入力レベルの平滑値
@@ -33,6 +40,46 @@ var
   GAutoGainObjectID    : Int64;                          // 状態を構築した対象オブジェクト
   GAutoGainEffectID    : Int64;                          // 状態を構築した対象エフェクト
   GAutoGainNextIndex   : Int64;                          // 連続処理を判定する次のサンプル位置
+  GAutoGainSnapshotMemory: TAul2AudioAutoGainSnapshotSharedMemory;
+
+function GetAutoGainSnapshotMemory: TAul2AudioAutoGainSnapshotSharedMemory;
+begin
+  if GAutoGainSnapshotMemory = nil then
+    GAutoGainSnapshotMemory := TAul2AudioAutoGainSnapshotSharedMemory.Create;
+  Result := GAutoGainSnapshotMemory;
+end;
+
+procedure PublishAutoGainSnapshot(Audio: PFILTER_PROC_AUDIO; InputRms,
+  OutputRms, CorrectionGain: Single);
+var
+  Layer: Integer;
+  Memory: TAul2AudioAutoGainSnapshotSharedMemory;
+  State: PAul2AudioAutoGainSnapshotState;
+begin
+  if (Audio = nil) or (Audio^.Scene = nil) or (Audio^.Object_ = nil) then
+    Exit;
+  Layer := Audio^.Object_^.Layer;
+  if (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+  Memory := GetAutoGainSnapshotMemory;
+  State := Memory.GetStateForLayer(Layer);
+  if State = nil then
+    Exit;
+  State^.Magic := AUDIO_AUTO_GAIN_SNAPSHOT_SHARED_MAGIC;
+  State^.Version := AUDIO_AUTO_GAIN_SNAPSHOT_SHARED_VERSION;
+  State^.RequestId := ControllerCurrentRequestId;
+  State^.SourceLayer := Layer;
+  State^.SourceFrame := Audio^.Object_^.Frame;
+  State^.SampleRate := Audio^.Scene^.SampleRate;
+  State^.SampleIndex := Audio^.Object_^.SampleIndex;
+  State^.InputRms := InputRms;
+  State^.OutputRms := OutputRms;
+  State^.CorrectionGain := CorrectionGain;
+  State^.UpdateTick := GetTickCount64;
+  Inc(State^.Generation);
+  Memory.Root^.LastLayer := Layer;
+  Inc(Memory.Root^.Generation);
+end;
 
 procedure ClearAutoGainState;
 begin
@@ -150,8 +197,14 @@ end;
 
 function ProcessAutoGain(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
 var
+  CaptureRequested: Boolean;
   Channel: Integer;
   Buffer: TArray<Single>;
+  CorrectionGainSum: Double;
+  Denominator: Double;
+  InputSum: Double;
+  OutputSum: Double;
+  Sample: Integer;
 begin
   Result := GAutoGainUseCheck.Value <> 0;
   if not Result then
@@ -161,17 +214,43 @@ begin
   end;
 
   EnsureAutoGainState(Audio, ChannelNum);
+  CaptureRequested := ControllerGraphRequested(AUDIO_CONTROLLER_GRAPH_AUTO_GAIN);
+  InputSum := 0;
+  OutputSum := 0;
+  CorrectionGainSum := 0;
   SetLength(Buffer, SampleNum);
 
   for Channel := 0 to ChannelNum - 1 do
   begin
     Audio^.GetSampleData(@Buffer[0], Channel);
+    if CaptureRequested then
+      for Sample := 0 to SampleNum - 1 do
+        InputSum := InputSum + Double(Buffer[Sample]) * Buffer[Sample];
     ApplyAutoGain(Buffer, Channel, SampleNum, Audio^.Scene^.SampleRate,
       GAutoGainTargetTrack.Value, GAutoGainSpeedTrack.Value, GAutoGainMaxGainTrack.Value, GAutoGainMixTrack.Value);
+    if CaptureRequested then
+    begin
+      for Sample := 0 to SampleNum - 1 do
+        OutputSum := OutputSum + Double(Buffer[Sample]) * Buffer[Sample];
+      CorrectionGainSum := CorrectionGainSum + GAutoGainChannels[Channel].Gain;
+    end;
     Audio^.SetSampleData(@Buffer[0], Channel);
+  end;
+
+  if CaptureRequested and (SampleNum > 0) and (ChannelNum > 0) then
+  begin
+    Denominator := Double(SampleNum) * ChannelNum;
+    PublishAutoGainSnapshot(Audio, Sqrt(InputSum / Denominator),
+      Sqrt(OutputSum / Denominator), CorrectionGainSum / ChannelNum);
   end;
 
   GAutoGainNextIndex := Audio^.Object_^.SampleIndex + SampleNum;
 end;
+
+initialization
+  GAutoGainSnapshotMemory := nil;
+
+finalization
+  FreeAndNil(GAutoGainSnapshotMemory);
 
 end.

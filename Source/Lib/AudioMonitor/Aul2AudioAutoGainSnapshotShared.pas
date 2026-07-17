@@ -1,0 +1,106 @@
+unit Aul2AudioAutoGainSnapshotShared;
+
+// AutoGain処理の最新RMSと現在補正ゲインをFilterとControllerで共有する。
+
+interface
+
+uses
+  Aul2AudioMonitorShared,
+  SharedMemoryBase;
+
+const
+  AUDIO_AUTO_GAIN_SNAPSHOT_SHARED_NAME = 'Local\Aul2AudioAutoGainSnapshotV1';
+  AUDIO_AUTO_GAIN_SNAPSHOT_SHARED_MAGIC = $4147534E; // AGSN
+  AUDIO_AUTO_GAIN_SNAPSHOT_SHARED_VERSION = 1;
+
+type
+  PAul2AudioAutoGainSnapshotState = ^TAul2AudioAutoGainSnapshotState;
+  TAul2AudioAutoGainSnapshotState = record
+    Magic: Cardinal;
+    Version: Cardinal;
+    Generation: Int64;
+    UpdateTick: UInt64;
+    RequestId: TGUID;
+    SourceLayer: Integer;
+    SourceFrame: Integer;
+    SampleRate: Integer;
+    SampleIndex: Int64;
+    InputRms: Single;
+    OutputRms: Single;
+    CorrectionGain: Single;
+  end;
+
+  PAul2AudioAutoGainSnapshotRoot = ^TAul2AudioAutoGainSnapshotRoot;
+  TAul2AudioAutoGainSnapshotRoot = record
+    Magic: Cardinal;
+    Version: Cardinal;
+    Generation: Int64;
+    LastLayer: Integer;
+    Slots: array[0..AUDIO_MONITOR_LAYER_SLOT_LAST] of
+      TAul2AudioAutoGainSnapshotState;
+  end;
+
+  TAul2AudioAutoGainSnapshotSharedMemory = class(TSharedMemoryBase)
+  private
+    function GetRoot: PAul2AudioAutoGainSnapshotRoot;
+    function GetState: PAul2AudioAutoGainSnapshotState;
+  public
+    constructor Create; reintroduce;
+    function GetStateForLayer(Layer: Integer): PAul2AudioAutoGainSnapshotState;
+    property Root: PAul2AudioAutoGainSnapshotRoot read GetRoot;
+    property State: PAul2AudioAutoGainSnapshotState read GetState;
+  end;
+
+implementation
+
+constructor TAul2AudioAutoGainSnapshotSharedMemory.Create;
+var
+  Layer: Integer;
+begin
+  inherited Create(AUDIO_AUTO_GAIN_SNAPSHOT_SHARED_NAME,
+    SizeOf(TAul2AudioAutoGainSnapshotRoot));
+  if Root = nil then
+    Exit;
+
+  if IsOwner or (Root^.Magic <> AUDIO_AUTO_GAIN_SNAPSHOT_SHARED_MAGIC) or
+     (Root^.Version <> AUDIO_AUTO_GAIN_SNAPSHOT_SHARED_VERSION) then
+  begin
+    FillChar(Root^, SizeOf(Root^), 0);
+    Root^.Magic := AUDIO_AUTO_GAIN_SNAPSHOT_SHARED_MAGIC;
+    Root^.Version := AUDIO_AUTO_GAIN_SNAPSHOT_SHARED_VERSION;
+    Root^.LastLayer := AUDIO_MONITOR_LAYER_AUTO;
+  end;
+  for Layer := 0 to AUDIO_MONITOR_LAYER_SLOT_LAST do
+  begin
+    Root^.Slots[Layer].Magic := AUDIO_AUTO_GAIN_SNAPSHOT_SHARED_MAGIC;
+    Root^.Slots[Layer].Version := AUDIO_AUTO_GAIN_SNAPSHOT_SHARED_VERSION;
+    Root^.Slots[Layer].SourceLayer := Layer;
+  end;
+end;
+
+function TAul2AudioAutoGainSnapshotSharedMemory.GetRoot:
+  PAul2AudioAutoGainSnapshotRoot;
+begin
+  Result := PAul2AudioAutoGainSnapshotRoot(View);
+end;
+
+function TAul2AudioAutoGainSnapshotSharedMemory.GetState:
+  PAul2AudioAutoGainSnapshotState;
+begin
+  if (Root = nil) or
+     (Root^.Magic <> AUDIO_AUTO_GAIN_SNAPSHOT_SHARED_MAGIC) or
+     (Root^.Version <> AUDIO_AUTO_GAIN_SNAPSHOT_SHARED_VERSION) then
+    Exit(nil);
+  Result := GetStateForLayer(Root^.LastLayer);
+end;
+
+function TAul2AudioAutoGainSnapshotSharedMemory.GetStateForLayer(
+  Layer: Integer): PAul2AudioAutoGainSnapshotState;
+begin
+  if (Root = nil) or (Layer < 0) or
+     (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit(nil);
+  Result := @Root^.Slots[Layer];
+end;
+
+end.

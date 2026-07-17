@@ -83,6 +83,8 @@
 - `Source\Aul2AudioControllerWhisperGraph.pas`: ControllerのWhisper/Breath表示。Monitor由来のReferenceスペクトルへ、Level／Tone／Mixから求めたBreath予測特性を重ね、ON／OFFを明度で区別する。
 - `Source\Aul2AudioControllerTrembleGraph.pas`: ControllerのTremble表示。現在のInput／Output RMSメーター、レベル差、設定上の変調範囲、1周期変調カーブ、現在LFO位相を描画する。
 - `Source\Lib\AudioMonitor\Aul2AudioTrembleRmsShared.pas`: Tremble専用の最新Input／Output RMSとLFO位相を、要求GUID付きのレイヤー別スナップショットとしてFilterとController間で共有する。
+- `Source\Aul2AudioControllerAutoGainGraph.pas`: ControllerのAutoGain表示。Target位置、現在のInput／Output RMS、補正ゲイン、Output差、Speed／Max Gain／Mixをスナップショット描画する。
+- `Source\Lib\AudioMonitor\Aul2AudioAutoGainSnapshotShared.pas`: AutoGain専用の最新Input／Output RMSと内部補正ゲインを、要求GUID付きのレイヤー別スナップショットとしてFilterとController間で共有する。
 - `Source\Aul2AudioBasePanel.pas`: Controllerの `波形表示オブジェクトの配置` UI。解像度設定、レイヤーリスト、選択レイヤー生成ボタン、D&Dエイリアス生成を担当する。Monitor用の横配置も復活可能な形で残す。
 - `Source\Aul2AudioPresetPanel.pas`: Controllerの `エフェクトプリセットの管理` UI。選択Objectのプリセット登録、一覧の名前編集、グループ制御（音声）のD&D生成を担当する。Monitor用の横配置も復活可能な形で残す。
 - `Source\Aul2AudioPresetModel.pas`: ユーザープリセットとエイリアス要素のRTTIモデル、二重セクションINIの保存と読み込みを担当する。
@@ -268,6 +270,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - 2026-07-17、第二弾の `Noise` へ処理直前／直後の短い波形と差分波形を追加した。Filter側はPitch／RingModと同じく、Noise処理直前にL/R音声を取得し、DSP処理後に再取得して256点へ縮約する。レイヤー別最新値を専用共有メモリ `Local\Aul2AudioNoiseWave` でControllerへ渡す。上段はInput／Outputを共通オートスケールで重ね、下段は`Output - Input`を独立オートスケールで描く。波形と重なる凡例・スケール値には黒背景を付けた。Filter／ControllerのRelease Win64ビルドは警告0、エラー0で、AviUtl2上のWhite Noise、前後波形、差分波形、文字の視認性を確認済みとし完成扱いとする。
 - 2026-07-17、次に `VoiceDrive` へ設定伝達カーブ、Bodyの700Hzローパス状態による伝達範囲、実音声Input／Output XY点列を追加した。Filter側は処理直前／直後の対応サンプルをL/R別に最大256点取得し、専用共有メモリ `Local\Aul2AudioVoiceDriveXY` でControllerへ渡す。Controllerは無加工基準線、Body範囲、中央設定カーブ、実音声XY点を同じ入出力座標へ重ねる。Drive 18dB、Body 0.65、Level -4dB、Mix 0.85で強いS字飽和、Body範囲、実音声点列をAviUtl2上で確認済み。Filter／ControllerのRelease Win64コンパイルは警告0、エラー0で、完成扱いとする。
 - 2026-07-17、`Tremble` の補助表示を完成した。編集用途では連続した時間履歴を取得できないため、初期の192件RMS履歴方式を廃止し、共有メモリ `Local\Aul2AudioTrembleRmsV3` にはレイヤー別の最新Input／Output RMSとLFO位相だけを保持する。Controllerは上段へ細いRMSメーター、数値、Delta、設定上の変調範囲を置き、下段へDepth／Mixから求めた1周期変調カーブと現在評価ブロックの位相を大きな黄色点で表示する。FilterはTrembleの `GraphKind + GUID` 要求が有効な処理回だけRMSと位相を生成し、Controller非表示時は追加解析、共有メモリ生成・書込みを行わない。Filter／ControllerのRelease Win64ビルドは警告0、エラー0で成功し、AviUtl2上の表示と再生を実機確認済みで完成扱いとする。
+- 2026-07-17、次に `AutoGain` の補助表示を完成した。ControllerはTarget位置と現在のInput／Output RMSを-60～0dBの共通軸へ表示し、下段へ内部の平滑化済み補正ゲインを0dB中心の-24～+24dBバーで描く。Correction数値は範囲外でも実値を表示し、処理ブロック全体のRMS変化であるOutput deltaを併記する。Speedによる追従途中やMixが100%未満では両者が一致しないことを確認できる。FilterはAutoGainの `GraphKind + GUID` 要求が有効な処理回だけ前後RMSとチャンネル平均の現在ゲインを取得し、`Local\Aul2AudioAutoGainSnapshotV1` へ最新値だけを書き込む。要求がなければ追加走査、共有メモリ生成・書込みを行わない。Filter／ControllerのRelease Win64ビルドは警告0、エラー0で、AviUtl2上のTarget、Input／Output、Correction、Output delta表示を実機確認済みとし完成扱いとする。
 - エフェクトOFF時は形状を保持したまま暗くし、設定内容を確認できるようにする。
 
 ### Controller エフェクト表示 追加課題（第二弾）
@@ -284,6 +287,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 | 完了 | Noise | Noise直前／直後波形＋差分波形 |
 | 完了 | VoiceDrive | 非線形伝達カーブ＋Body範囲＋実音声XY点列 |
 | 完了 | Tremble | Input／Output RMS瞬間メーター＋1周期変調カーブ＋現在位相 |
+| 完了 | AutoGain | Target＋Input／Output RMS瞬間メーター＋現在補正ゲイン |
 | 完了 | NoiseGate | ゲート入出力特性 |
 | 完了 | Muffle | 周波数特性＋Input／Outputスペクトル |
 | 完了 | Pitch | 高解像度Input／Outputスペクトル |
@@ -292,15 +296,14 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 | 完了 | Output | Input／Output L/Rメーターと短いRMS履歴 |
 | 完了 | Limiter | ピーク制限カーブ |
 
-残る5エフェクターも、Controllerが編集用表示であることに合わせ、履歴を前提にせず現在値と設定カーブを組み合わせた瞬間表示として次の順で検討する。
+残る4エフェクターも、Controllerが編集用表示であることに合わせ、履歴を前提にせず現在値と設定カーブを組み合わせた瞬間表示として次の順で検討する。
 
 | 優先 | エフェクター | 実装する主表示 | 優先理由 |
 | ---: | --- | --- | --- |
-| 1 | AutoGain | Target、現在のInput／Output RMS、補正ゲイン | 履歴を使わず、目標値に対する現在の補正状態を直接確認できる。 |
-| 2 | Wobble | 現在遅延量と1周期分の遅延変動カーブ | 現在位相と設定上の揺れ幅を同じ画面で確認する構成を検討する。 |
-| 3 | Reverb | 現在のWet残響量と設定上の減衰カーブ | 履歴の代わりに現在の残響エネルギーと理論的な減衰傾向を組み合わせる。 |
-| 4 | Ghost | 現在の残響量と膨らみ／減衰カーブ | Reverbと共通化できる瞬間値と設定カーブを検討する。 |
-| 5 | Chorus | L/R遅延変動カーブ、現在のステレオ相関または簡易Vectorscope | L/R別データと位相・相関表示が必要で、最も専用実装が多い。 |
+| 1 | Wobble | 現在遅延量と1周期分の遅延変動カーブ | 現在位相と設定上の揺れ幅を同じ画面で確認する構成を検討する。 |
+| 2 | Reverb | 現在のWet残響量と設定上の減衰カーブ | 履歴の代わりに現在の残響エネルギーと理論的な減衰傾向を組み合わせる。 |
+| 3 | Ghost | 現在の残響量と膨らみ／減衰カーブ | Reverbと共通化できる瞬間値と設定カーブを検討する。 |
+| 4 | Chorus | L/R遅延変動カーブ、現在のステレオ相関または簡易Vectorscope | L/R別データと位相・相関表示が必要で、最も専用実装が多い。 |
 
 #### 完了済みグラフへの実音声背景・動的表示
 

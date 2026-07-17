@@ -17,6 +17,12 @@ procedure SetReverbGuiParams(UseReverb: Boolean; ReverbType: Integer;
 
 implementation
 
+uses
+  Winapi.Windows,
+  Aul2AudioMonitorShared,
+  Aul2AudioReverbSnapshotShared,
+  Aul2AudioControllerRequest;
+
 const
   REVERB_COMB_COUNT = 4; // 並列に使う comb delay の本数
   REVERB_TYPE_ROOM  = 0;
@@ -60,6 +66,43 @@ var
   GReverbWetTrack  : TFILTER_ITEM_TRACK;
   GReverbContexts  : TAul2AudioFilterContextList<TReverbContext>;
   GReverbContext   : TReverbContext;
+  GReverbSnapshotMemory: TAul2AudioReverbSnapshotSharedMemory;
+
+function GetReverbSnapshotMemory: TAul2AudioReverbSnapshotSharedMemory;
+begin
+  if GReverbSnapshotMemory = nil then
+    GReverbSnapshotMemory := TAul2AudioReverbSnapshotSharedMemory.Create;
+  Result := GReverbSnapshotMemory;
+end;
+
+procedure PublishReverbSnapshot(Audio: PFILTER_PROC_AUDIO; WetRms: Single);
+var
+  Layer: Integer;
+  Memory: TAul2AudioReverbSnapshotSharedMemory;
+  State: PAul2AudioReverbSnapshotState;
+begin
+  if (Audio = nil) or (Audio^.Scene = nil) or (Audio^.Object_ = nil) then
+    Exit;
+  Layer := Audio^.Object_^.Layer;
+  if (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+  Memory := GetReverbSnapshotMemory;
+  State := Memory.GetStateForLayer(Layer);
+  if State = nil then
+    Exit;
+  State^.Magic := AUDIO_REVERB_SNAPSHOT_SHARED_MAGIC;
+  State^.Version := AUDIO_REVERB_SNAPSHOT_SHARED_VERSION;
+  State^.RequestId := ControllerCurrentRequestId;
+  State^.SourceLayer := Layer;
+  State^.SourceFrame := Audio^.Object_^.Frame;
+  State^.SampleRate := Audio^.Scene^.SampleRate;
+  State^.SampleIndex := Audio^.Object_^.SampleIndex;
+  State^.WetRms := WetRms;
+  State^.UpdateTick := GetTickCount64;
+  Inc(State^.Generation);
+  Memory.Root^.LastLayer := Layer;
+  Inc(Memory.Root^.Generation);
+end;
 
 procedure ClearReverbState;
 begin
@@ -209,7 +252,8 @@ begin
 end;
 
 procedure ApplyReverb(var Buffer: TArray<Single>; Channel, SampleNum: Integer;
-  ReverbType: Integer; RoomSize, Damping, Dry, Wet: Single);
+  ReverbType: Integer; RoomSize, Damping, Dry, Wet: Single;
+  CaptureWet: Boolean; var WetSum: Double);
 var
   I: Integer;
   Comb: Integer;
@@ -217,6 +261,7 @@ var
   DelayedSample: Single;
   FilteredSample: Single;
   ReverbSample: Single;
+  WetSample: Single;
   Feedback: Single;
   CombState: ^TReverbCombState;
   Context: TReverbContext;
@@ -248,7 +293,10 @@ begin
         CombState^.Position := 0;
     end;
 
-    Buffer[I] := (InputSample * Dry) + ((ReverbSample / REVERB_COMB_COUNT) * Wet);
+    WetSample := (ReverbSample / REVERB_COMB_COUNT) * Wet;
+    if CaptureWet then
+      WetSum := WetSum + Double(WetSample) * WetSample;
+    Buffer[I] := (InputSample * Dry) + WetSample;
   end;
 end;
 
@@ -285,6 +333,7 @@ end;
 
 function ProcessReverb(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
 var
+  CaptureRequested: Boolean;
   Channel: Integer;
   Buffer: TArray<Single>;
   ReverbType: Integer;
@@ -293,6 +342,8 @@ var
   Dry: Single;
   Wet: Single;
   Context: TReverbContext;
+  Denominator: Double;
+  WetSum: Double;
 begin
   Result := GReverbUseCheck.Value <> 0;
   if not Result then
@@ -303,6 +354,8 @@ begin
   Damping := GDampingTrack.Value;
   Dry := GReverbDryTrack.Value;
   Wet := GReverbWetTrack.Value;
+  CaptureRequested := ControllerGraphRequested(AUDIO_CONTROLLER_GRAPH_REVERB);
+  WetSum := 0;
 
   EnsureReverbState(Audio, ChannelNum, ReverbType);
   SetLength(Buffer, SampleNum);
@@ -310,13 +363,26 @@ begin
   for Channel := 0 to ChannelNum - 1 do
   begin
     Audio^.GetSampleData(@Buffer[0], Channel);
-    ApplyReverb(Buffer, Channel, SampleNum, ReverbType, RoomSize, Damping, Dry, Wet);
+    ApplyReverb(Buffer, Channel, SampleNum, ReverbType, RoomSize, Damping, Dry,
+      Wet, CaptureRequested, WetSum);
     Audio^.SetSampleData(@Buffer[0], Channel);
+  end;
+
+  if CaptureRequested and (SampleNum > 0) and (ChannelNum > 0) then
+  begin
+    Denominator := Double(SampleNum) * ChannelNum;
+    PublishReverbSnapshot(Audio, Sqrt(WetSum / Denominator));
   end;
 
   Context := CurrentReverbContext;
   if Context <> nil then
     Context.NextIndex := Audio^.Object_^.SampleIndex + SampleNum;
 end;
+
+initialization
+  GReverbSnapshotMemory := nil;
+
+finalization
+  FreeAndNil(GReverbSnapshotMemory);
 
 end.

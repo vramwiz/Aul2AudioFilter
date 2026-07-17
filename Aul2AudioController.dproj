@@ -115,6 +115,9 @@
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioNoiseWaveShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioVoiceDriveXYShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioTrembleRmsShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioAutoGainSnapshotShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioWobbleSnapshotShared.pas"/>
+        <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioReverbSnapshotShared.pas"/>
         <DCCReference Include="Source\Lib\AudioMonitor\Aul2AudioControllerRequest.pas"/>
         <DCCReference Include="Source\Lib\Aul2AudioDataTriggerDebug.pas"/>
         <DCCReference Include="Source\Aul2AudioBaseAlias.pas"/>
@@ -142,6 +145,9 @@
         <DCCReference Include="Source\Aul2AudioControllerNoiseGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerVoiceDriveGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerTrembleGraph.pas"/>
+        <DCCReference Include="Source\Aul2AudioControllerAutoGainGraph.pas"/>
+        <DCCReference Include="Source\Aul2AudioControllerWobbleGraph.pas"/>
+        <DCCReference Include="Source\Aul2AudioControllerReverbGraph.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerView.pas"/>
         <DCCReference Include="Source\Aul2AudioControllerPlugin.pas"/>
         <BuildConfiguration Include="Base">

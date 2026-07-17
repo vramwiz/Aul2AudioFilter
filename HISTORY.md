@@ -1008,6 +1008,15 @@
 - Filter側の `ProcessTremble` は `ControllerGraphRequested(AUDIO_CONTROLLER_GRAPH_TREMBLE)` が真の場合だけ、既存DSPループ内で前後の二乗和とLFO位相を取得する。要求がない通常処理では追加解析、共有メモリ生成、共有書込みを行わず、Controllerフォームが非表示なら要求自体を無効とする。
 - 履歴用の連続ポーリングは廃止し、Controllerは選択・設定再取得時に最新スナップショットを表示する。Filter／ControllerのRelease Win64ビルドは警告0、エラー0で成功し、`Aul2AudioFilter.auf2`／`Aul2AudioController.aux2` へ反映した。AviUtl2上のRMS表示、変調カーブ、現在位相点、再生継続を実機確認済みで、Trembleグラフを完成扱いとする。
 
+## 2026-07-17 Aul2AudioController AutoGain graph completion note
+
+- Trembleに続く優先順位1の `AutoGain` へ、編集用の瞬間表示を追加した。時間履歴は使わず、Target、現在のInput／Output RMS、内部の現在補正ゲインを1回の評価結果として表示する。
+- `Source\Lib\AudioMonitor\Aul2AudioAutoGainSnapshotShared.pas` を追加し、レイヤー別の最新Input RMS、Output RMS、チャンネル平均の平滑化済み補正ゲインを `Local\Aul2AudioAutoGainSnapshotV1` でFilterとController間に共有する。要求GUIDとSource Layerが現在のController要求に一致する値だけを採用する。
+- Filter側は `ControllerGraphRequested(AUDIO_CONTROLLER_GRAPH_AUTO_GAIN)` が真の場合だけ、AutoGain処理前後の二乗和を集計してRMSを求める。補正ゲインは各チャンネルの処理終了時点にある内部Gainを平均する。要求がない通常処理では追加走査、共有メモリ生成、共有書込みを行わない。
+- `Source\Aul2AudioControllerAutoGainGraph.pas` を追加した。上段は-60～0dBの共通軸へTargetの黄色ガイド、Inputの緑メーター、Outputのテーマ色メーターを配置する。下段は0dBを中心とする-24～+24dBの補正ゲインバーとし、Correction数値はメーター範囲を越える減衰でも実値を表示する。Speed、Max Gain、Mix、処理ブロック全体の `Output delta` も併記する。
+- Correctionは処理終了時点の内部ゲイン、Output deltaはブロック全体の前後RMS差なので、Speedによる追従途中やMixが100%未満では一致しない。実機ではTarget -28.5dB、Input -46.3dB、Output -44.3dB、Correction +4.2dB、Output delta +2.0dBの表示となり、Speed 370ms、Mix 0.80の追従途中として整合することを確認した。
+- Filter／ControllerのRelease Win64ビルドは警告0、エラー0で成功し、`Aul2AudioFilter.auf2`／`Aul2AudioController.aux2` へ反映した。ユーザー実機確認によりTarget、Input／Output、Correction、Output deltaの表示を確認し、AutoGainグラフを完成扱いとする。
+
 ## 2026-07-17 再生中のController要求Data書込み防止
 
 - Controllerが新しいグラフ要求を発行するとき、選択Objectの非表示 `Controller Request V1` DataへGUIDとGraphKindを書いてFilter再評価を発火させていた。この `SetObjectItemValue` が再生中にも実行され、AviUtl2の再生を停止させる問題が判明した。

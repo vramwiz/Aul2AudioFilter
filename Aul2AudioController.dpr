@@ -20,6 +20,9 @@ uses
   Aul2AudioNoiseWaveShared in 'Source\Lib\AudioMonitor\Aul2AudioNoiseWaveShared.pas',
   Aul2AudioVoiceDriveXYShared in 'Source\Lib\AudioMonitor\Aul2AudioVoiceDriveXYShared.pas',
   Aul2AudioTrembleRmsShared in 'Source\Lib\AudioMonitor\Aul2AudioTrembleRmsShared.pas',
+  Aul2AudioAutoGainSnapshotShared in 'Source\Lib\AudioMonitor\Aul2AudioAutoGainSnapshotShared.pas',
+  Aul2AudioWobbleSnapshotShared in 'Source\Lib\AudioMonitor\Aul2AudioWobbleSnapshotShared.pas',
+  Aul2AudioReverbSnapshotShared in 'Source\Lib\AudioMonitor\Aul2AudioReverbSnapshotShared.pas',
   Aul2AudioControllerRequest in 'Source\Lib\AudioMonitor\Aul2AudioControllerRequest.pas',
   Aul2AudioDataTriggerDebug in 'Source\Lib\Aul2AudioDataTriggerDebug.pas',
   Aul2AudioBaseAlias in 'Source\Aul2AudioBaseAlias.pas',
@@ -47,6 +50,9 @@ uses
   Aul2AudioControllerNoiseGraph in 'Source\Aul2AudioControllerNoiseGraph.pas',
   Aul2AudioControllerVoiceDriveGraph in 'Source\Aul2AudioControllerVoiceDriveGraph.pas',
   Aul2AudioControllerTrembleGraph in 'Source\Aul2AudioControllerTrembleGraph.pas',
+  Aul2AudioControllerAutoGainGraph in 'Source\Aul2AudioControllerAutoGainGraph.pas',
+  Aul2AudioControllerWobbleGraph in 'Source\Aul2AudioControllerWobbleGraph.pas',
+  Aul2AudioControllerReverbGraph in 'Source\Aul2AudioControllerReverbGraph.pas',
   Aul2AudioControllerView in 'Source\Aul2AudioControllerView.pas',
   Aul2AudioControllerPlugin in 'Source\Aul2AudioControllerPlugin.pas';
 
