@@ -57,6 +57,8 @@ procedure PushMonitorHistory(Root: PAul2AudioMonitorLayeredState; Layer: Integer
   const State: TAul2AudioMonitorState);
 var
   Index: Integer;
+  PublishedState: TAul2AudioMonitorState;
+  UpdateTick: UInt64;
 begin
   if (Root = nil) or (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
     Exit;
@@ -64,14 +66,20 @@ begin
   Index := Root^.HistoryIndex[Layer] + 1;
   if (Index < 0) or (Index > AUDIO_MONITOR_HISTORY_LAST) then
     Index := 0;
+  PublishedState := State;
+  UpdateTick := PublishedState.UpdateTick;
+  PublishedState.UpdateTick := 0;
+  Root^.History[Layer, Index] := PublishedState;
+  Root^.History[Layer, Index].UpdateTick := UpdateTick;
   Root^.HistoryIndex[Layer] := Index;
-  Root^.History[Layer, Index] := State;
 end;
 
 procedure PushSpectrumHistory(Root: PAul2AudioMonitorLayeredSpectrumState; Layer: Integer;
   const State: TAul2AudioMonitorSpectrumState);
 var
   Index: Integer;
+  PublishedState: TAul2AudioMonitorSpectrumState;
+  UpdateTick: UInt64;
 begin
   if (Root = nil) or (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
     Exit;
@@ -79,8 +87,12 @@ begin
   Index := Root^.HistoryIndex[Layer] + 1;
   if (Index < 0) or (Index > AUDIO_MONITOR_SPECTRUM_HISTORY_LAST) then
     Index := 0;
+  PublishedState := State;
+  UpdateTick := PublishedState.UpdateTick;
+  PublishedState.UpdateTick := 0;
+  Root^.History[Layer, Index] := PublishedState;
+  Root^.History[Layer, Index].UpdateTick := UpdateTick;
   Root^.HistoryIndex[Layer] := Index;
-  Root^.History[Layer, Index] := State;
 end;
 
 procedure PushViewVectorHistory(Root: PAul2AudioViewVectorRoot;
@@ -232,9 +244,9 @@ begin
     if State = nil then
       Exit;
 
+    State^.UpdateTick := 0;
     State^.Magic := AUDIO_MONITOR_SHARED_MAGIC;
     State^.Version := AUDIO_MONITOR_SHARED_VERSION;
-    State^.UpdateTick := GetTickCount64;
     State^.RequestId := ControllerCurrentRequestId;
     State^.Stage := Stage;
 
@@ -254,6 +266,7 @@ begin
     end;
 
     Inc(State^.Generation);
+    State^.UpdateTick := GetTickCount64;
     Inc(GetSharedMemory.Root^.Generation);
   except
     // Monitor diagnostics must never affect the audio callback.
@@ -558,11 +571,12 @@ begin
     State := GetSharedMemory.GetStateForLayer(Layer);
     if State <> nil then
     begin
+      State^.UpdateTick := 0;
       State^.Stage := 2;
-      State^.UpdateTick := GetTickCount64;
       State^.RequestId := ControllerCurrentRequestId;
       State^.SourceLayer := Layer;
       Inc(State^.Generation);
+      State^.UpdateTick := GetTickCount64;
       Inc(GetSharedMemory.Root^.Generation);
     end;
 
@@ -628,9 +642,9 @@ begin
     InputSnapshot := LastInputSnapshots[Layer];
     ApplyAudioOutputLevel(Audio, InputSnapshot.PeakL, InputSnapshot.PeakR,
       InputSnapshot.RmsL, InputSnapshot.RmsR);
+    State^.UpdateTick := 0;
     State^.Magic := AUDIO_MONITOR_SHARED_MAGIC;
     State^.Version := AUDIO_MONITOR_SHARED_VERSION;
-    State^.UpdateTick := GetTickCount64;
     State^.RequestId := ControllerCurrentRequestId;
     State^.Stage := 3;
     State^.SampleRate := Audio^.Scene^.SampleRate;
@@ -658,6 +672,7 @@ begin
     State^.OutputWaveMax := OutputWaveMax;
 
     Inc(State^.Generation);
+    State^.UpdateTick := GetTickCount64;
     SelectLastMonitorLayer(Shared.Root, Layer);
     PushMonitorHistory(Shared.Root, Layer, State^);
     Inc(Shared.Root^.Generation);
@@ -666,9 +681,9 @@ begin
     if SpectrumState <> nil then
     begin
       SpectrumRoot := GetSpectrumMemory.Root;
+      SpectrumState^.UpdateTick := 0;
       SpectrumState^.Magic := AUDIO_MONITOR_SPECTRUM_SHARED_MAGIC;
       SpectrumState^.Version := AUDIO_MONITOR_SPECTRUM_SHARED_VERSION;
-      SpectrumState^.UpdateTick := GetTickCount64;
       SpectrumState^.RequestId := ControllerCurrentRequestId;
       SpectrumState^.SampleRate := Audio^.Scene^.SampleRate;
       SpectrumState^.SampleNum := SampleNum;
@@ -685,6 +700,7 @@ begin
       SpectrumState^.InputBands := InputSnapshot.Spectrum;
       SpectrumState^.OutputBands := OutputSpectrum;
       Inc(SpectrumState^.Generation);
+      SpectrumState^.UpdateTick := GetTickCount64;
       if SpectrumRoot <> nil then
       begin
         SpectrumRoot^.LastLayer := Shared.Root^.LastLayer;

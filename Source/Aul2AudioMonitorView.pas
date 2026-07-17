@@ -44,8 +44,8 @@ uses
   ToolBarPanelManager;
 
 const
-  // Monitor はタイマー描画のため View より先行して見える。再生時の履歴参照をこのフレーム数だけ後方へずらす。
-  MONITOR_PLAYBACK_FRAME_DELAY = 10;
+  // View が通知した実描画フレームそのものへ同期する。固定遅延は再生開始位置によって別世代を選ぶため加えない。
+  MONITOR_PLAYBACK_FRAME_DELAY = 0;
   // View配置とPreset管理はControllerへ移行済み。再表示が必要な場合だけTrueへ戻す。
   ENABLE_MONITOR_EDIT_PAGES = False;
 
@@ -222,10 +222,11 @@ end;
 
 procedure RefreshEditState;
 const
-  EDIT_STATE_POLL_MS = 500;
+  EDIT_STATE_POLL_MS = 50;
 var
   NowTick: UInt64;
   NewEditState: TAviUtl2EditState;
+  PreviousPollTick: UInt64;
 begin
   NowTick := GetTickCount64;
   if (LastEditStatePollTick <> 0) and
@@ -233,6 +234,7 @@ begin
      ((NowTick - LastEditStatePollTick) < EDIT_STATE_POLL_MS) then
     Exit;
 
+  PreviousPollTick := LastEditStatePollTick;
   LastEditStatePollTick := NowTick;
   try
     NewEditState := AviUtl2GetEditState;
@@ -243,7 +245,12 @@ begin
       begin
         // 編集時に蓄積したリング履歴を再生直後の同期候補へ混ぜない。
         // 共有メモリを直接消去せず、開始時刻より古い世代を無効扱いにする。
-        PlaybackHistoryStartTick := GetTickCount64;
+        // 直前の状態確認後にFilterが書いた再生先読み履歴も候補へ含める。
+        // 検出時刻を境界にすると、View初回描画より先に生成された正しい履歴を捨ててしまう。
+        if PreviousPollTick <> 0 then
+          PlaybackHistoryStartTick := PreviousPollTick
+        else
+          PlaybackHistoryStartTick := NowTick;
         ClearPlaybackHistory;
         ClearAudioMonitorDisplay;
         InvalidateMonitorView;
@@ -505,6 +512,20 @@ begin
   end;
 end;
 
+function MonitorFramePastSourceEnd(const State: TAul2AudioMonitorState;
+  Frame: Integer): Boolean;
+begin
+  Result := (Frame >= 0) and (State.SourceFrameE > 0) and
+    (Frame > State.SourceFrameE);
+end;
+
+function SpectrumFramePastSourceEnd(const State: TAul2AudioMonitorSpectrumState;
+  Frame: Integer): Boolean;
+begin
+  Result := (Frame >= 0) and (State.SourceFrameE > 0) and
+    (Frame > State.SourceFrameE);
+end;
+
 procedure DecayMonitorSnapshot(var State: TAul2AudioMonitorState);
 const
   DECAY = 0.72;
@@ -528,7 +549,6 @@ begin
     State.OutputWaveMin[Index] := State.OutputWaveMin[Index] * DECAY;
     State.OutputWaveMax[Index] := State.OutputWaveMax[Index] * DECAY;
   end;
-  State.UpdateTick := GetTickCount64;
 end;
 
 procedure DecaySpectrumSnapshot(var State: TAul2AudioMonitorSpectrumState);
@@ -542,7 +562,6 @@ begin
     State.InputBands[Index] := State.InputBands[Index] * DECAY;
     State.OutputBands[Index] := State.OutputBands[Index] * DECAY;
   end;
-  State.UpdateTick := GetTickCount64;
 end;
 
 function SelectMonitorSnapshot(Current: PAul2AudioMonitorState;
@@ -553,6 +572,8 @@ begin
   Result := Current;
   if not IsPlaybackDisplay then
     Exit;
+  // 再生中はViewと同期できた履歴だけを表示し、編集時の最新値へ戻さない。
+  Result := nil;
   if not PlaybackFrameAvailable then
     Exit;
 
@@ -564,8 +585,12 @@ begin
   begin
     if not PlaybackMonitorSnapshotValid then
       Exit(nil);
-    DecayMonitorSnapshot(PlaybackMonitorSnapshot);
+    // 同期対象範囲内の一時的な履歴欠落は保持するが、音声素材の終端後は
+    // 最終Outputを固定せず、実際の無音として自然に減衰させる。
+    if MonitorFramePastSourceEnd(PlaybackMonitorSnapshot, DisplayFrame) then
+      DecayMonitorSnapshot(PlaybackMonitorSnapshot);
     Snapshot := PlaybackMonitorSnapshot;
+    Snapshot.UpdateTick := GetTickCount64;
     Exit(@Snapshot);
   end;
   if not MonitorStateUsable(Result) then
@@ -586,6 +611,8 @@ begin
   Result := Current;
   if not IsPlaybackDisplay then
     Exit;
+  // Waveと同様、Viewフレームが未確定の間は未同期の最新Spectrumを表示しない。
+  Result := nil;
   if not PlaybackFrameAvailable then
     Exit;
 
@@ -597,8 +624,10 @@ begin
   begin
     if not PlaybackSpectrumSnapshotValid then
       Exit(nil);
-    DecaySpectrumSnapshot(PlaybackSpectrumSnapshot);
+    if SpectrumFramePastSourceEnd(PlaybackSpectrumSnapshot, DisplayFrame) then
+      DecaySpectrumSnapshot(PlaybackSpectrumSnapshot);
     Snapshot := PlaybackSpectrumSnapshot;
+    Snapshot.UpdateTick := GetTickCount64;
     Exit(@Snapshot);
   end;
   if not SpectrumStateUsable(Result) then

@@ -9,7 +9,7 @@
 
 ## 現在の方針
 
-- 主要機能は完成しているが、Aul2AudioMonitorの再生開始直後に表示が短時間ばたつく同期不具合が残っている。下記の緊急修正事項を解消するまで最終完了・Release確定とはしない。
+- 主要機能とAul2AudioMonitorの再生同期は完成しており、Release確定を妨げる必須修正事項はない。
 - 新しいエフェクト、プリセット、View Type、音質表現の追加は現在の課題に含めない。明確な要望が出た場合に改めて検討する。
 - 内部プロジェクト名は `Aul2AudioFilter`。
 - AviUtl2 上の表示名は「サウンドエフェクター」。
@@ -36,20 +36,9 @@
 - 共通Wave／Spectrum解析は、ControllerのMuffle／Whisper／Output、表示中のAul2AudioMonitor、または直近1秒以内に処理されたAul2Audio Viewのいずれかが要求した場合だけ行う。要求元がない場合、Filterは表示用サンプル採取、FFT、共有メモリ書込みを行わない。
 - Aul2AudioMonitorの表示要求は、AviUtl2へ登録したClientWindowではなく、実際に描画するMonitorFormの可視状態で判定する。ClientWindowは再生開始時にAviUtl2側で表示状態が切り替わる場合があり、両方のVisibleを必須にすると表示中でも解析要求が解除されるため使用しない。
 
-## 緊急修正事項
-
-### Aul2AudioMonitorの再生開始直後に表示がばたつく
-
-- 緊急度は高。編集状態から再生へ切り替えた直後、Wave／Spectrum／Peak表示が短時間に古い値、新しい値、減衰値の間を行き来してばたつく現象が残っている。
-- 編集中にInput／Outputが時間とともに減衰する問題は、同じ共有世代を50msごとに繰り返し平滑化しない修正で解消した。Filter書込み値とMonitor読取り値が非0かつ一致していることもDebugログで確認済み。
-- 再生同期は、Monitor表示中だけ `Local\Aul2AudioViewFrameV3` の `MonitorRequested` を有効にし、Aul2Audio ViewがType固有処理ではなく共通描画入口から現在フレームを通知する。Monitorはそのフレームに近いFilter履歴リングを選ぶ方針とする。
-- 再生切替時には表示キャッシュと再生用スナップショットを消去し、再生開始時刻より古い編集時履歴を同期候補から除外する修正を試したが、ばたつきは解消していない。
-- 次回は `aesPlay` 検出、Monitor要求有効化、View初回フレーム通知、Filter初回履歴書込み、Monitor初回履歴採用の順序と時刻をDebugログへ出し、再生開始直後にどの世代・フレームを採用しているかを追う。同期可能な最初の履歴が揃うまでは空表示を維持し、編集時履歴や未同期の最新値へフォールバックしない。
-- 完了条件は、再生開始位置やView Typeに関係なく、再生直後からViewと同じフレームの値へ一度だけ切り替わり、その後は同期値を連続表示し、音声が途切れた場合だけ自然に減衰すること。
-
 ## 検証状況
 
-- 主要機能の実装と基本検証は完了済み。ただしAul2AudioMonitorの再生開始直後の同期ばたつきは必須修正として残っている。
+- 主要機能の実装と基本検証は完了済み。Aul2AudioMonitorは再生開始直後からViewの通知フレームへ同期し、音声素材の終端後はInput／Outputとも自然に減衰することを実機確認済み。
 - プラグインテストは正常。
 - `GetSampleData` で音声サンプルを受け取り、加工して `SetSampleData` で戻す基本経路は正常。
 - Delay / Ping-Pong / Chorus / Reverb / EQ / Compressor / Limiter / Distortion / Noise / BitCrusher などの基本動作は検証済み。
@@ -245,7 +234,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - `Spectrum` 右側には Peak Meter と Stereo Balance を表示する。
 - 共有メモリは基本状態/時間波形用の `Local\Aul2AudioMonitorStateV9` とスペクトラム用の `Local\Aul2AudioMonitorSpectrumV7` に分ける。構造サイズ変更時は旧マップとの衝突を避けるため名前にも版を付ける。
 - 生の音声サンプル全体は共有メモリに載せない。Wave、Spectrum、Meter、Stereo は表示用に軽量集計した値だけを使う。
-- 再生中のMonitorはViewが共通処理から通知する現在フレームを基準に共有メモリ履歴リングを選ぶ。通常再生中の追従は機能するが、再生開始直後の履歴切替には未解決のばたつきがある。
+- 再生中のMonitorはViewが共通処理から通知する現在フレームを基準に共有メモリ履歴リングを選ぶ。再生開始直後の履歴切替、連続追従、音声素材終端後のInput／Output減衰を実機確認済み。
 - Monitor内のView／Preset実装は将来の復活に備えて保持するが、`ENABLE_MONITOR_EDIT_PAGES = False` としてボタン、ページ、編集パネルを生成しない。
 
 ## Aul2AudioController 現状
@@ -389,7 +378,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 
 ## Aul2AudioView / Monitor 再生同期の現状
 
-- 通常再生中はViewの現在フレームを基準にMonitorの履歴を選択できるが、編集から再生へ切り替えた直後の同期確立が安定していない。緊急修正事項として最優先で追跡する。
+- Viewが通知した実描画フレームを基準にMonitorの履歴を選択し、固定フレーム遅延は加えない。再生開始直後は同期履歴が得られるまで未同期の最新値を表示せず、同期後の一時的な履歴欠落は直前値を保持する。Viewフレームが音声素材の終端を越えた後は最終値を保持せず、Input／Outputを自然に減衰させる。実機確認済みで完成扱いとする。
 - 共有メモリは基本状態/時間波形用 version 9、スペクトラム用 version 7。各レイヤー 128 件の履歴リングを持つ。
 - `Vectorscope` 専用共有メモリはversion 2。64レイヤーの最新値と全レイヤー共通256件の履歴リングへ、処理後OutputのL/R代表点64組を保持する。
 - Filter 側は `AudioMonitorCaptureOutput` で最新スロットと履歴リングの両方へ書き込む。
