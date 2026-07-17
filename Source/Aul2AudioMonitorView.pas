@@ -39,6 +39,7 @@ uses
   Aul2AudioViewFrameShared,
   Aul2AudioBasePanel,
   Aul2AudioPresetPanel,
+  Aul2AudioDataTriggerDebug,
   AviUtl2PluginCore,
   ToolBarPanelManager;
 
@@ -107,6 +108,11 @@ var
   PlaybackSpectrumSnapshot: TAul2AudioMonitorSpectrumState;
   PlaybackMonitorSnapshotValid: Boolean;
   PlaybackSpectrumSnapshotValid: Boolean;
+{$IFDEF DEBUG}
+  MonitorDataRequestKnown: Boolean;
+  LastMonitorDataRequested: Boolean;
+  LastMonitorSharedLogTick: UInt64;
+{$ENDIF}
 
 procedure InvalidateMonitorView; forward;
 
@@ -114,6 +120,44 @@ procedure ClearPlaybackHistory;
 begin
   PlaybackMonitorSnapshotValid := False;
   PlaybackSpectrumSnapshotValid := False;
+end;
+
+procedure UpdateMonitorDataRequest;
+var
+  ClientVisible: Boolean;
+  FormHandle: HWND;
+  FormVisible: Boolean;
+  FormWindowVisible: Boolean;
+  Requested: Boolean;
+begin
+  // RegisterWindowClient用のClientWindowは再生開始時にAviUtl2側で
+  // 表示状態が切り替わることがある。実際の描画Formが見えているかだけで判定する。
+  ClientVisible := (ClientWindow <> 0) and IsWindowVisible(ClientWindow);
+  if Assigned(MonitorForm) then
+    FormHandle := MonitorForm.Handle
+  else
+    FormHandle := 0;
+  FormVisible := Assigned(MonitorForm) and MonitorForm.Visible;
+  FormWindowVisible := (FormHandle <> 0) and IsWindowVisible(FormHandle);
+  Requested := FormVisible and FormWindowVisible;
+  if Requested then
+    AudioConsumerSetMonitorWindow(MonitorForm.Handle)
+  else
+    AudioConsumerSetMonitorWindow(0);
+{$IFDEF DEBUG}
+  if not MonitorDataRequestKnown or
+     (LastMonitorDataRequested <> Requested) then
+  begin
+    MonitorDataRequestKnown := True;
+    LastMonitorDataRequested := Requested;
+    DataTriggerDebugLog('Monitor', Format(
+      'request=%s client=%d clientVisible=%s form=%d formVisible=%s formWindowVisible=%s',
+      [BoolToStr(Requested, True), UInt64(ClientWindow),
+       BoolToStr(ClientVisible, True),
+       UInt64(FormHandle),
+       BoolToStr(FormVisible, True), BoolToStr(FormWindowVisible, True)]));
+  end;
+{$ENDIF}
 end;
 
 procedure PositionStateLabel;
@@ -242,6 +286,12 @@ begin
     MonitorFrame := -1;
     MonitorFrameValid := False;
   end;
+
+  // 再生中のGetEditInfo.Frameは再生ヘッドではなく編集カーソルのまま
+  // 固定される。Viewから新鮮なフレーム通知がない場合は同期対象を
+  // 無効にし、Select*SnapshotでFilterの最新共有値を表示する。
+  if MonitorEditStateValid and (MonitorEditState = aesPlay) then
+    Exit;
 
   try
     MonitorFrameValid := AviUtl2GetEditFrame(MonitorFrame);
@@ -558,6 +608,42 @@ begin
   Result := SpectrumMemory;
 end;
 
+{$IFDEF DEBUG}
+procedure DebugLogMonitorSharedState;
+const
+  LOG_INTERVAL_MS = 500;
+var
+  SpectrumState: PAul2AudioMonitorSpectrumState;
+  State: PAul2AudioMonitorState;
+  Tick: UInt64;
+begin
+  Tick := GetTickCount64;
+  if (LastMonitorSharedLogTick <> 0) and
+     (Tick - LastMonitorSharedLogTick < LOG_INTERVAL_MS) then
+    Exit;
+  LastMonitorSharedLogTick := Tick;
+  State := GetMonitorSharedMemory.State;
+  SpectrumState := GetSpectrumSharedMemory.State;
+  if State = nil then
+    DataTriggerDebugLog('Monitor', Format(
+      'read edit=%d frame=%d monitor=nil spectrum=%s',
+      [Ord(MonitorEditState), MonitorFrame,
+       BoolToStr(SpectrumState <> nil, True)]))
+  else if SpectrumState = nil then
+    DataTriggerDebugLog('Monitor', Format(
+      'read edit=%d frame=%d monitor gen=%d tick=%d layer=%d sourceFrame=%d stage=%d spectrum=nil',
+      [Ord(MonitorEditState), MonitorFrame, State^.Generation,
+       State^.UpdateTick, State^.SourceLayer, State^.SourceFrame, State^.Stage]))
+  else
+    DataTriggerDebugLog('Monitor', Format(
+      'read edit=%d frame=%d monitor gen=%d tick=%d layer=%d sourceFrame=%d stage=%d spectrum gen=%d tick=%d layer=%d sourceFrame=%d',
+      [Ord(MonitorEditState), MonitorFrame, State^.Generation,
+       State^.UpdateTick, State^.SourceLayer, State^.SourceFrame, State^.Stage,
+       SpectrumState^.Generation, SpectrumState^.UpdateTick,
+       SpectrumState^.SourceLayer, SpectrumState^.SourceFrame]));
+end;
+{$ENDIF}
+
 constructor TFormAudioMonitor.Create(AOwner: TComponent);
 begin
   inherited CreateNew(AOwner);
@@ -691,12 +777,16 @@ end;
 
 procedure TMonitorTimerTarget.ReadTimerTick(Sender: TObject);
 begin
+  UpdateMonitorDataRequest;
   // 50msごとに再生状態と基準フレームを一度更新し、表示中のページだけを再描画する。
   RefreshEditState;
   SyncMonitorViewBounds;
   if IsEncodingDisplay then
     Exit;
   RefreshMonitorFrame;
+{$IFDEF DEBUG}
+  DebugLogMonitorSharedState;
+{$ENDIF}
   InvalidateMonitorView;
 end;
 
@@ -792,7 +882,6 @@ begin
   Application.Title := MONITOR_WINDOW_NAME;
 
   MonitorForm := TFormAudioMonitor.Create(nil);
-  AudioConsumerSetMonitorWindow(MonitorForm.Handle);
   MonitorForm.ParentWindow := ClientWindow;
   MonitorForm.ParentFont := False;
   MonitorForm.Font.Name := 'Yu Gothic UI';
@@ -1011,6 +1100,7 @@ begin
     MonitorForm.Show;
     MonitorForm.SetFocus;
   end;
+  UpdateMonitorDataRequest;
 end;
 
 procedure DestroyMonitorView;

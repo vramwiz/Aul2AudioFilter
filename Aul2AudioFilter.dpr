@@ -38,6 +38,7 @@ uses
   Aul2AudioRingModSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioRingModSpectrumShared.pas',
   Aul2AudioNoiseWaveShared in 'Source\Lib\AudioMonitor\Aul2AudioNoiseWaveShared.pas',
   Aul2AudioVoiceDriveXYShared in 'Source\Lib\AudioMonitor\Aul2AudioVoiceDriveXYShared.pas',
+  Aul2AudioTrembleRmsShared in 'Source\Lib\AudioMonitor\Aul2AudioTrembleRmsShared.pas',
   Aul2AudioControllerRequest in 'Source\Lib\AudioMonitor\Aul2AudioControllerRequest.pas',
   Aul2AudioViewVectorShared in 'Source\Lib\AudioMonitor\Aul2AudioViewVectorShared.pas',
   Aul2AudioFilterMonitorBridge in 'Source\Aul2AudioFilterMonitorBridge.pas',

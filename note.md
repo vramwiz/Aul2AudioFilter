@@ -30,6 +30,11 @@
 - エフェクトの GUI 並びは、プリセットを除き、実際に音声へ処理される順番へ揃える。利用者が上から順に音が変わると理解できる状態を保つ。
 - 最終段の `Output: Gain(dB)` で出力音量を調整し、その後段の Limiter でピークを保護する。
 - `AutoGain` は独立した任意エフェクトとして扱い、必要な場合だけ有効にする。
+- Controller用の実音声グラフ解析は常時実行しない。Controllerが選択Objectの非表示Data `Controller Request V1` へ `GraphKind + GUID` を書き、同じGUIDを持つ共有要求が有効な場合だけFilter側で対象解析を行う。別Object・別エフェクターへ移ると新GUIDへ切り替え、Controller終了時は要求を無効化する。
+- `Controller Request V1` の新規書込みはAviUtl2が編集状態のときだけ行う。再生中・出力中に新しいObject／GraphKindが必要になった場合は要求を無効化して保留し、停止後に選択Objectを読み直して自動発行する。既にObject側Dataと現在要求が一致している場合は書込みなしで既存要求を継続する。
+- 再生中・出力中はData書込みだけでなく、Controllerの `CallEditSectionParam` を使うAlias取得、選択Object取得、レイヤー取得も行わない。表示開始時に選択レイヤーをキャッシュし、Trembleなどの表示更新タイマーは共有メモリだけを読む。Controller再取得要求は停止後まで保留する。
+- 共通Wave／Spectrum解析は、ControllerのMuffle／Whisper／Output、表示中のAul2AudioMonitor、または直近1秒以内に処理されたAul2Audio Viewのいずれかが要求した場合だけ行う。要求元がない場合、Filterは表示用サンプル採取、FFT、共有メモリ書込みを行わない。
+- Aul2AudioMonitorの表示要求は、AviUtl2へ登録したClientWindowではなく、実際に描画するMonitorFormの可視状態で判定する。ClientWindowは再生開始時にAviUtl2側で表示状態が切り替わる場合があり、両方のVisibleを必須にすると表示中でも解析要求が解除されるため使用しない。
 
 ## 検証状況
 
@@ -116,6 +121,7 @@
 - `Source\Lib\PresetSupport\Serialization\Section`: ユーザープリセットINIの二重セクション管理に使う。
 - `Source\Lib\SharedMemory`: Syncroh2 から UTF-8 でコピーした共有メモリ基礎ライブラリ。
 - `Source\Lib\AudioMonitor`: Filter、Monitor、Viewで共有する表示用構造体。Vectorscope専用の小型共有履歴もここへ置く。
+- `Source\Lib\AudioMonitor\Aul2AudioControllerRequest.pas`: ControllerのData要求、GraphKind、GUID、Controller／Monitor／Viewの有効要求を共有する小型制御マップを担当する。
 - `Source\Legacy`: 現在のビルドでは使わない旧コピーの退避場所。
 - `Sample`: 正弦波、矩形波、インパルスなどの検証用 WAV を置く。
 - `Win64`: Delphi の Debug / Release 中間出力。
@@ -214,7 +220,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - 表示は `Wave` / `Spectrum` のツールバー構成。初期表示は `Spectrum`。View配置とPreset管理はControllerへ移行済み。
 - `Wave` は 256 点程度の時間波形表示。`Spectrum` は 64 バンドの周波数表示で、入力はグリーン、出力はアンバー。
 - `Spectrum` 右側には Peak Meter と Stereo Balance を表示する。
-- 共有メモリは基本状態/時間波形用の `Local\Aul2AudioMonitorState` とスペクトラム用の `Local\Aul2AudioMonitorSpectrum` に分ける。
+- 共有メモリは基本状態/時間波形用の `Local\Aul2AudioMonitorStateV9` とスペクトラム用の `Local\Aul2AudioMonitorSpectrumV7` に分ける。構造サイズ変更時は旧マップとの衝突を避けるため名前にも版を付ける。
 - 生の音声サンプル全体は共有メモリに載せない。Wave、Spectrum、Meter、Stereo は表示用に軽量集計した値だけを使う。
 - 再生中の Monitor は共有メモリ履歴リングから現在フレームに最も近い解析値を選び、十分に同期が取れている。詳細な同期調査履歴は `HISTORY.md` を参照する。
 - Monitor内のView／Preset実装は将来の復活に備えて保持するが、`ENABLE_MONITOR_EDIT_PAGES = False` としてボタン、ページ、編集パネルを生成しない。
@@ -259,6 +265,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - 2026-07-17、次に `Whisper/Breath` へReferenceスペクトルとBreath予測特性を追加した。緑のReferenceはMonitor共有スペクトルのInputを参考表示し、青のBreathはDSPと同じくToneから約900～5100Hzの境界を求めた高域通過傾向へLevelとMixを表示強度として反映する。ON／OFFで形状とデータ元を切り替えず、青の明度だけを変える。当初はWhisper直前／直後の専用128帯域解析と差分塗りを実装したが、OFF時には局所前後を取得できずMonitor全体の前後へ意味が切り替わるため、Input／Output表示が混乱を招いた。最終版ではOutput線と前後表記を廃止し、Reference＋設定予測Breathへ統一したため、Whisper専用共有メモリとFilter側DFTも撤去した。Release Win64ビルドとAviUtl2上のReference、Breath、Level／Tone／Mix追従、ON時の明表示を確認済みで完成扱いとする。
 - 2026-07-17、第二弾の `Noise` へ処理直前／直後の短い波形と差分波形を追加した。Filter側はPitch／RingModと同じく、Noise処理直前にL/R音声を取得し、DSP処理後に再取得して256点へ縮約する。レイヤー別最新値を専用共有メモリ `Local\Aul2AudioNoiseWave` でControllerへ渡す。上段はInput／Outputを共通オートスケールで重ね、下段は`Output - Input`を独立オートスケールで描く。波形と重なる凡例・スケール値には黒背景を付けた。Filter／ControllerのRelease Win64ビルドは警告0、エラー0で、AviUtl2上のWhite Noise、前後波形、差分波形、文字の視認性を確認済みとし完成扱いとする。
 - 2026-07-17、次に `VoiceDrive` へ設定伝達カーブ、Bodyの700Hzローパス状態による伝達範囲、実音声Input／Output XY点列を追加した。Filter側は処理直前／直後の対応サンプルをL/R別に最大256点取得し、専用共有メモリ `Local\Aul2AudioVoiceDriveXY` でControllerへ渡す。Controllerは無加工基準線、Body範囲、中央設定カーブ、実音声XY点を同じ入出力座標へ重ねる。Drive 18dB、Body 0.65、Level -4dB、Mix 0.85で強いS字飽和、Body範囲、実音声点列をAviUtl2上で確認済み。Filter／ControllerのRelease Win64コンパイルは警告0、エラー0で、完成扱いとする。
+- 2026-07-17、次に `Tremble` へ処理直前／直後のRMS時間履歴を追加した。Filter側はControllerのTremble画面に対応する `GraphKind + GUID` 要求が有効な処理回だけ、全チャンネル・全サンプルの前後RMSを計算し、レイヤー別192件リング `Local\Aul2AudioTrembleRmsV1` へ追記する。Controllerは-60～0dB軸へInputを緑、Outputをテーマ色で描き、100msごとに表示中の履歴だけを更新する。Controllerウィンドウが非表示なら要求自体を無効と判定するため、RMS計算、共有メモリ生成・書込み、Controller側ポーリングを行わない。Filter／ControllerのRelease Win64ビルドは警告0、エラー0で成功し、実機表示確認待ち。
 - エフェクトOFF時は形状を保持したまま暗くし、設定内容を確認できるようにする。
 
 ### Controller エフェクト表示 追加課題（第二弾）
@@ -274,6 +281,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 | 完了 | BitCrusher | 量子化階段カーブ |
 | 完了 | Noise | Noise直前／直後波形＋差分波形 |
 | 完了 | VoiceDrive | 非線形伝達カーブ＋Body範囲＋実音声XY点列 |
+| 実装済み・確認待ち | Tremble | Input／Output RMS時間履歴 |
 | 完了 | NoiseGate | ゲート入出力特性 |
 | 完了 | Muffle | 周波数特性＋Input／Outputスペクトル |
 | 完了 | Pitch | 高解像度Input／Outputスペクトル |
@@ -286,12 +294,11 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 
 | 優先 | エフェクター | 実装する主表示 | 優先理由 |
 | ---: | --- | --- | --- |
-| 1 | Tremble | Input／Output RMS時間履歴 | 時間履歴グラフの最初の実装として比較的単純。 |
-| 2 | AutoGain | Target、Input／Output RMS、補正ゲイン履歴 | Trembleで作った時間履歴部品を再利用でき、実音声表示の価値が高い。 |
-| 3 | Wobble | 遅延時間の変動履歴 | 時間履歴部品を再利用できるが、前後音声からの遅延推定が必要。 |
-| 4 | Reverb | Wet残響量と減衰履歴 | 入力停止後の残響エネルギーを時間履歴として表示する。 |
-| 5 | Ghost | 残響の膨らみと減衰履歴 | Reverbの残響履歴部品を再利用できる。 |
-| 6 | Chorus | L/R遅延変動、ステレオ相関または簡易Vectorscope | L/R別データと位相・相関表示が必要で、最も専用実装が多い。 |
+| 1 | AutoGain | Target、Input／Output RMS、補正ゲイン履歴 | Trembleで作った時間履歴部品を再利用でき、実音声表示の価値が高い。 |
+| 2 | Wobble | 遅延時間の変動履歴 | 時間履歴部品を再利用できるが、前後音声からの遅延推定が必要。 |
+| 3 | Reverb | Wet残響量と減衰履歴 | 入力停止後の残響エネルギーを時間履歴として表示する。 |
+| 4 | Ghost | 残響の膨らみと減衰履歴 | Reverbの残響履歴部品を再利用できる。 |
+| 5 | Chorus | L/R遅延変動、ステレオ相関または簡易Vectorscope | L/R別データと位相・相関表示が必要で、最も専用実装が多い。 |
 
 #### 完了済みグラフへの実音声背景・動的表示
 

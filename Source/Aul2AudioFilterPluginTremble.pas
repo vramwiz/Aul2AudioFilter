@@ -15,12 +15,79 @@ procedure SetTrembleGuiParams(UseTremble: Boolean; RateHz, Depth, Mix: Double);
 
 implementation
 
+uses
+  Winapi.Windows,
+  System.SysUtils,
+  Aul2AudioMonitorShared,
+  Aul2AudioTrembleRmsShared,
+  Aul2AudioControllerRequest;
+
 var
   GTrembleGroup     : TFILTER_ITEM_GROUP;
   GTrembleUseCheck  : TFILTER_ITEM_CHECK;
   GTrembleRateTrack : TFILTER_ITEM_TRACK;
   GTrembleDepthTrack: TFILTER_ITEM_TRACK;
   GTrembleMixTrack  : TFILTER_ITEM_TRACK;
+  GTrembleRmsMemory : TAul2AudioTrembleRmsSharedMemory;
+
+function GetTrembleRmsMemory: TAul2AudioTrembleRmsSharedMemory;
+begin
+  if GTrembleRmsMemory = nil then
+    GTrembleRmsMemory := TAul2AudioTrembleRmsSharedMemory.Create;
+  Result := GTrembleRmsMemory;
+end;
+
+procedure PublishTrembleRms(Audio: PFILTER_PROC_AUDIO; InputRms,
+  OutputRms: Single);
+var
+  Layer: Integer;
+  Memory: TAul2AudioTrembleRmsSharedMemory;
+  RequestId: TGUID;
+  State: PAul2AudioTrembleRmsState;
+  WriteIndex: Integer;
+begin
+  if (Audio = nil) or (Audio^.Scene = nil) or (Audio^.Object_ = nil) then
+    Exit;
+  Layer := Audio^.Object_^.Layer;
+  if (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+  Memory := GetTrembleRmsMemory;
+  State := Memory.GetStateForLayer(Layer);
+  if State = nil then
+    Exit;
+  RequestId := ControllerCurrentRequestId;
+  if not ControllerRequestIdsEqual(State^.RequestId, RequestId) or
+     (State^.LastSampleIndex > Audio^.Object_^.SampleIndex) or
+     ((State^.SampleRate > 0) and (State^.LastSampleIndex > 0) and
+      (Audio^.Object_^.SampleIndex - State^.LastSampleIndex >
+       Int64(State^.SampleRate) * 2)) then
+  begin
+    State^.HistoryCount := 0;
+    State^.WriteIndex := 0;
+    FillChar(State^.SampleIndices, SizeOf(State^.SampleIndices), 0);
+    FillChar(State^.InputRms, SizeOf(State^.InputRms), 0);
+    FillChar(State^.OutputRms, SizeOf(State^.OutputRms), 0);
+  end;
+  State^.Magic := AUDIO_TREMBLE_RMS_SHARED_MAGIC;
+  State^.Version := AUDIO_TREMBLE_RMS_SHARED_VERSION;
+  State^.RequestId := RequestId;
+  State^.SourceLayer := Layer;
+  State^.SourceFrame := Audio^.Object_^.Frame;
+  State^.SampleRate := Audio^.Scene^.SampleRate;
+  WriteIndex := EnsureRange(State^.WriteIndex, 0,
+    AUDIO_TREMBLE_RMS_HISTORY_LAST);
+  State^.SampleIndices[WriteIndex] := Audio^.Object_^.SampleIndex;
+  State^.InputRms[WriteIndex] := InputRms;
+  State^.OutputRms[WriteIndex] := OutputRms;
+  State^.LastSampleIndex := Audio^.Object_^.SampleIndex;
+  State^.WriteIndex := (WriteIndex + 1) mod AUDIO_TREMBLE_RMS_HISTORY_COUNT;
+  State^.HistoryCount := Min(State^.HistoryCount + 1,
+    AUDIO_TREMBLE_RMS_HISTORY_COUNT);
+  State^.UpdateTick := GetTickCount64;
+  Inc(State^.Generation);
+  Memory.Root^.LastLayer := Layer;
+  Inc(Memory.Root^.Generation);
+end;
 
 function ClampSingle(Value, MinValue, MaxValue: Single): Single;
 begin
@@ -81,6 +148,11 @@ var
   Depth: Single;
   Mix: Single;
   BaseIndex: Int64;
+  CaptureRequested: Boolean;
+  InputSum: Double;
+  OutputSum: Double;
+  Sample: Integer;
+  Denominator: Double;
 begin
   Result := GTrembleUseCheck.Value <> 0;
   if not Result then
@@ -90,14 +162,35 @@ begin
   Depth := GTrembleDepthTrack.Value;
   Mix := GTrembleMixTrack.Value;
   BaseIndex := Audio^.Object_^.SampleIndex;
+  CaptureRequested := ControllerGraphRequested(AUDIO_CONTROLLER_GRAPH_TREMBLE);
+  InputSum := 0;
+  OutputSum := 0;
   SetLength(Buffer, SampleNum);
 
   for Channel := 0 to ChannelNum - 1 do
   begin
     Audio^.GetSampleData(@Buffer[0], Channel);
+    if CaptureRequested then
+      for Sample := 0 to SampleNum - 1 do
+        InputSum := InputSum + Double(Buffer[Sample]) * Buffer[Sample];
     ApplyTremble(Buffer, SampleNum, Audio^.Scene^.SampleRate, BaseIndex, RateHz, Depth, Mix);
+    if CaptureRequested then
+      for Sample := 0 to SampleNum - 1 do
+        OutputSum := OutputSum + Double(Buffer[Sample]) * Buffer[Sample];
     Audio^.SetSampleData(@Buffer[0], Channel);
   end;
+  if CaptureRequested and (SampleNum > 0) and (ChannelNum > 0) then
+  begin
+    Denominator := Double(SampleNum) * ChannelNum;
+    PublishTrembleRms(Audio, Sqrt(InputSum / Denominator),
+      Sqrt(OutputSum / Denominator));
+  end;
 end;
+
+initialization
+  GTrembleRmsMemory := nil;
+
+finalization
+  FreeAndNil(GTrembleRmsMemory);
 
 end.

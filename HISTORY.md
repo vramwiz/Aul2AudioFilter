@@ -987,3 +987,36 @@
 - 青の`Breath`は実測差分ではなく、DSPの`Breath = Noise - LowNoise`に対応する1次高域通過傾向を予測表示する。ToneからDSPと同じ約900～5100Hzの境界を求め、LevelとMixを小型グラフで読める表示強度へ反映する。ON／OFFで形状やデータ元は変えず、青の明度だけを切り替えるため、ノブ変更時も一貫した意味を保つ。
 - 最終仕様では専用の前後解析が不要になったため、Whisper用共有メモリ、Filter側DFT、Controller側専用状態読込を撤去し、既存の `Local\Aul2AudioMonitorSpectrum` だけを再利用する軽量構成へ戻した。
 - Filter／ControllerのRelease Win64ビルドは警告0、エラー0で成功し、`.auf2`／`.aux2`へ反映した。ユーザー実機確認により、ReferenceとBreathの区別、Level／Tone／Mixへの追従、ON時の明るい青表示が見やすいことを確認し、`Whisper/Breath`表示を完成扱いとした。
+
+## 2026-07-17 Controller表示解析の要求駆動化
+
+- Controllerグラフ追加に伴うFilter側負荷を抑えるため、SDKの非表示 `FILTER_ITEM_DATA<T>` を使う要求駆動方式へ変更した。`Controller Request V1` はversion、GraphKind、GUIDを持ち、Controllerが選択Objectへ新しい値を書いたときに `FilterProcAudio` を発火させる。
+- 最初に1 byte Dataを `00` から `01` へ変更する実験を行い、`SetObjectItemValue=True` と同時刻に新しい値で `FilterProcAudio` が発火することをDebugログで確認した。
+- 本実装では `Local\Aul2AudioControllerRequestV2` の小型共有制御マップへ、現在有効なGUID、GraphKind、Controllerウィンドウ、Monitor表示、Aul2Audio Viewの直近処理時刻を保持する。Object側Dataと共有制御側のGUID／GraphKindが一致し、Controllerウィンドウが有効な場合だけController専用解析を許可する。
+- Noise波形、Voice Drive XY、Pitch 128帯域Spectrum、RingMod 128帯域Spectrumを対象GraphKindの要求時だけ採取・解析・共有するよう変更した。要求がなければエフェクト本体のDSPだけを行う。
+- 共通Wave／Spectrum／Meterは、ControllerのMuffle／Whisper／Output、実際に表示中のAul2AudioMonitor、直近1秒以内に処理されたAul2Audio Viewのいずれかが要求した場合だけ生成する。Monitorフォームは登録時に作られるため、単なる `IsWindow` ではなく親クライアントを含む実表示状態を50msタイマーで通知するようにした。
+- DebugログでMonitor表示中に `common monitor capture enabled=True`、非表示後に `False` へ遷移することを確認した。非表示中のDelay操作ではControllerのGraphKind 1要求が発生したが、Delay自体は共通解析を要求しない。Aul2Audio Viewが同時に再評価された場合だけView要求として一時的に共通解析が有効になる。
+- 共有状態へ応答GUIDを追加し、Controllerは現在要求したGUIDと一致するNoise／Voice Drive／Pitch／RingMod／Monitor状態だけを表示する。構造変更に伴い共有versionを更新し、旧サイズの同名マップとの衝突を避けるため、Monitor状態を `Local\Aul2AudioMonitorStateV9`、Spectrumを `Local\Aul2AudioMonitorSpectrumV7`、各専用マップもV2名へ変更した。
+- 初回実機確認では旧名Monitor共有マップと新構造のサイズが衝突し、`TSharedMemoryBase.Create` で実行時エラーになった。マップ名へ構造versionを付ける修正後は正常起動し、Controller／Filter間でGraphKind 4とGUIDが一致する要求処理を確認した。
+- Filter、Controller、Monitor、Aul2Audio ViewのDebug／Release Win64ビルドは警告0、エラー0で成功し、対応する `.auf2`／`.aux2` へ反映した。
+
+## 2026-07-17 Aul2AudioController Tremble RMS history implementation note
+
+- 未実装グラフの優先順位1だった `Tremble` に、処理直前／直後のRMS時間履歴を追加した。
+- `Source\Lib\AudioMonitor\Aul2AudioTrembleRmsShared.pas` を追加し、レイヤーごとに192件のSampleIndex、Input RMS、Output RMSをリング保持する `Local\Aul2AudioTrembleRmsV1` をFilterとControllerで共有する。新しいController要求GUIDへ切り替わった場合や再生位置が戻った場合は履歴を初期化する。
+- Filter側の `ProcessTremble` は `ControllerGraphRequested(AUDIO_CONTROLLER_GRAPH_TREMBLE)` が真の場合だけ、既存DSPループ内で前後の二乗和を集計してRMSを求める。要求がない通常処理では追加ループ、共有メモリ生成、共有書込みを行わない。
+- `Source\Aul2AudioControllerTrembleGraph.pas` を追加し、-60～0dBの共通軸へInputを緑、OutputをTrembleテーマ色で表示する。SampleIndexを横軸位置へ使い、現在表示している時間幅も併記する。
+- Trembleグラフ表示中だけControllerの既存100msタイマーから共有リングを読み直す。Controllerフォームが非表示の場合はポーリングしない。さらにFilter側要求検証へ `IsWindowVisible` を加え、フォームが存在していても非表示ならController専用解析を許可しないようにした。
+- Filter／ControllerのRelease Win64ビルドは警告0、エラー0で成功し、`Aul2AudioFilter.auf2`／`Aul2AudioController.aux2` へ反映した。AviUtl2上の時間履歴表示と非表示時負荷は実機確認待ち。
+
+## 2026-07-17 再生中のController要求Data書込み防止
+
+- Controllerが新しいグラフ要求を発行するとき、選択Objectの非表示 `Controller Request V1` DataへGUIDとGraphKindを書いてFilter再評価を発火させていた。この `SetObjectItemValue` が再生中にも実行され、AviUtl2の再生を停止させる問題が判明した。
+- `IssueControllerRequest` は、Object側Dataが現在の要求と一致していて書込み不要な場合だけ既存要求を継続する。新しいGUIDが必要な場合は `AviUtl2GetEditState` を確認し、再生中または出力中なら共有要求を無効化して書込みを保留する。
+- 保留中はControllerへ `analysis waits for playback/output stop` と表示する。既存100msタイマーが編集状態への復帰を検出すると、現在の選択Objectを再取得してから要求Dataを自動発行する。Controllerフォームが非表示の場合は再発行しない。
+- `Aul2AudioController.dproj` のRelease Win64ビルドは警告0、エラー0で成功し、`Aul2AudioController.aux2` へ反映した。再生中にControllerへ入った場合も再生が継続し、停止後に要求が発行されることは実機確認待ち。
+- その後、Trembleを表示した状態から再生すると依然停止することを確認した。原因はData書込みではなく、Trembleの100ms表示更新が毎回 `CaptureSelectedObjectLayer` を呼び、再生中にも `CallEditSectionParam` 経由で編集SDKへ入っていたことだった。
+- 選択レイヤーは編集状態でControllerを同期した時点にキャッシュし、Trembleの再生中更新は専用共有メモリだけを読むよう変更した。さらに `RefreshEffectState` 自体を再生・出力中は実行せず、Alias、選択Object、レイヤーの全編集SDK取得を停止後まで保留する。表示済みの同一GraphKind要求は共有制御側で維持するため、Filterからの解析値受信は継続できる。
+- 修正後のController Release Win64ビルドは警告0、エラー0で成功し、更新した `Aul2AudioController.aux2` へ反映した。実機での再生継続確認待ち。
+- 再生停止問題の解消後、再生中のAul2AudioMonitorが空になる問題が判明した。Monitorの50ms表示要求更新が、実表示Formに加えてAviUtl2登録用ClientWindowの `IsWindowVisible` も必須としており、再生開始時にClientWindow側の状態が切り替わると `MonitorWindow=0` を書いて共通解析を止めていた。
+- 表示要求判定を、実際にWave／Spectrumを描画するMonitorFormの `Visible` と `IsWindowVisible` だけへ変更した。非表示時は従来どおり要求を0へ戻す。MonitorのRelease Win64ビルドは警告0、エラー0で成功し、更新した `Aul2AudioMonitor.aux2` へ反映した。実機確認待ち。

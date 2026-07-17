@@ -22,7 +22,8 @@ uses
   Aul2AudioMonitorShared,
   Aul2AudioMonitorSpectrumShared,
   Aul2AudioViewVectorShared,
-  Aul2AudioControllerRequest;
+  Aul2AudioControllerRequest,
+  Aul2AudioDataTriggerDebug;
 
 type
   TAudioMonitorInputSnapshot = record
@@ -45,6 +46,12 @@ var
   SpectrumSinTable: TArray<Single>;
   SpectrumTableSampleRate: Integer;
   SpectrumTableSize: Integer;
+{$IFDEF DEBUG}
+  LastCommonMonitorRequested: Boolean;
+  CommonMonitorRequestKnown: Boolean;
+  LastCaptureOutputLogTick: UInt64;
+  LastCaptureExceptionLogTick: UInt64;
+{$ENDIF}
 
 procedure PushMonitorHistory(Root: PAul2AudioMonitorLayeredState; Layer: Integer;
   const State: TAul2AudioMonitorState);
@@ -197,6 +204,16 @@ end;
 function CommonMonitorRequested: Boolean;
 begin
   Result := CommonAudioDataRequested;
+{$IFDEF DEBUG}
+  if not CommonMonitorRequestKnown or
+     (LastCommonMonitorRequested <> Result) then
+  begin
+    CommonMonitorRequestKnown := True;
+    LastCommonMonitorRequested := Result;
+    DataTriggerDebugLog('Filter', 'common monitor capture enabled=' +
+      BoolToStr(Result, True));
+  end;
+{$ENDIF}
 end;
 
 procedure AudioMonitorSetStage(Stage: Integer; Audio: PFILTER_PROC_AUDIO);
@@ -581,6 +598,10 @@ var
   VectorRoot: PAul2AudioViewVectorRoot;
   Layer: Integer;
   InputSnapshot: TAudioMonitorInputSnapshot;
+{$IFDEF DEBUG}
+  DebugTick: UInt64;
+  DebugSpectrumGeneration: Int64;
+{$ENDIF}
 begin
   if not CommonMonitorRequested then
     Exit;
@@ -689,7 +710,31 @@ begin
       PushViewVectorHistory(VectorRoot, VectorState^);
       Inc(VectorRoot^.Generation);
     end;
+{$IFDEF DEBUG}
+    DebugTick := GetTickCount64;
+    if (LastCaptureOutputLogTick = 0) or
+       (DebugTick - LastCaptureOutputLogTick >= 500) then
+    begin
+      LastCaptureOutputLogTick := DebugTick;
+      DebugSpectrumGeneration := -1;
+      if SpectrumState <> nil then
+        DebugSpectrumGeneration := SpectrumState^.Generation;
+      DataTriggerDebugLog('Filter', Format(
+        'capture output layer=%d frame=%d sampleIndex=%d monitorGen=%d spectrumGen=%d',
+        [Layer, Audio^.Object_^.Frame, Audio^.Object_^.SampleIndex,
+         State^.Generation, DebugSpectrumGeneration]));
+    end;
+{$ENDIF}
   except
+{$IFDEF DEBUG}
+    DebugTick := GetTickCount64;
+    if (LastCaptureExceptionLogTick = 0) or
+       (DebugTick - LastCaptureExceptionLogTick >= 500) then
+    begin
+      LastCaptureExceptionLogTick := DebugTick;
+      DataTriggerDebugLog('Filter', 'capture output exception');
+    end;
+{$ENDIF}
     // モニター連携は補助機能なので、音声処理へ例外を漏らさない。
   end;
 end;

@@ -199,7 +199,8 @@ begin
      (RequestState^.GraphKind <> Data^.GraphKind) or
      not ControllerRequestIdsEqual(RequestState^.RequestId, Data^.RequestId) or
      (RequestState^.ControllerWindow = 0) or
-     not IsWindow(HWND(RequestState^.ControllerWindow)) then
+     not IsWindow(HWND(RequestState^.ControllerWindow)) or
+     not IsWindowVisible(HWND(RequestState^.ControllerWindow)) then
     Exit;
 
   ActiveRequest := Data^;

@@ -46,6 +46,7 @@ uses
   Aul2AudioControllerMuffleGraph,
   Aul2AudioControllerNoiseGraph,
   Aul2AudioControllerVoiceDriveGraph,
+  Aul2AudioControllerTrembleGraph,
   Aul2AudioControllerNoiseGateGraph,
   Aul2AudioControllerOutputGraph,
   Aul2AudioControllerPitchGraph,
@@ -61,8 +62,10 @@ uses
   Aul2AudioRingModSpectrumShared,
   Aul2AudioNoiseWaveShared,
   Aul2AudioVoiceDriveXYShared,
+  Aul2AudioTrembleRmsShared,
   Aul2AudioControllerRequest,
-  Aul2AudioDataTriggerDebug;
+  Aul2AudioDataTriggerDebug,
+  AviUtl2PluginCore;
 
 const
   CONTROLLER_PRESET_ITEM_INDEX = CONTROLLER_EFFECT_COUNT;
@@ -127,6 +130,7 @@ var
   BitCrusherGraph: TAul2ControllerBitCrusherGraph;
   NoiseGraph      : TAul2ControllerNoiseGraph;
   VoiceDriveGraph : TAul2ControllerVoiceDriveGraph;
+  TrembleGraph    : TAul2ControllerTrembleGraph;
   NoiseGateGraph  : TAul2ControllerNoiseGateGraph;
   LimiterGraph    : TAul2ControllerLimiterGraph;
   OutputGraph     : TAul2ControllerOutputGraph;
@@ -140,10 +144,13 @@ var
   RingSpectrumMemory: TAul2AudioRingSpectrumSharedMemory;
   NoiseWaveMemory: TAul2AudioNoiseWaveSharedMemory;
   VoiceDriveXYMemory: TAul2AudioVoiceDriveXYSharedMemory;
+  TrembleRmsMemory: TAul2AudioTrembleRmsSharedMemory;
   ControllerRequestMemory: TAul2AudioControllerRequestSharedMemory;
   ActiveControllerRequestId: TGUID;
   ActiveControllerGraphKind: Cardinal;
   ActiveControllerRequestText: string;
+  ActiveControllerSourceLayer: Integer;
+  PendingControllerRequest: Boolean;
   VolumeControls : array[0..CONTROLLER_MAX_VOLUME_COUNT - 1] of TAul2VolumeControl;
   MouseTimer     : TTimer;
   EventTarget    : TControllerEventTarget;
@@ -160,6 +167,8 @@ begin
   ActiveControllerRequestId := Default(TGUID);
   ActiveControllerGraphKind := AUDIO_CONTROLLER_REQUEST_GRAPH_NONE;
   ActiveControllerRequestText := '';
+  ActiveControllerSourceLayer := AUDIO_MONITOR_LAYER_AUTO;
+  PendingControllerRequest := False;
 end;
 
 function IssueControllerRequest: Boolean;
@@ -181,7 +190,23 @@ begin
     Exit;
   end;
 
-  // 同じObject・同じグラフの再読込ではDataを書き直さず、現在の要求を継続する。
+  // 再生・出力中は既存Dataの読取りにもCallEditSectionParamが必要になるため、
+  // GraphKindが同じなら現在の共有要求をそのまま維持する。
+  if AviUtl2GetEditState <> aesEdit then
+  begin
+    if (ActiveControllerGraphKind = Data.GraphKind) and
+       (ActiveControllerRequestText <> '') then
+      Exit(True);
+    DeactivateControllerRequest;
+    PendingControllerRequest := True;
+{$IFDEF DEBUG}
+    DataTriggerDebugLog('Controller', Format(
+      'request deferred while playing/saving: graph=%d', [Data.GraphKind]));
+{$ENDIF}
+    Exit(False);
+  end;
+
+  // 編集中の同じObject・同じグラフの再読込ではDataを書き直さず、要求を継続する。
   if (ActiveControllerGraphKind = Data.GraphKind) and
      (ActiveControllerRequestText <> '') and
      GetSelectedEffectItem(AUDIO_CONTROLLER_REQUEST_ITEM_NAME, CurrentText) and
@@ -197,6 +222,7 @@ begin
     ControllerRequestDataToHex(Data));
   if Result then
   begin
+    PendingControllerRequest := False;
     ActiveControllerRequestId := Data.RequestId;
     ActiveControllerGraphKind := Data.GraphKind;
     ActiveControllerRequestText := ControllerRequestDataToHex(Data);
@@ -342,6 +368,8 @@ begin
     NoiseGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(VoiceDriveGraph) then
     VoiceDriveGraph.AccentColor := Definition.IndicatorColor;
+  if Assigned(TrembleGraph) then
+    TrembleGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(NoiseGateGraph) then
     NoiseGateGraph.AccentColor := Definition.IndicatorColor;
   if Assigned(LimiterGraph) then
@@ -631,6 +659,72 @@ begin
   end;
   VoiceDriveGraph.SetSamples(State^.InputSamples, State^.OutputSamples,
     State^.SampleCount);
+end;
+
+function TrembleRmsStateUsable(State: PAul2AudioTrembleRmsState;
+  Layer: Integer): Boolean;
+begin
+  Result := (State <> nil) and
+    (State^.Magic = AUDIO_TREMBLE_RMS_SHARED_MAGIC) and
+    (State^.Version = AUDIO_TREMBLE_RMS_SHARED_VERSION) and
+    ControllerRequestIdsEqual(State^.RequestId, ActiveControllerRequestId) and
+    (State^.SourceLayer = Layer) and (State^.HistoryCount > 0) and
+    (State^.UpdateTick > 0);
+end;
+
+procedure UpdateTrembleGraph;
+var
+  Count: Integer;
+  Index: Integer;
+  Layer: Integer;
+  ReadIndex: Integer;
+  State: PAul2AudioTrembleRmsState;
+  InputRms: TAudioTrembleRmsData;
+  OutputRms: TAudioTrembleRmsData;
+  SampleIndices: TAudioTrembleSampleIndexData;
+begin
+  if not Assigned(TrembleGraph) or not Assigned(EffectCombo) or
+     (EffectCombo.ItemIndex <> 7) then
+    Exit;
+  if not Assigned(UseLamp) or not UseLamp.Checked or
+     not Assigned(TrembleRmsMemory) or
+     (ActiveControllerSourceLayer < 0) or
+     (ActiveControllerSourceLayer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+  begin
+    TrembleGraph.ClearHistory;
+    Exit;
+  end;
+  Layer := ActiveControllerSourceLayer;
+  State := TrembleRmsMemory.GetStateForLayer(Layer);
+  if not TrembleRmsStateUsable(State, Layer) then
+  begin
+    State := TrembleRmsMemory.State;
+    if State <> nil then
+      Layer := State^.SourceLayer;
+  end;
+  if not TrembleRmsStateUsable(State, Layer) then
+  begin
+    TrembleGraph.ClearHistory;
+    Exit;
+  end;
+
+  Count := EnsureRange(State^.HistoryCount, 0,
+    AUDIO_TREMBLE_RMS_HISTORY_COUNT);
+  FillChar(SampleIndices, SizeOf(SampleIndices), 0);
+  FillChar(InputRms, SizeOf(InputRms), 0);
+  FillChar(OutputRms, SizeOf(OutputRms), 0);
+  ReadIndex := (EnsureRange(State^.WriteIndex, 0,
+    AUDIO_TREMBLE_RMS_HISTORY_LAST) - Count +
+    AUDIO_TREMBLE_RMS_HISTORY_COUNT) mod AUDIO_TREMBLE_RMS_HISTORY_COUNT;
+  for Index := 0 to Count - 1 do
+  begin
+    SampleIndices[Index] := State^.SampleIndices[ReadIndex];
+    InputRms[Index] := State^.InputRms[ReadIndex];
+    OutputRms[Index] := State^.OutputRms[ReadIndex];
+    ReadIndex := (ReadIndex + 1) mod AUDIO_TREMBLE_RMS_HISTORY_COUNT;
+  end;
+  TrembleGraph.SetHistory(SampleIndices, InputRms, OutputRms, Count,
+    State^.SampleRate, UseLamp.Checked);
 end;
 
 procedure UpdateLimiterGraph(ChangedIndex: Integer = -1;
@@ -1028,6 +1122,7 @@ begin
   UpdateBitCrusherGraph(ChangedIndex, ChangedValueText);
   UpdateNoiseGraph(ChangedIndex, ChangedValueText);
   UpdateVoiceDriveGraph(ChangedIndex, ChangedValueText);
+  UpdateTrembleGraph;
   UpdateNoiseGateGraph(ChangedIndex, ChangedValueText);
   UpdateLimiterGraph(ChangedIndex, ChangedValueText);
   UpdatePitchGraph(ChangedIndex, ChangedValueText);
@@ -1075,6 +1170,7 @@ begin
   BitCrusherGraph.Visible := False;
   NoiseGraph.Visible := False;
   VoiceDriveGraph.Visible := False;
+  TrembleGraph.Visible := False;
   NoiseGateGraph.Visible := False;
   LimiterGraph.Visible := False;
   OutputGraph.Visible := False;
@@ -1145,7 +1241,7 @@ begin
   GraphWidth := Min(Scale(300), ContentWidth);
   GraphHeight := Scale(150);
   GraphLeft := LeftMargin + (ContentWidth - GraphWidth) div 2;
-  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 14, 18, 19]) and
+  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 14, 18, 19]) and
      (GraphWidth >= Scale(180)) and
      (GraphTop + GraphHeight + Scale(6) <= RootPanel.ClientHeight) then
   begin
@@ -1183,6 +1279,11 @@ begin
     begin
       NoiseGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
       NoiseGraph.Visible := True;
+    end
+    else if EffectCombo.ItemIndex = 7 then
+    begin
+      TrembleGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
+      TrembleGraph.Visible := True;
     end
     else if EffectCombo.ItemIndex = 14 then
     begin
@@ -1245,6 +1346,7 @@ begin
   BitCrusherGraph.Visible := False;
   NoiseGraph.Visible := False;
   VoiceDriveGraph.Visible := False;
+  TrembleGraph.Visible := False;
   NoiseGateGraph.Visible := False;
   LimiterGraph.Visible := False;
   OutputGraph.Visible := False;
@@ -1305,6 +1407,7 @@ begin
   BitCrusherGraph.Invalidate;
   NoiseGraph.Invalidate;
   VoiceDriveGraph.Invalidate;
+  TrembleGraph.Invalidate;
   NoiseGateGraph.Invalidate;
   LimiterGraph.Invalidate;
   OutputGraph.Invalidate;
@@ -1339,6 +1442,7 @@ begin
       BitCrusherGraph.Visible := False;
       NoiseGraph.Visible := False;
       VoiceDriveGraph.Visible := False;
+      TrembleGraph.Visible := False;
       NoiseGateGraph.Visible := False;
       LimiterGraph.Visible := False;
       OutputGraph.Visible := False;
@@ -1372,6 +1476,7 @@ begin
       BitCrusherGraph.Visible := False;
       NoiseGraph.Visible := False;
       VoiceDriveGraph.Visible := False;
+      TrembleGraph.Visible := False;
       NoiseGateGraph.Visible := False;
       LimiterGraph.Visible := False;
       OutputGraph.Visible := False;
@@ -1456,6 +1561,7 @@ end;
 procedure RefreshEffectState;
 var
   ControlIndex: Integer;
+  CurrentGraphKind: Cardinal;
   Definition: TControllerEffectDefinition;
   ReadResult: TControllerEffectReadResult;
   State     : TControllerEffectState;
@@ -1463,6 +1569,18 @@ var
 begin
   if Refreshing or not Assigned(ControllerForm) then
     Exit;
+  // 再生・出力中はCallEditSectionParamを含む編集SDKへ一切触れない。
+  // 表示済みの同一要求は維持し、選択変更時だけ共有要求を止める。
+  if AviUtl2GetEditState <> aesEdit then
+  begin
+    CurrentGraphKind := ControllerGraphKindFromEffectIndex(EffectCombo.ItemIndex);
+    if CurrentGraphKind <> ActiveControllerGraphKind then
+      DeactivateControllerRequest;
+    PendingControllerRequest := True;
+    StatusLabel.Caption := 'Playback active - Controller refresh deferred';
+    StatusLabel.Font.Color := RGB(214, 174, 78);
+    Exit;
+  end;
   if IsBasePanelSelected then
   begin
     DeactivateControllerRequest;
@@ -1509,11 +1627,22 @@ begin
       end;
       LastUse := State.Use;
       LastSelectIndex := State.SelectIndex;
+      if not CaptureSelectedObjectLayer(ActiveControllerSourceLayer) then
+        ActiveControllerSourceLayer := AUDIO_MONITOR_LAYER_AUTO;
       IssueControllerRequest;
       UpdateEffectGraph;
       LayoutControllerView;
-      StatusLabel.Caption := Definition.DisplayName + ' loaded';
-      StatusLabel.Font.Color := RGB(112, 232, 142);
+      if PendingControllerRequest then
+      begin
+        StatusLabel.Caption := Definition.DisplayName +
+          ' loaded - analysis waits for playback/output stop';
+        StatusLabel.Font.Color := RGB(214, 174, 78);
+      end
+      else
+      begin
+        StatusLabel.Caption := Definition.DisplayName + ' loaded';
+        StatusLabel.Font.Color := RGB(112, 232, 142);
+      end;
     end
     else
     begin
@@ -1667,6 +1796,17 @@ begin
   // WM_SETCURSORの多重発火を抑えるため、外へ出たことだけを軽量に監視する。
   if MouseInside and not IsCursorInsideController then
     MouseInside := False;
+  if PendingControllerRequest and Assigned(ControllerForm) and
+     IsWindowVisible(ControllerForm.Handle) and
+     (AviUtl2GetEditState = aesEdit) then
+  begin
+    // 再生停止後に選択Objectを読み直し、その時点の対象へ安全に要求を書く。
+    PendingControllerRequest := False;
+    RefreshEffectState;
+  end;
+  if Assigned(ControllerForm) and IsWindowVisible(ControllerForm.Handle) and
+     Assigned(TrembleGraph) and TrembleGraph.Visible then
+    UpdateTrembleGraph;
 end;
 
 procedure CreateLabel(var LabelControl: TLabel; const Caption: string);
@@ -1859,6 +1999,12 @@ begin
   VoiceDriveGraph.Visible := False;
   RegisterMouseEnter(VoiceDriveGraph);
 
+  TrembleGraph := TAul2ControllerTrembleGraph.Create(ControllerForm);
+  TrembleGraph.Font.Assign(ControllerForm.Font);
+  TrembleGraph.Parent := RootPanel;
+  TrembleGraph.Visible := False;
+  RegisterMouseEnter(TrembleGraph);
+
   NoiseGateGraph := TAul2ControllerNoiseGateGraph.Create(ControllerForm);
   NoiseGateGraph.Font.Assign(ControllerForm.Font);
   NoiseGateGraph.Parent := RootPanel;
@@ -1907,6 +2053,7 @@ begin
   RingSpectrumMemory := TAul2AudioRingSpectrumSharedMemory.Create;
   NoiseWaveMemory := TAul2AudioNoiseWaveSharedMemory.Create;
   VoiceDriveXYMemory := TAul2AudioVoiceDriveXYSharedMemory.Create;
+  TrembleRmsMemory := TAul2AudioTrembleRmsSharedMemory.Create;
   ControllerRequestMemory := TAul2AudioControllerRequestSharedMemory.Create;
 
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
@@ -1923,6 +2070,8 @@ begin
   MouseInside := False;
   Refreshing := False;
   ControllerSynchronized := False;
+  ActiveControllerSourceLayer := AUDIO_MONITOR_LAYER_AUTO;
+  PendingControllerRequest := False;
 
   MouseTimer := TTimer.Create(ControllerForm);
   MouseTimer.Interval := 100;
@@ -2008,6 +2157,7 @@ begin
   FreeAndNil(RingSpectrumMemory);
   FreeAndNil(NoiseWaveMemory);
   FreeAndNil(VoiceDriveXYMemory);
+  FreeAndNil(TrembleRmsMemory);
   FreeAndNil(PitchSpectrumMemory);
   FreeAndNil(SpectrumMemory);
   FreeAndNil(MonitorMemory);
@@ -2033,6 +2183,7 @@ begin
   BitCrusherGraph := nil;
   NoiseGraph := nil;
   VoiceDriveGraph := nil;
+  TrembleGraph := nil;
   NoiseGateGraph := nil;
   LimiterGraph := nil;
   OutputGraph := nil;
@@ -2049,10 +2200,13 @@ begin
   RingSpectrumMemory := nil;
   NoiseWaveMemory := nil;
   VoiceDriveXYMemory := nil;
+  TrembleRmsMemory := nil;
   ControllerRequestMemory := nil;
   ActiveControllerRequestId := Default(TGUID);
   ActiveControllerGraphKind := AUDIO_CONTROLLER_REQUEST_GRAPH_NONE;
   ActiveControllerRequestText := '';
+  ActiveControllerSourceLayer := AUDIO_MONITOR_LAYER_AUTO;
+  PendingControllerRequest := False;
   EventTarget := nil;
   MouseInside := False;
   Refreshing := False;
