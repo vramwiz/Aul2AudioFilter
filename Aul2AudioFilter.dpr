@@ -33,6 +33,7 @@ uses
   SharedMemoryBase in 'Source\Lib\SharedMemory\SharedMemoryBase.pas',
   Aul2AudioMonitorShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorShared.pas',
   Aul2AudioMonitorSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioMonitorSpectrumShared.pas',
+  Aul2AudioPitchSpectrumShared in 'Source\Lib\AudioMonitor\Aul2AudioPitchSpectrumShared.pas',
   Aul2AudioViewVectorShared in 'Source\Lib\AudioMonitor\Aul2AudioViewVectorShared.pas',
   Aul2AudioFilterMonitorBridge in 'Source\Aul2AudioFilterMonitorBridge.pas',
   Aul2AudioFilterPlugin in 'Source\Aul2AudioFilterPlugin.pas';

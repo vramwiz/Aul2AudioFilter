@@ -71,6 +71,8 @@
 - `Source\Aul2AudioControllerLimiterGraph.pas`: Controller最下部に置くLimiter入出力特性表示。Ceilingまでの無加工線、超過部分のピーク制限、Mix、抑制領域、Release情報の描画を担当する。
 - `Source\Aul2AudioControllerOutputGraph.pas`: ControllerのOutput表示。Monitor共有データからInput／Output L/R Peakと短いRMS履歴をスナップショット描画する。
 - `Source\Aul2AudioControllerMuffleGraph.pas`: ControllerのMuffle表示。DSP準拠の設定特性カーブとMonitor共有データのInput／Outputスペクトルを同じ対数周波数軸へ重ねる。
+- `Source\Aul2AudioControllerPitchGraph.pas`: ControllerのPitch表示。Pitch処理前後の128帯域スペクトルを対数周波数軸へ重ね、Modeと主要設定値を表示する。
+- `Source\Lib\AudioMonitor\Aul2AudioPitchSpectrumShared.pas`: Pitch専用の処理前後128帯域スペクトルをレイヤー別最新値としてFilterとController間で共有する。
 - `Source\Aul2AudioBasePanel.pas`: Controllerの `波形表示オブジェクトの配置` UI。解像度設定、レイヤーリスト、選択レイヤー生成ボタン、D&Dエイリアス生成を担当する。Monitor用の横配置も復活可能な形で残す。
 - `Source\Aul2AudioPresetPanel.pas`: Controllerの `エフェクトプリセットの管理` UI。選択Objectのプリセット登録、一覧の名前編集、グループ制御（音声）のD&D生成を担当する。Monitor用の横配置も復活可能な形で残す。
 - `Source\Aul2AudioPresetModel.pas`: ユーザープリセットとエイリアス要素のRTTIモデル、二重セクションINIの保存と読み込みを担当する。
@@ -224,7 +226,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 
 ### Controller エフェクト表示
 
-- Controllerのエフェクター操作画面には、現在の設定によるエフェクトの掛かり具合を視覚的に把握する補助表示を置く。現在は `Delay`、`EQ`、`Compressor`、`Distortion`、`BitCrusher`、`NoiseGate`、`Muffle`、`Output`、`Limiter` を実装済み。
+- Controllerのエフェクター操作画面には、現在の設定によるエフェクトの掛かり具合を視覚的に把握する補助表示を置く。現在は `Delay`、`EQ`、`Compressor`、`Distortion`、`BitCrusher`、`NoiseGate`、`Muffle`、`Pitch`、`Output`、`Limiter` を実装済み。
 - 約300pxの小型表示を前提とし、各エフェクターにつき最も効果を把握しやすい表示を1つに絞る。
 - 設定値から形状を生成できる表示を基本とし、必ずしも実際の音声データを取得しなくても有用なものにする。リアルタイム値が必要な表示は別途共有方法と負荷を検討する。
 - グラフはController操作の補助表示と位置付け、エフェクター選択、Use、Mode、パラメーターノブの後、一番下へ置く。表示領域の高さが不足する場合は操作部を優先し、グラフを非表示にする。Preset管理と波形表示オブジェクト配置の画面には表示しない。
@@ -249,6 +251,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - 2026-07-17、次に `Limiter` のピーク制限カーブを追加した。横軸と縦軸を-60～+12dBとし、Ceilingまでは無加工線、超過部分はDSPと同じくWetをCeilingへ制限し、DryとのMixを線形振幅で合成した定常出力を表示する。無加工線との差を抑制領域として塗り、Ceiling位置、Mix、Releaseを表示する。Releaseはピーク後のゲイン回復時間なので定常カーブを変えない。初回実機表示で抑制領域が背景へ沈んで見えたため、塗りをアクセント色の20%から38%へ明るくした。Release Win64ビルドとAviUtl2上の実表示を確認済み。カーブ、Ceiling、Mix、Release、抑制領域を含めLimiterグラフを完成扱いとする。
 - 2026-07-17、第二弾の最初として `Output` にInput／Output L/R Peakメーターと直近48件のRMS履歴を追加した。Monitorの共有メモリを読み、選択Objectのレイヤーにデータがないグループ制御（音声）では最後に更新された有効音声レイヤーへフォールバックする。InputはMonitorと同じ緑、Outputは同じアンバーで固定し、起動直後に履歴が1件だけでも現在RMSを水平線で表示する。再生中の連続更新は行わず、Controllerの再取得時だけ更新する。Release Win64ビルドとAviUtl2上のメーター、RMS履歴、色、初期表示を確認済みで完成扱いとする。
 - 2026-07-17、第二弾の次として `Muffle` にDSP準拠の2段ローパス設定特性カーブとInput／Outputスペクトルを追加した。20Hz～20kHzの対数周波数軸へ、Monitorと同じ緑／アンバーの共有スペクトルを細線で背景表示し、Cutoff、Amount、Mixを反映した太い設定カーブとCutoff位置を前面へ置く。Outputと同じ選択レイヤー／有効音声レイヤーのフォールバックを使い、Controller再取得時のスナップショットだけを表示する。Release Win64ビルドとAviUtl2上の設定追従、前後スペクトル、配色、重ね合わせを確認済みで完成扱いとする。
+- 2026-07-17、次に `Pitch` へ処理直前／直後の128帯域高解像度スペクトルを追加した。20Hz～20kHzの対数周波数軸へInputをMonitorと同じ緑、Outputを同じアンバーで重ね、Mode、Pitch量、Mixなど主要設定も表示する。Pitch ON時は専用共有メモリの128帯域解析を使い、OFF時または専用解析前はMonitorの64帯域スペクトルを128帯域へ線形補間して初期表示する。再生中の連続更新は行わず、選択・設定再取得時のスナップショットだけを更新する。Release Win64ビルドとAviUtl2上で、+7.9 semitone時にOutputがInputより高周波側へ移動すること、Monitorより細かな形状、初期表示を確認済みで完成扱いとする。
 - エフェクトOFF時は形状を保持したまま暗くし、設定内容を確認できるようにする。
 
 ### Controller エフェクト表示 追加課題（第二弾）
@@ -264,6 +267,7 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 | 完了 | BitCrusher | 量子化階段カーブ |
 | 完了 | NoiseGate | ゲート入出力特性 |
 | 完了 | Muffle | 周波数特性＋Input／Outputスペクトル |
+| 完了 | Pitch | 高解像度Input／Outputスペクトル |
 | 完了 | Output | Input／Output L/Rメーターと短いRMS履歴 |
 | 完了 | Limiter | ピーク制限カーブ |
 
@@ -271,17 +275,16 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 
 | 優先 | エフェクター | 実装する主表示 | 優先理由 |
 | ---: | --- | --- | --- |
-| 1 | Pitch | 高解像度の前後スペクトル | ピッチ移動を横方向で確認できる。Pitch専用の解析解像度が必要。 |
-| 2 | RingMod | 前後スペクトルと側波帯表示 | Muffle／Pitchで作ったスペクトル部品を再利用できる。 |
-| 3 | Whisper/Breath | 前後または差分スペクトル | 追加された息成分の帯域をスペクトル部品で表示できる。 |
-| 4 | Noise | Noise直前・直後の差分波形 | 差分波形取得と自動スケール表示の共通部品になる。 |
-| 5 | VoiceDrive | 非線形伝達カーブ＋XY点列 | Distortionの描画方式を参考にでき、差分や倍音表示へ発展できる。 |
-| 6 | Tremble | Input／Output RMS時間履歴 | 時間履歴グラフの最初の実装として比較的単純。 |
-| 7 | AutoGain | Target、Input／Output RMS、補正ゲイン履歴 | Trembleで作った時間履歴部品を再利用でき、実音声表示の価値が高い。 |
-| 8 | Wobble | 遅延時間の変動履歴 | 時間履歴部品を再利用できるが、前後音声からの遅延推定が必要。 |
-| 9 | Reverb | Wet残響量と減衰履歴 | 入力停止後の残響エネルギーを時間履歴として表示する。 |
-| 10 | Ghost | 残響の膨らみと減衰履歴 | Reverbの残響履歴部品を再利用できる。 |
-| 11 | Chorus | L/R遅延変動、ステレオ相関または簡易Vectorscope | L/R別データと位相・相関表示が必要で、最も専用実装が多い。 |
+| 1 | RingMod | 前後スペクトルと側波帯表示 | Muffle／Pitchで作ったスペクトル部品を再利用できる。 |
+| 2 | Whisper/Breath | 前後または差分スペクトル | 追加された息成分の帯域をスペクトル部品で表示できる。 |
+| 3 | Noise | Noise直前・直後の差分波形 | 差分波形取得と自動スケール表示の共通部品になる。 |
+| 4 | VoiceDrive | 非線形伝達カーブ＋XY点列 | Distortionの描画方式を参考にでき、差分や倍音表示へ発展できる。 |
+| 5 | Tremble | Input／Output RMS時間履歴 | 時間履歴グラフの最初の実装として比較的単純。 |
+| 6 | AutoGain | Target、Input／Output RMS、補正ゲイン履歴 | Trembleで作った時間履歴部品を再利用でき、実音声表示の価値が高い。 |
+| 7 | Wobble | 遅延時間の変動履歴 | 時間履歴部品を再利用できるが、前後音声からの遅延推定が必要。 |
+| 8 | Reverb | Wet残響量と減衰履歴 | 入力停止後の残響エネルギーを時間履歴として表示する。 |
+| 9 | Ghost | 残響の膨らみと減衰履歴 | Reverbの残響履歴部品を再利用できる。 |
+| 10 | Chorus | L/R遅延変動、ステレオ相関または簡易Vectorscope | L/R別データと位相・相関表示が必要で、最も専用実装が多い。 |
 
 #### 完了済みグラフへの実音声背景・動的表示
 

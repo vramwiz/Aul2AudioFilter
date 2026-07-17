@@ -16,6 +16,12 @@ procedure SetPitchGuiParams(UsePitch: Boolean; Mode: Integer; Semitone, WindowMs
 
 implementation
 
+uses
+  Winapi.Windows,
+  System.SysUtils,
+  Aul2AudioMonitorShared,
+  Aul2AudioPitchSpectrumShared;
+
 const
   PITCH_MODE_NATURAL      = 0;
   PITCH_MODE_PITCH_ONLY   = 1;
@@ -69,6 +75,146 @@ var
   GPitchStepObjectID   : Int64;
   GPitchStepEffectID   : Int64;
   GPitchStepNextIndex  : Int64;
+
+  GPitchSpectrumMemory: TAul2AudioPitchSpectrumSharedMemory;
+  GPitchSpectrumCosTable: TArray<Double>;
+  GPitchSpectrumSinTable: TArray<Double>;
+  GPitchSpectrumSampleRate: Integer;
+  GPitchSpectrumTableSize: Integer;
+
+function GetPitchSpectrumMemory: TAul2AudioPitchSpectrumSharedMemory;
+begin
+  if GPitchSpectrumMemory = nil then
+    GPitchSpectrumMemory := TAul2AudioPitchSpectrumSharedMemory.Create;
+  Result := GPitchSpectrumMemory;
+end;
+
+procedure EnsurePitchSpectrumTable(SampleRate, TableSize: Integer);
+var
+  Angle: Double;
+  Band: Integer;
+  Frequency: Double;
+  FrequencyMax: Double;
+  Offset: Integer;
+  Sample: Integer;
+begin
+  if (SampleRate = GPitchSpectrumSampleRate) and
+     (TableSize = GPitchSpectrumTableSize) and
+     (Length(GPitchSpectrumCosTable) =
+      AUDIO_PITCH_SPECTRUM_BAND_COUNT * TableSize) then
+    Exit;
+  GPitchSpectrumSampleRate := SampleRate;
+  GPitchSpectrumTableSize := TableSize;
+  SetLength(GPitchSpectrumCosTable,
+    AUDIO_PITCH_SPECTRUM_BAND_COUNT * TableSize);
+  SetLength(GPitchSpectrumSinTable,
+    AUDIO_PITCH_SPECTRUM_BAND_COUNT * TableSize);
+  FrequencyMax := Min(20000.0, SampleRate * 0.5);
+  for Band := 0 to AUDIO_PITCH_SPECTRUM_BAND_LAST do
+  begin
+    Frequency := 20.0 * Power(FrequencyMax / 20.0,
+      (Band + 0.5) / AUDIO_PITCH_SPECTRUM_BAND_COUNT);
+    for Sample := 0 to TableSize - 1 do
+    begin
+      Offset := Band * TableSize + Sample;
+      Angle := 2.0 * Pi * Frequency * Sample / SampleRate;
+      GPitchSpectrumCosTable[Offset] := Cos(Angle);
+      GPitchSpectrumSinTable[Offset] := Sin(Angle);
+    end;
+  end;
+end;
+
+procedure CapturePitchSpectrum(Audio: PFILTER_PROC_AUDIO; SampleNum,
+  ChannelNum: Integer; var Spectrum: TAudioPitchSpectrumData);
+const
+  PITCH_SPECTRUM_SAMPLE_COUNT = 2048;
+  PITCH_SPECTRUM_DB_FLOOR = -80.0;
+var
+  Band: Integer;
+  Db: Double;
+  Im: Double;
+  LeftBuffer: TArray<Single>;
+  Magnitude: Double;
+  Mixed: Double;
+  Offset: Integer;
+  Re: Double;
+  RightBuffer: TArray<Single>;
+  Sample: Integer;
+  WindowValue: Double;
+  WorkSize: Integer;
+begin
+  FillChar(Spectrum, SizeOf(Spectrum), 0);
+  if (Audio = nil) or (Audio^.Scene = nil) or (SampleNum <= 0) then
+    Exit;
+  WorkSize := Min(PITCH_SPECTRUM_SAMPLE_COUNT, SampleNum);
+  if WorkSize <= 0 then
+    Exit;
+  SetLength(LeftBuffer, SampleNum);
+  Audio^.GetSampleData(@LeftBuffer[0], 0);
+  if ChannelNum > 1 then
+  begin
+    SetLength(RightBuffer, SampleNum);
+    Audio^.GetSampleData(@RightBuffer[0], 1);
+  end;
+  EnsurePitchSpectrumTable(Audio^.Scene^.SampleRate, WorkSize);
+  for Band := 0 to AUDIO_PITCH_SPECTRUM_BAND_LAST do
+  begin
+    Re := 0;
+    Im := 0;
+    for Sample := 0 to WorkSize - 1 do
+    begin
+      Mixed := LeftBuffer[Sample];
+      if Length(RightBuffer) > Sample then
+        Mixed := (Mixed + RightBuffer[Sample]) * 0.5;
+      if WorkSize > 1 then
+        WindowValue := 0.5 -
+          (0.5 * Cos(2.0 * Pi * Sample / (WorkSize - 1)))
+      else
+        WindowValue := 1.0;
+      Offset := Band * WorkSize + Sample;
+      Re := Re + Mixed * WindowValue * GPitchSpectrumCosTable[Offset];
+      Im := Im - Mixed * WindowValue * GPitchSpectrumSinTable[Offset];
+    end;
+    Magnitude := Sqrt(Sqr(Re) + Sqr(Im)) / Max(1.0, WorkSize * 0.5);
+    Db := 20.0 * Log10(Max(0.000001, Magnitude));
+    Spectrum[Band] := EnsureRange(
+      (Db - PITCH_SPECTRUM_DB_FLOOR) / -PITCH_SPECTRUM_DB_FLOOR, 0.0, 1.0);
+  end;
+end;
+
+procedure PublishPitchSpectrum(Audio: PFILTER_PROC_AUDIO;
+  const InputBands, OutputBands: TAudioPitchSpectrumData);
+var
+  Layer: Integer;
+  Memory: TAul2AudioPitchSpectrumSharedMemory;
+  State: PAul2AudioPitchSpectrumState;
+begin
+  if (Audio = nil) or (Audio^.Scene = nil) or (Audio^.Object_ = nil) then
+    Exit;
+  Layer := Audio^.Object_^.Layer;
+  if (Layer < 0) or (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+    Exit;
+  Memory := GetPitchSpectrumMemory;
+  State := Memory.GetStateForLayer(Layer);
+  if State = nil then
+    Exit;
+  State^.Magic := AUDIO_PITCH_SPECTRUM_SHARED_MAGIC;
+  State^.Version := AUDIO_PITCH_SPECTRUM_SHARED_VERSION;
+  State^.UpdateTick := GetTickCount64;
+  State^.SourceLayer := Layer;
+  State^.SourceFrame := Audio^.Object_^.Frame;
+  State^.SourceFrameS := Audio^.Object_^.FrameS;
+  State^.SourceFrameE := Audio^.Object_^.FrameE;
+  State^.SampleRate := Audio^.Scene^.SampleRate;
+  State^.BandCount := AUDIO_PITCH_SPECTRUM_BAND_COUNT;
+  State^.MinHz := 20;
+  State^.MaxHz := Min(20000, Audio^.Scene^.SampleRate * 0.5);
+  State^.InputBands := InputBands;
+  State^.OutputBands := OutputBands;
+  Inc(State^.Generation);
+  Memory.Root^.LastLayer := Layer;
+  Inc(Memory.Root^.Generation);
+end;
 
 procedure ClearPitchShiftState;
 begin
@@ -560,8 +706,10 @@ end;
 
 function ProcessPitch(Audio: PFILTER_PROC_AUDIO; SampleNum, ChannelNum: Integer): Boolean;
 var
+  InputSpectrum: TAudioPitchSpectrumData;
   Mode: Integer;
   Mix: Single;
+  OutputSpectrum: TAudioPitchSpectrumData;
 begin
   Result := GPitchUseCheck.Value <> 0;
   if not Result then
@@ -572,6 +720,7 @@ begin
 
   Mode := GPitchModeSelect.Value;
   Mix := GPitchMixTrack.Value;
+  CapturePitchSpectrum(Audio, SampleNum, ChannelNum, InputSpectrum);
 
   case Mode of
     PITCH_MODE_NATURAL:
@@ -601,6 +750,14 @@ begin
   else
     ClearPitchState;
   end;
+  CapturePitchSpectrum(Audio, SampleNum, ChannelNum, OutputSpectrum);
+  PublishPitchSpectrum(Audio, InputSpectrum, OutputSpectrum);
 end;
+
+initialization
+  GPitchSpectrumMemory := nil;
+
+finalization
+  FreeAndNil(GPitchSpectrumMemory);
 
 end.

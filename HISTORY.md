@@ -938,3 +938,13 @@
 - Controllerは再生中にスペクトルを連続更新せず、エフェクター選択や選択Object再取得など既存Controllerの更新時に共有値をスナップショットする方針を維持した。
 - `Aul2AudioController.dpr` / `.dproj` に `Aul2AudioMonitorSpectrumShared` とMuffleグラフユニットを追加した。Release Win64ビルドは警告0、エラー0で成功し、`Aul2AudioController.aux2` へ反映した。
 - ユーザー実機確認により、MuffleのCutoff／Amount／Mix設定、Input／Outputスペクトル、Cutoff位置、配色、同一周波数軸上の重ね合わせが正常に表示されることを確認し、`Muffle` 表示を完成扱いとした。
+
+## 2026-07-17 Aul2AudioController Pitch spectrum completion note
+
+- Controllerエフェクト表示の第二弾として、優先順位1へ繰り上がった `Pitch` に処理前後の高解像度スペクトル表示を追加した。
+- `Source\Aul2AudioControllerPitchGraph.pas` を追加し、最大幅300px、高さ150pxの既存グラフ領域へ、20Hz～20kHzの対数周波数軸、Input／Outputスペクトル、Mode、Pitch量、Mixなどの主要設定を描画する構成にした。InputはMonitorと同じ `RGB(92,190,122)`、Outputは `RGB(224,176,72)` を使う。
+- `Source\Lib\AudioMonitor\Aul2AudioPitchSpectrumShared.pas` を追加し、Filter側のPitch処理直前／直後を128帯域で解析したレイヤー別最新値を `Local\Aul2AudioPitchSpectrum` で共有する。最大2048サンプル、Hann窓、20Hz～Nyquist以下20kHzの対数配置DFTを使い、Pitchが有効な場合だけ解析する。
+- 初期実装ではPitchがOFFのため専用解析値が生成されず、軸と凡例だけで値が表示されなかった。OFF時または専用解析前は既存Monitorの64帯域Input／Outputスペクトルを128帯域へ線形補間して初期表示し、Pitch ON後に専用128帯域値へ自動的に切り替えるよう修正した。OFFへ戻した場合は古い専用値を残さずMonitor値を使う。
+- Output／Muffleと同じ選択Objectレイヤー取得と有効音声レイヤーへのフォールバックを使う。Controllerは再生中に連続更新せず、エフェクター選択や選択Object再取得など既存の更新時だけスペクトルをスナップショットする。
+- `Aul2AudioFilter.dpr` / `.dproj` と `Aul2AudioController.dpr` / `.dproj` にPitch専用共有ユニットを追加し、Controller側へPitchグラフを統合した。Filter／ControllerのRelease Win64ビルドは警告0、エラー0で成功し、`.auf2` / `.aux2` へ反映した。
+- ユーザー実機確認により、初期スペクトル表示、Monitorとの配色、高解像度の前後形状、Pitch Only +7.9 semitone時にOutputがInputより高周波側へ移動する表示が正常であることを確認し、`Pitch` 表示を完成扱いとした。

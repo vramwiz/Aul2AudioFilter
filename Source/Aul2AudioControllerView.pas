@@ -46,12 +46,14 @@ uses
   Aul2AudioControllerMuffleGraph,
   Aul2AudioControllerNoiseGateGraph,
   Aul2AudioControllerOutputGraph,
+  Aul2AudioControllerPitchGraph,
   Aul2AudioControllerSync,
   Aul2AudioControllerVolumeControl,
   Aul2AudioBasePanel,
   Aul2AudioPresetPanel,
   Aul2AudioMonitorShared,
-  Aul2AudioMonitorSpectrumShared;
+  Aul2AudioMonitorSpectrumShared,
+  Aul2AudioPitchSpectrumShared;
 
 const
   CONTROLLER_PRESET_ITEM_INDEX = CONTROLLER_EFFECT_COUNT;
@@ -118,8 +120,10 @@ var
   LimiterGraph    : TAul2ControllerLimiterGraph;
   OutputGraph     : TAul2ControllerOutputGraph;
   MuffleGraph     : TAul2ControllerMuffleGraph;
+  PitchGraph      : TAul2ControllerPitchGraph;
   MonitorMemory   : TAul2AudioMonitorSharedMemory;
   SpectrumMemory  : TAul2AudioMonitorSpectrumSharedMemory;
+  PitchSpectrumMemory: TAul2AudioPitchSpectrumSharedMemory;
   VolumeControls : array[0..CONTROLLER_MAX_VOLUME_COUNT - 1] of TAul2VolumeControl;
   MouseTimer     : TTimer;
   EventTarget    : TControllerEventTarget;
@@ -463,6 +467,106 @@ begin
     (State^.UpdateTick > 0);
 end;
 
+function PitchSpectrumStateUsable(State: PAul2AudioPitchSpectrumState;
+  Layer: Integer): Boolean;
+begin
+  Result := (State <> nil) and
+    (State^.Magic = AUDIO_PITCH_SPECTRUM_SHARED_MAGIC) and
+    (State^.Version = AUDIO_PITCH_SPECTRUM_SHARED_VERSION) and
+    (State^.SourceLayer = Layer) and (State^.BandCount > 0) and
+    (State^.UpdateTick > 0);
+end;
+
+procedure UpdatePitchGraph(ChangedIndex: Integer = -1;
+  const ChangedValueText: string = '');
+var
+  Fraction: Double;
+  Index: Integer;
+  Layer: Integer;
+  MonitorIndex: Integer;
+  MonitorNext: Integer;
+  MonitorPosition: Double;
+  MonitorState: PAul2AudioMonitorSpectrumState;
+  PitchInput: TAudioPitchSpectrumData;
+  PitchOutput: TAudioPitchSpectrumData;
+  State: PAul2AudioPitchSpectrumState;
+  Values: array[0..6] of Double;
+begin
+  if not Assigned(PitchGraph) or not Assigned(EffectCombo) or
+     (EffectCombo.ItemIndex <> 9) then
+    Exit;
+  for Index := Low(Values) to High(Values) do
+    if Assigned(VolumeControls[Index]) then
+      Values[Index] := VolumeControls[Index].Value
+    else
+      Values[Index] := 0;
+  if (ChangedIndex >= Low(Values)) and (ChangedIndex <= High(Values)) then
+    TryStrToFloat(ChangedValueText, Values[ChangedIndex], FormatSettings);
+  PitchGraph.SetPitch(ModeCombo.ItemIndex, Values[0], Values[2], Values[4],
+    Values[6], Assigned(UseLamp) and UseLamp.Checked);
+
+  if not CaptureSelectedObjectLayer(Layer) or (Layer < 0) or
+     (Layer > AUDIO_MONITOR_LAYER_SLOT_LAST) then
+  begin
+    PitchGraph.ClearSpectrum;
+    Exit;
+  end;
+  State := nil;
+  // OFF時は以前の専用解析値を残さず、常に現在のMonitor値を使う。
+  if Assigned(UseLamp) and UseLamp.Checked and
+     Assigned(PitchSpectrumMemory) then
+  begin
+    State := PitchSpectrumMemory.GetStateForLayer(Layer);
+    if not PitchSpectrumStateUsable(State, Layer) then
+    begin
+      State := PitchSpectrumMemory.State;
+      if State <> nil then
+        Layer := State^.SourceLayer;
+    end;
+  end;
+  if Assigned(UseLamp) and UseLamp.Checked and
+     PitchSpectrumStateUsable(State, Layer) then
+  begin
+    PitchGraph.SetSpectrum(State^.InputBands, State^.OutputBands,
+      State^.BandCount, State^.MinHz, State^.MaxHz);
+    Exit;
+  end;
+
+  // PitchがOFFまたは専用解析前なら、Monitorの64バンドを128バンドへ
+  // 線形補間して初期表示する。専用値が得られた後は上の経路へ切り替わる。
+  MonitorState := nil;
+  if Assigned(SpectrumMemory) then
+    MonitorState := SpectrumMemory.GetStateForLayer(Layer);
+  if not MuffleSpectrumStateUsable(MonitorState, Layer) and
+     Assigned(SpectrumMemory) then
+  begin
+    MonitorState := SpectrumMemory.State;
+    if MonitorState <> nil then
+      Layer := MonitorState^.SourceLayer;
+  end;
+  if not MuffleSpectrumStateUsable(MonitorState, Layer) then
+  begin
+    PitchGraph.ClearSpectrum;
+    Exit;
+  end;
+  for Index := 0 to AUDIO_PITCH_SPECTRUM_BAND_LAST do
+  begin
+    MonitorPosition := Index * (MonitorState^.BandCount - 1) /
+      Max(1, AUDIO_PITCH_SPECTRUM_BAND_COUNT - 1);
+    MonitorIndex := EnsureRange(Floor(MonitorPosition), 0,
+      MonitorState^.BandCount - 1);
+    MonitorNext := Min(MonitorState^.BandCount - 1, MonitorIndex + 1);
+    Fraction := MonitorPosition - MonitorIndex;
+    PitchInput[Index] := MonitorState^.InputBands[MonitorIndex] *
+      (1.0 - Fraction) + MonitorState^.InputBands[MonitorNext] * Fraction;
+    PitchOutput[Index] := MonitorState^.OutputBands[MonitorIndex] *
+      (1.0 - Fraction) + MonitorState^.OutputBands[MonitorNext] * Fraction;
+  end;
+  PitchGraph.SetSpectrum(PitchInput, PitchOutput,
+    AUDIO_PITCH_SPECTRUM_BAND_COUNT, MonitorState^.MinHz,
+    MonitorState^.MaxHz);
+end;
+
 procedure UpdateMuffleGraph(ChangedIndex: Integer = -1;
   const ChangedValueText: string = '');
 var
@@ -611,6 +715,7 @@ begin
   UpdateBitCrusherGraph(ChangedIndex, ChangedValueText);
   UpdateNoiseGateGraph(ChangedIndex, ChangedValueText);
   UpdateLimiterGraph(ChangedIndex, ChangedValueText);
+  UpdatePitchGraph(ChangedIndex, ChangedValueText);
   UpdateMuffleGraph(ChangedIndex, ChangedValueText);
   UpdateOutputGraph;
 end;
@@ -655,6 +760,7 @@ begin
   LimiterGraph.Visible := False;
   OutputGraph.Visible := False;
   MuffleGraph.Visible := False;
+  PitchGraph.Visible := False;
   SyncMessageLabel.SetBounds(LeftMargin, Scale(42), ContentWidth,
     Max(Scale(72), RootPanel.ClientHeight - Scale(54)));
   if IsBasePanelSelected then
@@ -718,7 +824,7 @@ begin
   GraphWidth := Min(Scale(300), ContentWidth);
   GraphHeight := Scale(150);
   GraphLeft := LeftMargin + (ContentWidth - GraphWidth) div 2;
-  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 4, 6, 11, 14, 18, 19]) and
+  if ControllerSynchronized and (EffectCombo.ItemIndex in [0, 1, 2, 4, 6, 9, 11, 14, 18, 19]) and
      (GraphWidth >= Scale(180)) and
      (GraphTop + GraphHeight + Scale(6) <= RootPanel.ClientHeight) then
   begin
@@ -751,6 +857,11 @@ begin
     begin
       NoiseGateGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
       NoiseGateGraph.Visible := True;
+    end
+    else if EffectCombo.ItemIndex = 9 then
+    begin
+      PitchGraph.SetBounds(GraphLeft, GraphTop, GraphWidth, GraphHeight);
+      PitchGraph.Visible := True;
     end
     else if EffectCombo.ItemIndex = 11 then
     begin
@@ -795,6 +906,7 @@ begin
   LimiterGraph.Visible := False;
   OutputGraph.Visible := False;
   MuffleGraph.Visible := False;
+  PitchGraph.Visible := False;
   SyncMessageLabel.Visible := True;
   SyncMessageLabel.BringToFront;
 end;
@@ -850,6 +962,7 @@ begin
   LimiterGraph.Invalidate;
   OutputGraph.Invalidate;
   MuffleGraph.Invalidate;
+  PitchGraph.Invalidate;
   RootPanel.Update;
 end;
 
@@ -879,6 +992,7 @@ begin
       LimiterGraph.Visible := False;
       OutputGraph.Visible := False;
       MuffleGraph.Visible := False;
+      PitchGraph.Visible := False;
       PresetPanel.Visible := False;
       BasePanel.Visible := True;
       BasePanel.BringToFront;
@@ -907,6 +1021,7 @@ begin
       LimiterGraph.Visible := False;
       OutputGraph.Visible := False;
       MuffleGraph.Visible := False;
+      PitchGraph.Visible := False;
       BasePanel.Visible := False;
       PresetPanel.Visible := True;
       PresetPanel.BringToFront;
@@ -1387,8 +1502,15 @@ begin
   MuffleGraph.Visible := False;
   RegisterMouseEnter(MuffleGraph);
 
+  PitchGraph := TAul2ControllerPitchGraph.Create(ControllerForm);
+  PitchGraph.Font.Assign(ControllerForm.Font);
+  PitchGraph.Parent := RootPanel;
+  PitchGraph.Visible := False;
+  RegisterMouseEnter(PitchGraph);
+
   MonitorMemory := TAul2AudioMonitorSharedMemory.Create;
   SpectrumMemory := TAul2AudioMonitorSpectrumSharedMemory.Create;
+  PitchSpectrumMemory := TAul2AudioPitchSpectrumSharedMemory.Create;
 
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
   begin
@@ -1484,6 +1606,7 @@ begin
   end;
 
   FreeAndNil(MouseTimer);
+  FreeAndNil(PitchSpectrumMemory);
   FreeAndNil(SpectrumMemory);
   FreeAndNil(MonitorMemory);
   FreeAndNil(ControllerForm);
@@ -1510,11 +1633,13 @@ begin
   LimiterGraph := nil;
   OutputGraph := nil;
   MuffleGraph := nil;
+  PitchGraph := nil;
   for ControlIndex := Low(VolumeControls) to High(VolumeControls) do
     VolumeControls[ControlIndex] := nil;
   MouseTimer := nil;
   MonitorMemory := nil;
   SpectrumMemory := nil;
+  PitchSpectrumMemory := nil;
   EventTarget := nil;
   MouseInside := False;
   Refreshing := False;
