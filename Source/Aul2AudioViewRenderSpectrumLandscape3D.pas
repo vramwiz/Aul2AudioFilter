@@ -43,6 +43,15 @@ begin
       Result := Max(Result, History[Row][Band]);
 end;
 
+function BandsPeak(const Bands: TAudioMonitorSpectrumData): Single;
+var
+  Band: Integer;
+begin
+  Result := 0.0;
+  for Band := 0 to AUDIO_MONITOR_SPECTRUM_BAND_LAST do
+    Result := Max(Result, Bands[Band]);
+end;
+
 procedure CopyHistory(const Source: TAudioViewSpectrumHistory;
   out Dest: TAudioViewSpectrumHistory);
 var
@@ -70,9 +79,11 @@ begin
 end;
 
 procedure ResolvePlaybackFlow(var History: TAudioViewSpectrumHistory;
-  var Valid: Boolean; CurrentFrame, SourceLayer, MaxRows: Integer);
+  var Valid: Boolean; const CurrentBands: TAudioMonitorSpectrumData;
+  CurrentValid: Boolean; CurrentFrame, SourceLayer, MaxRows: Integer);
 var
-  CurrentBands: TAudioMonitorSpectrumData;
+  NewBands: TAudioMonitorSpectrumData;
+  CurrentHasSignal: Boolean;
   Step: Integer;
   AdvanceCount: Integer;
 begin
@@ -87,14 +98,15 @@ begin
   if GetViewEditState = 0 then
     Exit;
 
-  FillChar(CurrentBands, SizeOf(CurrentBands), 0);
-  if Valid and (Length(History) > 0) then
-    CurrentBands := History[0];
+  FillChar(NewBands, SizeOf(NewBands), 0);
+  CurrentHasSignal := CurrentValid and (BandsPeak(CurrentBands) > 0.0001);
+  if CurrentHasSignal then
+    NewBands := CurrentBands;
 
   if (FlowLastFrame < 0) or (CurrentFrame < FlowLastFrame) or
      (CurrentFrame - FlowLastFrame > MaxRows) then
   begin
-    if Valid then
+    if CurrentHasSignal and Valid then
       CopyHistory(History, FlowHistory)
     else
       SetLength(FlowHistory, 0);
@@ -105,17 +117,22 @@ begin
     AdvanceCount := Min(MaxRows, CurrentFrame - FlowLastFrame);
     // 無音もゼロ高の新しい断面として追加し、古い有音地形を一列ずつ奥へ送る。
     for Step := 1 to AdvanceCount do
-      PushFlowRow(CurrentBands, MaxRows);
+      PushFlowRow(NewBands, MaxRows);
     FlowLastFrame := CurrentFrame;
   end
   else if Length(FlowHistory) > 0 then
     // 同一フレームの再描画では列を増やさず、先頭断面だけ最新値へ更新する。
-    FlowHistory[0] := CurrentBands;
+    FlowHistory[0] := NewBands;
 
   if Length(FlowHistory) > 0 then
   begin
     CopyHistory(FlowHistory, History);
     Valid := True;
+  end
+  else
+  begin
+    SetLength(History, 0);
+    Valid := False;
   end;
 end;
 
@@ -209,7 +226,15 @@ begin
     CurrentMinHz, CurrentMaxHz, CurrentFrame, Settings.SourceLayer);
   if (not CurrentValid) and (GetViewEditState = 0) then
     UpdateViewSpectrumLatestForEdit(Settings.Smooth, CurrentBands, CurrentValid,
-      CurrentMinHz, CurrentMaxHz, Settings.SourceLayer);
+      CurrentMinHz, CurrentMaxHz, CurrentFrame, Settings.SourceLayer);
+  if (GetViewEditState = 0) and
+     ((not CurrentValid) or (BandsPeak(CurrentBands) <= 0.0001)) then
+  begin
+    Result := True;
+    if Assigned(Video^.SetDefaultAnchor) then
+      Video^.SetDefaultAnchor(Video^.Object_^.Width, Video^.Object_^.Height);
+    Exit;
+  end;
   if CurrentValid then
   begin
     if Length(History) = 0 then
@@ -219,10 +244,16 @@ begin
     SourceMinHz := CurrentMinHz;
     SourceMaxHz := CurrentMaxHz;
   end;
-  ResolvePlaybackFlow(History, Valid, CurrentFrame, Settings.SourceLayer, RequestedRows);
+  ResolvePlaybackFlow(History, Valid, CurrentBands, CurrentValid,
+    CurrentFrame, Settings.SourceLayer, RequestedRows);
   ResolveEditHistory(History, Valid, SourceMinHz, SourceMaxHz, Settings.SourceLayer);
-  if not Valid or (Length(History) = 0) then
+  if (not Valid) or (Length(History) = 0) or (HistoryPeak(History) <= 0.0001) then
+  begin
+    Result := True;
+    if Assigned(Video^.SetDefaultAnchor) then
+      Video^.SetDefaultAnchor(Video^.Object_^.Width, Video^.Object_^.Height);
     Exit;
+  end;
 
   // 履歴が1件だけの編集時も形状を確認できるよう、同じ断面を最低2列として描く。
   RowCount := Max(2, Length(History));
@@ -242,6 +273,8 @@ begin
     SetLength(Vertices, RowCount * (BandCount - 1) * 4);
     for Row := 0 to RowCount - 1 do
     begin
+      if BandsPeak(History[Min(Row, Length(History) - 1)]) <= 0.0001 then
+        Continue;
       ZCenter := (Row - (RowCount - 1) * 0.5) * DepthStep;
       Z0 := ZCenter - StripDepth * 0.5;
       Z1 := ZCenter + StripDepth * 0.5;
@@ -271,6 +304,9 @@ begin
     for Row := 0 to RowCount - 2 do
     begin
       NextRow := Min(Row + 1, Length(History) - 1);
+      if (BandsPeak(History[Min(Row, Length(History) - 1)]) <= 0.0001) or
+         (BandsPeak(History[NextRow]) <= 0.0001) then
+        Continue;
       Z0 := (Row - (RowCount - 1) * 0.5) * DepthStep;
       Z1 := ((Row + 1) - (RowCount - 1) * 0.5) * DepthStep;
       for Band := 0 to BandCount - 2 do
@@ -301,7 +337,14 @@ begin
     end;
   end;
 
-  Result := Video^.DrawPoly(VERTEX_QUAD_COLOR, @Vertices[0], Length(Vertices), nil) <> 0;
+  if VertexIndex <= 0 then
+  begin
+    Result := True;
+    if Assigned(Video^.SetDefaultAnchor) then
+      Video^.SetDefaultAnchor(Video^.Object_^.Width, Video^.Object_^.Height);
+    Exit;
+  end;
+  Result := Video^.DrawPoly(VERTEX_QUAD_COLOR, @Vertices[0], VertexIndex, nil) <> 0;
   if Result and Assigned(Video^.SetDefaultAnchor) then
     Video^.SetDefaultAnchor(Video^.Object_^.Width, Video^.Object_^.Height);
 end;

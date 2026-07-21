@@ -80,9 +80,11 @@ begin
 end;
 
 procedure ResolvePlaybackFlow(var History: TAudioViewWaveHistory; var Valid: Boolean;
+  const CurrentWave: TAudioMonitorWaveData; CurrentValid: Boolean;
   CurrentFrame, SourceLayer, MaxRows: Integer);
 var
-  CurrentWave: TAudioMonitorWaveData;
+  NewWave: TAudioMonitorWaveData;
+  CurrentHasSignal: Boolean;
   Step: Integer;
   AdvanceCount: Integer;
 begin
@@ -97,14 +99,15 @@ begin
   if GetViewEditState = 0 then
     Exit;
 
-  FillChar(CurrentWave, SizeOf(CurrentWave), 0);
-  if Valid and (Length(History) > 0) then
-    CurrentWave := History[0];
+  FillChar(NewWave, SizeOf(NewWave), 0);
+  CurrentHasSignal := CurrentValid and (WavePeak(CurrentWave) > 0.0001);
+  if CurrentHasSignal then
+    NewWave := CurrentWave;
 
   if (FlowLastFrame < 0) or (CurrentFrame < FlowLastFrame) or
      (CurrentFrame - FlowLastFrame > MaxRows) then
   begin
-    if Valid then
+    if CurrentHasSignal and Valid then
       CopyHistory(History, FlowHistory)
     else
       SetLength(FlowHistory, 0);
@@ -115,16 +118,21 @@ begin
     AdvanceCount := Min(MaxRows, CurrentFrame - FlowLastFrame);
     // 無音もゼロ断面として追加し、有音断面を一列ずつ奥へ送る。
     for Step := 1 to AdvanceCount do
-      PushFlowWave(CurrentWave, MaxRows);
+      PushFlowWave(NewWave, MaxRows);
     FlowLastFrame := CurrentFrame;
   end
   else if Length(FlowHistory) > 0 then
-    FlowHistory[0] := CurrentWave;
+    FlowHistory[0] := NewWave;
 
   if Length(FlowHistory) > 0 then
   begin
     CopyHistory(FlowHistory, History);
     Valid := True;
+  end
+  else
+  begin
+    SetLength(History, 0);
+    Valid := False;
   end;
 end;
 
@@ -239,6 +247,8 @@ var
   RequestedRows: Integer;
   RowCount: Integer;
   Row: Integer;
+  FirstActiveRow: Integer;
+  LastActiveRow: Integer;
   NextRow: Integer;
   Index: Integer;
   NextIndex: Integer;
@@ -263,9 +273,17 @@ begin
 
   UpdateViewWave(Settings.Smooth, Wave, WaveMin, WaveMax, WaveValid,
     CurrentFrame, Settings.SourceLayer);
-  if (GetViewEditState = 0) and ((not WaveValid) or (WavePeak(Wave) <= 0.0001)) then
+  if (GetViewEditState = 0) and (not WaveValid) then
     UpdateViewWaveLatestForEdit(Settings.Smooth, Wave, WaveMin, WaveMax,
-      WaveValid, Settings.SourceLayer);
+      WaveValid, CurrentFrame, Settings.SourceLayer);
+  if (GetViewEditState = 0) and
+     ((not WaveValid) or (WavePeak(Wave) <= 0.0001)) then
+  begin
+    Result := True;
+    if Assigned(Video^.SetDefaultAnchor) then
+      Video^.SetDefaultAnchor(Video^.Object_^.Width, Video^.Object_^.Height);
+    Exit;
+  end;
 
   Count := Max(8, Min(128, Settings.Density));
   RequestedRows := Max(8, Min(32, Settings.Density));
@@ -279,14 +297,35 @@ begin
     History[0] := Wave;
     HistoryValid := True;
   end;
-  ResolvePlaybackFlow(History, HistoryValid, CurrentFrame, Settings.SourceLayer,
-    RequestedRows);
+  ResolvePlaybackFlow(History, HistoryValid, Wave, WaveValid,
+    CurrentFrame, Settings.SourceLayer, RequestedRows);
   ResolveEditHistory(History, Settings.SourceLayer);
-  if Length(History) = 0 then
+  if (Length(History) = 0) or (HistoryPeak(History) <= 0.0001) then
+  begin
+    Result := True;
+    if Assigned(Video^.SetDefaultAnchor) then
+      Video^.SetDefaultAnchor(Video^.Object_^.Width, Video^.Object_^.Height);
     Exit;
+  end;
   SmoothWaveHistory(History, Settings.Smooth);
 
   RowCount := Max(2, Length(History));
+  FirstActiveRow := -1;
+  LastActiveRow := -1;
+  for Row := 0 to RowCount - 1 do
+    if WavePeak(History[Min(Row, Length(History) - 1)]) > 0.0001 then
+    begin
+      if FirstActiveRow < 0 then
+        FirstActiveRow := Row;
+      LastActiveRow := Row;
+    end;
+  if FirstActiveRow < 0 then
+  begin
+    Result := True;
+    if Assigned(Video^.SetDefaultAnchor) then
+      Video^.SetDefaultAnchor(Video^.Object_^.Width, Video^.Object_^.Height);
+    Exit;
+  end;
   MinSize := Min(Video^.Object_^.Width, Video^.Object_^.Height);
   BaseRadius := Max(16.0, MinSize * Max(0, Min(100, Settings.BaseRadius)) / 200.0);
   Amplitude := MinSize * 0.18;
@@ -309,6 +348,8 @@ begin
     SetLength(Vertices, RowCount * Count * 16);
     for Row := 0 to RowCount - 1 do
     begin
+      if WavePeak(History[Min(Row, Length(History) - 1)]) <= 0.0001 then
+        Continue;
       ZCenter := (Row - (RowCount - 1) * 0.5) * DepthStep;
       Z0 := ZCenter - RingDepth * 0.5;
       Z1 := ZCenter + RingDepth * 0.5;
@@ -353,6 +394,9 @@ begin
     for Row := 0 to RowCount - 2 do
     begin
       NextRow := Min(Row + 1, Length(History) - 1);
+      if (WavePeak(History[Min(Row, Length(History) - 1)]) <= 0.0001) or
+         (WavePeak(History[NextRow]) <= 0.0001) then
+        Continue;
       Z0 := (Row - (RowCount - 1) * 0.5) * DepthStep;
       Z1 := ((Row + 1) - (RowCount - 1) * 0.5) * DepthStep;
       for Index := 0 to Count - 1 do
@@ -384,21 +428,21 @@ begin
     end;
 
     // 手前側と奥側を環状の面で閉じ、Thickness変更を端面でも確認できるようにする。
-    Z0 := -(RowCount - 1) * 0.5 * DepthStep;
-    Z1 := (RowCount - 1) * 0.5 * DepthStep;
+    Z0 := (FirstActiveRow - (RowCount - 1) * 0.5) * DepthStep;
+    Z1 := (LastActiveRow - (RowCount - 1) * 0.5) * DepthStep;
     for Index := 0 to Count - 1 do
     begin
       NextIndex := (Index + 1) mod Count;
       Angle0 := -Pi / 2.0 + (2.0 * Pi * Index / Count);
       Angle1 := -Pi / 2.0 + (2.0 * Pi * (Index + 1) / Count);
       Radius00 := Max(HalfWidth + 1.0, BaseRadius +
-        SampleWave(History[0], Index, Count) * Amplitude);
+        SampleWave(History[Min(FirstActiveRow, Length(History) - 1)], Index, Count) * Amplitude);
       Radius01 := Max(HalfWidth + 1.0, BaseRadius +
-        SampleWave(History[0], NextIndex, Count) * Amplitude);
+        SampleWave(History[Min(FirstActiveRow, Length(History) - 1)], NextIndex, Count) * Amplitude);
       Radius10 := Max(HalfWidth + 1.0, BaseRadius +
-        SampleWave(History[Length(History) - 1], Index, Count) * Amplitude);
+        SampleWave(History[Min(LastActiveRow, Length(History) - 1)], Index, Count) * Amplitude);
       Radius11 := Max(HalfWidth + 1.0, BaseRadius +
-        SampleWave(History[Length(History) - 1], NextIndex, Count) * Amplitude);
+        SampleWave(History[Min(LastActiveRow, Length(History) - 1)], NextIndex, Count) * Amplitude);
 
       GetViewColor(Settings, Index, Count, R, G, B);
       SetRingPoint(P0, Angle0, Radius00 - HalfWidth, Z0);
@@ -417,9 +461,14 @@ begin
     end;
   end;
 
-  if Length(Vertices) = 0 then
+  if VertexIndex <= 0 then
+  begin
+    Result := True;
+    if Assigned(Video^.SetDefaultAnchor) then
+      Video^.SetDefaultAnchor(Video^.Object_^.Width, Video^.Object_^.Height);
     Exit;
-  Result := Video^.DrawPoly(VERTEX_QUAD_COLOR, @Vertices[0], Length(Vertices), nil) <> 0;
+  end;
+  Result := Video^.DrawPoly(VERTEX_QUAD_COLOR, @Vertices[0], VertexIndex, nil) <> 0;
   if Result and Assigned(Video^.SetDefaultAnchor) then
     Video^.SetDefaultAnchor(Video^.Object_^.Width, Video^.Object_^.Height);
 end;

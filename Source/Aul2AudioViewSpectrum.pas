@@ -20,7 +20,8 @@ procedure UpdateViewSpectrum(Smooth: Integer; out Bands: TAudioMonitorSpectrumDa
   CurrentFrame, SourceLayer: Integer);
 // 編集時に同期履歴がない場合、指定レイヤーの最新スペクトラムを返す。
 procedure UpdateViewSpectrumLatestForEdit(Smooth: Integer; out Bands: TAudioMonitorSpectrumData;
-  out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single; SourceLayer: Integer);
+  out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single;
+  CurrentFrame, SourceLayer: Integer);
 // Monitorが通知した編集状態を返す。0=Edit、1=Play、2=Encode。
 function GetViewEditState: Integer;
 // 現在フレーム以前の同一レイヤーのスペクトラムを新しい順で返す。
@@ -341,7 +342,7 @@ begin
   if (Count = 0) and (GetViewEditState = 0) then
   begin
     State := SpectrumMemory.GetStateForLayer(InternalLayer);
-    if SpectrumStateUsable(State) then
+    if SpectrumStateUsable(State) and StateMatchesFrame(State, CurrentFrame) then
     begin
       Entries[0].Frame := StateDisplayFrame(State);
       Entries[0].UpdateTick := State^.UpdateTick;
@@ -374,7 +375,8 @@ begin
 end;
 
 procedure UpdateViewSpectrumLatestForEdit(Smooth: Integer; out Bands: TAudioMonitorSpectrumData;
-  out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single; SourceLayer: Integer);
+  out Valid: Boolean; out SourceMinHz, SourceMaxHz: Single;
+  CurrentFrame, SourceLayer: Integer);
 var
   State: PAul2AudioMonitorSpectrumState;
   Band: Integer;
@@ -395,7 +397,7 @@ begin
     State := SpectrumMemory.State
   else
     State := SpectrumMemory.GetStateForLayer(InternalLayer);
-  if not SpectrumStateUsable(State) then
+  if not SpectrumStateUsable(State) or not StateMatchesFrame(State, CurrentFrame) then
     Exit;
 
   SourceMinHz := Max(1.0, State^.MinHz);

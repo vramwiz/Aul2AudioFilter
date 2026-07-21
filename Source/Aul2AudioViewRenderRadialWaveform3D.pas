@@ -159,10 +159,16 @@ begin
 
   UpdateViewWave(Settings.Smooth, Wave, WaveMin, WaveMax, WaveValid,
     CurrentFrame, Settings.SourceLayer);
-  if (GetViewEditState = 0) and ((not WaveValid) or (WavePeak(Wave) <= 0.0001)) then
+  if (GetViewEditState = 0) and (not WaveValid) then
     UpdateViewWaveLatestForEdit(Settings.Smooth, Wave, WaveMin, WaveMax,
-      WaveValid, Settings.SourceLayer);
-  ResolveEditWave(Wave, WaveValid, Settings.SourceLayer);
+      WaveValid, CurrentFrame, Settings.SourceLayer);
+  if (not WaveValid) or (WavePeak(Wave) <= 0.0001) then
+  begin
+    Result := True;
+    if Assigned(Video^.SetDefaultAnchor) then
+      Video^.SetDefaultAnchor(Video^.Object_^.Width, Video^.Object_^.Height);
+    Exit;
+  end;
 
   Count := Max(8, Min(128, Settings.Density));
   MinSize := Min(Video^.Object_^.Width, Video^.Object_^.Height);

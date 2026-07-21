@@ -132,10 +132,12 @@ var
   PlotRight: Integer;
   PlotTop: Integer;
   PlotWidth: Integer;
+  SavedDC: Integer;
   SectionGap: Integer;
   SectionHeight: Integer;
   TopCenter: Integer;
   BottomCenter: Integer;
+  WaveHalfHeight: Integer;
 
   function SampleToX(Index: Integer): Integer;
   begin
@@ -147,7 +149,7 @@ var
   function WaveToY(Value, Peak: Double; CenterY: Integer): Integer;
   begin
     Result := CenterY - Round(EnsureRange(Value / Max(Peak, 0.000001),
-      -1.0, 1.0) * (SectionHeight div 2 - 2));
+      -1.0, 1.0) * WaveHalfHeight);
   end;
 
   function ScaleText(Peak: Double): string;
@@ -205,6 +207,9 @@ begin
   SectionHeight := Max(8, (PlotBottom - PlotTop - SectionGap) div 2);
   TopCenter := PlotTop + SectionHeight div 2;
   BottomCenter := PlotTop + SectionHeight + SectionGap + SectionHeight div 2;
+  // 自動スケールした波形が枠の全高を埋めると、ラベルや隣の段へ
+  // 重なって見えるため、上下に十分な余白を残す。
+  WaveHalfHeight := Max(2, (SectionHeight div 2 - 2) * 13 div 20);
 
   Canvas.Pen.Width := 1;
   Canvas.Pen.Color := NOISE_GRAPH_BORDER;
@@ -262,25 +267,39 @@ begin
 
   Canvas.Pen.Width := 1;
   Canvas.Pen.Color := ScaleColor(NOISE_GRAPH_INPUT, 78, 100);
-  Canvas.Polyline(InputPoints);
-  Canvas.Pen.Color := ScaleColor(NOISE_GRAPH_OUTPUT, 88, 100);
-  Canvas.Polyline(OutputPoints);
-  Canvas.Pen.Width := Max(1, MulDiv(2, Max(96, CurrentPPI), 96));
+  SavedDC := SaveDC(Canvas.Handle);
+  try
+    IntersectClipRect(Canvas.Handle, PlotLeft + 1, PlotTop + 1,
+      PlotRight, PlotTop + SectionHeight);
+    Canvas.Polyline(InputPoints);
+    Canvas.Pen.Color := ScaleColor(NOISE_GRAPH_OUTPUT, 88, 100);
+    Canvas.Polyline(OutputPoints);
+  finally
+    RestoreDC(Canvas.Handle, SavedDC);
+  end;
+  Canvas.Pen.Width := 1;
   Canvas.Pen.Color := FAccentColor;
   if not FActive then
     Canvas.Pen.Color := ScaleColor(FAccentColor, 45, 100);
-  Canvas.Polyline(DifferencePoints);
+  SavedDC := SaveDC(Canvas.Handle);
+  try
+    IntersectClipRect(Canvas.Handle, PlotLeft + 1,
+      PlotTop + SectionHeight + SectionGap + 1, PlotRight, PlotBottom);
+    Canvas.Polyline(DifferencePoints);
+  finally
+    RestoreDC(Canvas.Handle, SavedDC);
+  end;
 
-  DrawBackedText(PlotLeft + 4, PlotTop + 2, 'Input', NOISE_GRAPH_INPUT);
-  DrawBackedText(PlotLeft + 4, PlotTop + 2 + Canvas.TextHeight('0'),
+  DrawBackedText(PlotLeft + 4, PlotTop, 'Input', NOISE_GRAPH_INPUT);
+  DrawBackedText(PlotLeft + 4, PlotTop + Canvas.TextHeight('0'),
     'Output', NOISE_GRAPH_OUTPUT);
   DrawBackedText(PlotRight - Canvas.TextWidth(ScaleText(InputOutputPeak)) - 4,
-    PlotTop + 2, ScaleText(InputOutputPeak),
+    PlotTop, ScaleText(InputOutputPeak),
     ScaleColor(NOISE_GRAPH_TEXT, 72, 100));
-  DrawBackedText(PlotLeft + 4, PlotTop + SectionHeight + SectionGap + 2,
+  DrawBackedText(PlotLeft + 4, PlotTop + SectionHeight + SectionGap,
     'Difference (Output - Input)', FAccentColor);
   DrawBackedText(PlotRight - Canvas.TextWidth(ScaleText(DifferencePeak)) - 4,
-    PlotTop + SectionHeight + SectionGap + 2, ScaleText(DifferencePeak),
+    PlotTop + SectionHeight + SectionGap, ScaleText(DifferencePeak),
     ScaleColor(NOISE_GRAPH_TEXT, 72, 100));
 end;
 

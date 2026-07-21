@@ -96,7 +96,7 @@
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PostBuildEvent><![CDATA[copy /Y "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll" "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).aux2"&&if exist "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll" del /Q "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).dll"&&if exist "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).rsm" del /Q "C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\$(PROJECTNAME).rsm"]]></PostBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
-        <Debugger_HostApplication>D:\aviutl2beta50\aviutl2.exe</Debugger_HostApplication>
+        <Debugger_HostApplication>D:\aviutl2_v2.1.0\aviutl2.exe</Debugger_HostApplication>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">

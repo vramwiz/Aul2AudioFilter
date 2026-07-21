@@ -264,11 +264,24 @@ begin
     History[0] := CurrentFrameData;
     Valid := True;
   end;
+  if (GetViewEditState = 0) and
+     ((not CurrentValid) or (FramePeak(CurrentFrameData) <= 0.0001)) then
+  begin
+    Result := True;
+    if Assigned(Video^.SetDefaultAnchor) then
+      Video^.SetDefaultAnchor(Video^.Object_^.Width, Video^.Object_^.Height);
+    Exit;
+  end;
   ResolvePlaybackFlow(History, Valid, CurrentFrameData, CurrentValid,
     CurrentFrame, Settings.SourceLayer, RequestedRows);
   ResolveEditHistory(History, Valid, Settings.SourceLayer);
   if not Valid or (Length(History) = 0) then
+  begin
+    Result := True;
+    if Assigned(Video^.SetDefaultAnchor) then
+      Video^.SetDefaultAnchor(Video^.Object_^.Width, Video^.Object_^.Height);
     Exit;
+  end;
   SmoothHistory(History, Settings.Smooth);
 
   RowCount := Max(2, Length(History));

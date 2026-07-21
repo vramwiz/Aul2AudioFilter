@@ -191,8 +191,15 @@ begin
     CurrentFrame, Settings.SourceLayer);
   if (not BandsValid) and (GetViewEditState = 0) then
     UpdateViewSpectrumLatestForEdit(Settings.Smooth, Bands, BandsValid,
-      SourceMinHz, SourceMaxHz, Settings.SourceLayer);
-  ResolveEditBands(Bands, BandsValid, SourceMinHz, SourceMaxHz, Settings.SourceLayer);
+      SourceMinHz, SourceMaxHz, CurrentFrame, Settings.SourceLayer);
+  if (not BandsValid) or (PeakBandValue(Bands) <= 0.0001) then
+  begin
+    // 確定した無音は描画失敗ではなく、透明な3D表示として扱う。
+    Result := True;
+    if Assigned(Video^.SetDefaultAnchor) then
+      Video^.SetDefaultAnchor(Video^.Object_^.Width, Video^.Object_^.Height);
+    Exit;
+  end;
 
   Count := Max(8, Min(128, Settings.Density));
   Radius := Max(16.0, Min(Video^.Object_^.Width, Video^.Object_^.Height) *
@@ -218,7 +225,7 @@ begin
   VertexIndex := 0;
   for Band := 0 to Count - 1 do
   begin
-    Value := Max(0.02, Min(1.0, GetSpectrumDisplayValue(Bands, BandsValid,
+    Value := Max(0.0, Min(1.0, GetSpectrumDisplayValue(Bands, BandsValid,
       SourceMinHz, SourceMaxHz, Settings, Band, Count)));
     Angle := -Pi / 2.0 + (2.0 * Pi * Band / Count);
     GetViewColor(Settings, Band, Count, R, G, B);

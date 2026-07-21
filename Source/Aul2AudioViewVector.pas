@@ -162,7 +162,11 @@ begin
   State := SelectVectorState(CurrentFrame, InternalLayer);
   // 編集停止中は再生フレームと一致する履歴が生成されないため、同じレイヤーの最新値へ戻す。
   if (State = nil) and (GetViewEditState = 0) then
+  begin
     State := FindLatestStateForLayer(InternalLayer);
+    if not StateUsable(State) or not StateMatchesFrame(State, CurrentFrame) then
+      State := nil;
+  end;
   if State = nil then
     Exit;
 
@@ -227,7 +231,11 @@ begin
   begin
     Selected := SelectVectorState(CurrentFrame, InternalLayer);
     if (Selected = nil) and (GetViewEditState = 0) then
+    begin
       Selected := FindLatestStateForLayer(InternalLayer);
+      if not StateUsable(Selected) or not StateMatchesFrame(Selected, CurrentFrame) then
+        Selected := nil;
+    end;
     if not StateUsable(Selected) then
       Exit;
     InternalLayer := Selected^.SourceLayer;
@@ -269,7 +277,7 @@ begin
   if (Count = 0) and (GetViewEditState = 0) then
   begin
     State := FindLatestStateForLayer(InternalLayer);
-    if StateUsable(State) then
+    if StateUsable(State) and StateMatchesFrame(State, CurrentFrame) then
     begin
       Entries[0].Frame := StateDisplayFrame(State);
       Entries[0].UpdateTick := State^.UpdateTick;

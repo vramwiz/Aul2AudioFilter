@@ -19,7 +19,7 @@ procedure UpdateViewWave(Smooth: Integer; out Wave, WaveMin, WaveMax: TAudioMoni
   out Valid: Boolean; CurrentFrame, SourceLayer: Integer);
 // 編集時に同期履歴がない場合、指定レイヤーの最新波形を返す。
 procedure UpdateViewWaveLatestForEdit(Smooth: Integer; out Wave, WaveMin, WaveMax: TAudioMonitorWaveData;
-  out Valid: Boolean; SourceLayer: Integer);
+  out Valid: Boolean; CurrentFrame, SourceLayer: Integer);
 // 現在フレーム以前の同一レイヤーの時間波形を新しい順で返す。
 procedure GetViewWaveHistory(CurrentFrame, SourceLayer, MaxCount: Integer;
   out History: TAudioViewWaveHistory; out Valid: Boolean);
@@ -260,7 +260,7 @@ begin
 end;
 
 procedure UpdateViewWaveLatestForEdit(Smooth: Integer; out Wave, WaveMin, WaveMax: TAudioMonitorWaveData;
-  out Valid: Boolean; SourceLayer: Integer);
+  out Valid: Boolean; CurrentFrame, SourceLayer: Integer);
 var
   State: PAul2AudioMonitorState;
   InternalLayer: Integer;
@@ -280,7 +280,7 @@ begin
     State := WaveMemory.State
   else
     State := WaveMemory.GetStateForLayer(InternalLayer);
-  if not WaveStateUsable(State) then
+  if not WaveStateUsable(State) or not StateMatchesFrame(State, CurrentFrame) then
     Exit;
 
   UpdateDisplayWaveFromState(State, Smooth);
@@ -364,7 +364,7 @@ begin
   if (Count = 0) and (GetWaveEditState = 0) then
   begin
     State := WaveMemory.GetStateForLayer(InternalLayer);
-    if WaveStateUsable(State) then
+    if WaveStateUsable(State) and StateMatchesFrame(State, CurrentFrame) then
     begin
       Entries[0].Frame := StateDisplayFrame(State);
       Entries[0].UpdateTick := State^.UpdateTick;
