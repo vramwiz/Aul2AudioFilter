@@ -112,7 +112,6 @@ var
 {$IFDEF DEBUG}
   MonitorDataRequestKnown: Boolean;
   LastMonitorDataRequested: Boolean;
-  LastMonitorSharedLogTick: UInt64;
 {$ENDIF}
 
 procedure InvalidateMonitorView; forward;
@@ -656,57 +655,6 @@ begin
   Result := SpectrumMemory;
 end;
 
-{$IFDEF DEBUG}
-procedure DebugLogMonitorSharedState;
-const
-  LOG_INTERVAL_MS = 500;
-var
-  Band: Integer;
-  InputSpectrumMax: Single;
-  OutputSpectrumMax: Single;
-  SpectrumState: PAul2AudioMonitorSpectrumState;
-  State: PAul2AudioMonitorState;
-  Tick: UInt64;
-begin
-  Tick := GetTickCount64;
-  if (LastMonitorSharedLogTick <> 0) and
-     (Tick - LastMonitorSharedLogTick < LOG_INTERVAL_MS) then
-    Exit;
-  LastMonitorSharedLogTick := Tick;
-  State := GetMonitorSharedMemory.State;
-  SpectrumState := GetSpectrumSharedMemory.State;
-  if State = nil then
-    DataTriggerDebugLog('Monitor', Format(
-      'read edit=%d frame=%d monitor=nil spectrum=%s',
-      [Ord(MonitorEditState), MonitorFrame,
-       BoolToStr(SpectrumState <> nil, True)]))
-  else if SpectrumState = nil then
-    DataTriggerDebugLog('Monitor', Format(
-      'read edit=%d frame=%d monitor gen=%d tick=%d layer=%d sourceFrame=%d stage=%d spectrum=nil',
-      [Ord(MonitorEditState), MonitorFrame, State^.Generation,
-       State^.UpdateTick, State^.SourceLayer, State^.SourceFrame, State^.Stage]))
-  else
-  begin
-    InputSpectrumMax := 0;
-    OutputSpectrumMax := 0;
-    for Band := 0 to AUDIO_MONITOR_SPECTRUM_BAND_LAST do
-    begin
-      InputSpectrumMax := Max(InputSpectrumMax, SpectrumState^.InputBands[Band]);
-      OutputSpectrumMax := Max(OutputSpectrumMax, SpectrumState^.OutputBands[Band]);
-    end;
-    DataTriggerDebugLog('Monitor', Format(
-      'read edit=%d frame=%d monitor gen=%d tick=%d layer=%d sourceFrame=%d stage=%d rmsIn=%.4f/%.4f rmsOut=%.4f/%.4f spectrum gen=%d tick=%d layer=%d sourceFrame=%d maxIn=%.4f maxOut=%.4f',
-      [Ord(MonitorEditState), MonitorFrame, State^.Generation,
-       State^.UpdateTick, State^.SourceLayer, State^.SourceFrame, State^.Stage,
-       State^.InputRmsL, State^.InputRmsR,
-       State^.OutputRmsL, State^.OutputRmsR,
-       SpectrumState^.Generation, SpectrumState^.UpdateTick,
-       SpectrumState^.SourceLayer, SpectrumState^.SourceFrame,
-       InputSpectrumMax, OutputSpectrumMax]));
-  end;
-end;
-{$ENDIF}
-
 constructor TFormAudioMonitor.Create(AOwner: TComponent);
 begin
   inherited CreateNew(AOwner);
@@ -847,9 +795,6 @@ begin
   if IsEncodingDisplay then
     Exit;
   RefreshMonitorFrame;
-{$IFDEF DEBUG}
-  DebugLogMonitorSharedState;
-{$ENDIF}
   InvalidateMonitorView;
 end;
 
