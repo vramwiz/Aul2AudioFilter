@@ -384,3 +384,9 @@ C:\ProgramData\aviutl2\Plugin\Aul2AudioFilter\Aul2AudioView.auf2
 - Filter 側は `AudioMonitorCaptureOutput` で最新スロットと履歴リングの両方へ書き込む。
 - View / Monitor 側は `SourceFrame` を描画フレーム基準へ正規化し、現在フレームに最も近い履歴を選ぶ。距離が同じ場合のみ `UpdateTick` をタイブレークに使う。
 - 詳細な工程、試行錯誤、検証結果は `HISTORY.md` の `Aul2AudioView / Monitor playback sync completion note` を参照する。
+
+## AviUtl2カタログ登録時の共通ルール
+
+1. **概要は35文字以内。** `Setup/*.catalog.json` の `summary` は、JSONのエスケープ表記ではなく実際の表示文字列を数える。機能の詳細や補足は概要に詰め込まず、説明・READMEに記載する。
+2. **既存タグを優先する。** [公開カタログの `index.json`](https://github.com/Neosku/aviutl2-catalog-data/blob/main/index.json) で、同じ製品や近い用途に使われているタグの表記を確認し、用途を表すものだけを選ぶ。同義語を重ねたり、製品ごとに新しいタグを量産したりしない。
+3. **配布専用フォルダー単位で導入・削除する。** ZIP内を製品専用フォルダーにまとめ、ダウンロード・展開後の配置はフォルダーの `copy` 1件、アンインストールはその専用フォルダーだけを指定する `delete` 1件を基本とする。共有フォルダーや、ユーザー素材・設定を含むフォルダーは一括削除しない。既存パッケージで変更する際は、配布ZIPの配置とセットアップスクリプトの検証条件も確認し、整合しない場合は既存の手順を維持する。
